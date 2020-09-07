@@ -1,0 +1,189 @@
+---
+title: "Session 1 Notebook"
+author: "Brian Roepke"
+date: "Sept 6, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+## Assignment
+
+After installing R and RStudio, do the following exercises using RStudio and R  notebook. It's essential to learn the basics of RStudio, how to start a notebook, and save all your work into an HTML document.
+
+**Note**: As of the latest version of R, the assignment operator <- is interchangeable with = operator.  Use either but don't confuse = with == (equality). Single equal is for assignment while double is to test for equality!
+
+In this course we will use R Studio with R Notebooks (**.RMD file**). Notebooks provides interactive code, output and Markdown documentation, which can be exported in multiple file formats. Your code submissions will be HTML. Watch the video: **R Notebook in RStudio** for details.  (Attached is a notebook template along with its html file. Your notebooks should adhere to the sections for your Name, Date, Project Description, formatted using markdown.
+
+### Part 1
+
+**Perform the coding operations (4: R programming basics)  from this link:**
+
+http://www.sthda.com/english/wiki/r-basics-quick-and-easy
+
+**Basic arithmetic operations:**
+
++ (addition), - (subtraction), * (multiplication), / (division), ^ (exponentiation)
+
+```{r}
+7 + 4
+7 - 4
+7 / 2
+7 * 2
+```
+
+**Basic arithmetic functions:**
+
+* Logarithms and exponentials: log2(x), log10(x), exp(x)
+* Trigonometric functions: cos(x), sin(x), tan(x), acos(x), asin(x), atan(x)
+* Other mathematical functions: abs(x): absolute value; sqrt(x): square root.
+
+```{r}
+log2(4)
+abs(-4)
+sqrt(4)
+```
+
+**Assigning values to variables:**
+
+```{r}
+lemon_price = 2
+```
+
+**Basic data types: numeric, character and logical**
+
+```{r}
+my_age <- 28
+my_name <- "Brian"
+# Are you a data scientist?
+is_datascientist <- TRUE
+```
+
+**Vectors:** a combination of multiple values (numeric, character or logical)
+
+* Create a vector: c() for concatenate
+* Case of missing values: NA (not available) and NaN (not a number)
+* Get a subset of a vector: my_vector[i] to get the ith element
+* Calculations with vectors: max(x), min(x), range(x), length(x), sum(x), mean(x), prod(x): product of the elements in x, sd(x): standard deviation, var(x): variance, sort(x)
+
+```{r}
+# Create a numeric vector
+friend_ages <- c(27, 25, 29, 26)
+mean(friend_ages)
+max(friend_ages)
+```
+
+**Matrices:** like an Excel sheet containing multiple rows and columns. Combination of multiple vectors with the same types (numeric, character or logical).
+
+* Create and naming matrix: matrix(), cbind(), rbind(), rownames(), colnames()
+* Check and convert: is.matrix(), as.matrix()
+* Transpose a matrix: t()
+* Dimensions of a matrix: ncol(), nrow(), dim()
+* Get a subset of a matrix: my_data[row, col]
+* Calculations with numeric matrices: rowSums(), colSums(), rowMeans(), colMeans(), apply()
+
+```{r}
+rownames = c("row1", "row2", "row3", "row4", "row5")
+colnames = c("col1", "col2", "col3")
+M = matrix( 
+   c(5, 6, 7, 8, 9, 2, 4, 5, 9, 8, 7, 3, 4, 8, 7), 
+   nrow=5, 
+   ncol=3,
+   dimnames = list(rownames, colnames)
+   ) 
+print (M)
+```
+
+
+**Factors:** grouping variables in your data
+
+* Create a factor: factor(), levels()
+* Check and convert: is.factor(x), as.factor(x)
+* Calculations with factors:
+  + Number of elements in each category: summary(), table()
+  + Compute some statistics by groups (for example, mean by groups): tapply()
+
+```{r}
+# Create a factor
+friend_groups <- factor(c("grp1", "grp2", "grp1", "grp2"))
+levels(friend_groups)
+```
+
+```{r}
+# Compute the mean age by groups
+friend_ages <- c(27, 25, 29, 26)
+tapply(friend_ages, friend_groups, mean)
+```
+
+**Data frames:** like a matrix but can have columns with different types
+
+* Create a data frame: data.frame()
+* Check and convert: is.data.frame(), as.data.frame()
+* Transpose a data frame: t()
+* Subset a data frame: my_data[row, col], subset(), attach() and detach()
+* Extend a data frame: $, cbind(), rbind()
+* Calculations with numeric data frames: rowSums(), colSums(), rowMeans(), colMeans(), apply()
+
+```{r}
+name = c('Nicolas', 'Thierry', 'Bernard', 'Jerome')
+age = c(27, 25, 29, 26)
+height = c(180, 170, 185, 169)
+married = c(TRUE, FALSE, TRUE, TRUE)
+df = data.frame(name, age, height, married)
+print(df)
+```
+
+
+**Lists:** collection of objects, which can be vectors, matrices, data frames,
+
+* Create a list: list()
+* Subset a list
+* Extend a list
+
+```{r}
+my_family <- list(
+  mother = "Veronique", 
+  father = "Michel",
+  sisters = c("Alicia", "Monica"),
+  sister_age = c(12, 22)
+  )
+# Print
+my_family
+```
+
+Now on your own. Refer to: https://cran.r-project.org/doc/contrib/Short-refcard.pdf for functions for random, sequence and math operations.
+
+### Part 2
+
+**Create a sequence of numbers from 20 to 50 and find the mean of numbers from 20 to 60 and sum of numbers from 51 to 91**
+
+```{r}
+num_seq <- c(20:50)
+num_seq
+```
+
+**Find the mean of numbers from 20 to 60 and sum of numbers from 51 to 91**
+
+```{r}
+mean_seq <- c(20:60)
+mean(mean_seq)
+```
+
+**Sum of numbers from 51 to 91**
+
+```{r}
+sum_seq <- c(51:91)
+sum(sum_seq)  
+```
+
+### Part 3
+
+**Create a vector which contains 10 random integer values between -50 and +50**
+
+```{r}
+# Create the full vector of numbers
+full_vector <- c(-51:50)
+
+# Take a sample of 10 of these numbers
+sample_vector <- sample(full_vector, 10)
+sample_vector
+```
