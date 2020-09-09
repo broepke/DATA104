@@ -1,0 +1,48 @@
+---
+title: "Assignment Title Here"
+author: "Your Name"
+date: "Sept 1, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+# Project Description
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. Create a new R Markdown/Notebook from *File | New File | R Notebook* in the tool bar.
+
+Execute code chunks by clicking the *Run* button (arrow) within the chunk. Execute all chunks via the *Run* menu in the tool bar.
+
+Export/Knit to HTML: click the *Preview | Knit to HTML* to generate an HTML file. The file name is automatically generated as: <ProjectName.html
+
+
+```{r}
+# this is one code chunk. 
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert R* button on the toolbar or simplying copying a chuck specified by ```{r} (beggining) and ``` (end)
+
+Throughout, you should be documenting your analysis using markdown. Refer to the *R Markdown Cheat Sheet* under Resources section at the top of E-Learning. Markdown is anything outside code chunks. Following are some basics.
+
+# Heading 1
+## Heading 2
+### Heading 3
+
+**bold**
+
+*italics*
+
+* unordered list item 1
+* unordered list item 2
+
+## Project setup
+
+```{r}
+# Another chunk with more R code
+
+# clear all objects includes hidden objects from Global Environment
+rm(list = ls(all.names = TRUE)) 
+
+# set working dir if desired so you don't need to specify file path
+#setwd("~/Desktop/GGU/data 104/data")
+```
