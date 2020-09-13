@@ -1,0 +1,87 @@
+---
+title: "Assignment 2B"
+author: "Brian Roepke"
+date: "Sept 13, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+## Project Setup
+
+```{r}
+# clear all objects includes hidden objects from Global Environment
+rm(list = ls(all.names = TRUE)) 
+ls()
+```
+
+**Write a function compute_s_n that for any given n,**
+
+ * Computes the sum: Sn = 1^2 + 2^2 + 3^2 + .. n^2
+ * Report the value of the sum when n = 10. Eg: compute_s_n(10). You can enclose this in the print function
+ * Hint: (1:5)^2 returns: 1 4 9 16 25. This squares each number from 1 to 5. The sum is 55 (1 + 4 +9 +16 +25)
+
+```{r}
+n <- 10
+
+compute_s_n <- function(n){
+  nums <- seq(1:n)
+  total = sum(nums^2)
+}
+```
+
+
+```{r}
+# validate the function returns 55 for the number 5
+print(compute_s_n(5))
+
+# run the funcation with the number 10
+print(compute_s_n(10))
+```
+
+**Define an empty numerical vector s_n of size 25 using s_n <- vector(“numeric”, 25)**
+
+ * store in the results of S1, S2,…S25 using a for-loop
+ 
+```{r}
+m <- 25
+s_n <- vector("numeric", length=m)  # create an empty vector
+
+print ('s_n before assignment')
+print(s_n)
+
+## Add your for loop
+for(i in 1:m){
+ s_n[i] <- i 
+}
+
+# uncomment once you've added the code for the for-loop
+print('s_n contents using for-loop')
+print(s_n)
+```
+ 
+**Repeat the above using sapply**
+
+You will need to create a function, call it m_funct
+ 
+```{r}
+m <- 25
+s_n <- vector("numeric", length=m) 
+
+print ('s_n before assignment')
+print(s_n)
+
+# add code for m_funct
+ m_funct <- function(x){
+   x
+ }
+
+# uncomment once you've defined m_funct
+s_n = sapply(1:25, m_funct)
+print ('s_n after assignment')
+print(s_n)
+```
+
+
+
+
+ 

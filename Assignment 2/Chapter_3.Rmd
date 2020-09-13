@@ -1,0 +1,118 @@
+---
+title: "Scratch"
+output: html_notebook
+---
+
+```{r}
+a <- 0
+
+if(a!=0){
+  print(1/a)
+} else{
+  print("No reciprocal for 0.")
+}
+
+```
+
+```{r}
+library(dslabs)
+data(murders)
+murder_rate <- murders$total / murders$population*100000
+```
+
+```{r}
+ind <- which.min(murder_rate)
+
+if(murder_rate[ind] < 0.5){
+  print(murders$state[ind])
+} else{
+  print("No sate has a murder rate that low")
+}
+```
+
+```{r}
+a <- 2
+ifelse(a > 0, 1/a, NA)
+```
+
+```{r}
+a <- c(0, 1, 2, -4, 5)
+result <- ifelse(a > 0, 1/a, NA)
+result 
+```
+
+```{r}
+data(na_example)
+no_nas <- ifelse(is.na(na_example), 0, na_example) 
+sum(is.na(no_nas))
+```
+
+```{r}
+avg <- function(x){
+  s <- sum(x)
+  n <- length(x)
+  s/n
+}
+```
+
+```{r}
+x <- 1:100
+identical(mean(x), avg(x))
+```
+
+```{r}
+s <- 3
+avg(1:10)
+```
+
+```{r}
+avg <- function(x, arithmetic = TRUE){
+  n <- length(x)
+  ifelse(arithmetic, sum(x)/n, prod(x)^(1/n))
+}
+```
+
+```{r}
+compute_s_n <- function(n){
+  x <- 1:n
+  sum(x)
+}
+```
+
+```{r}
+m <- 25
+s_n <- vector(length = m) # create an empty vector
+for(n in 1:m){
+  s_n[n] <- compute_s_n(n)
+}
+```
+
+```{r}
+n <- 1:m
+plot(n, s_n)
+```
+
+```{r}
+x <- 1:10
+sqrt(x)
+y <- 1:10
+print(x*y)
+```
+
+```{r}
+n <- 1:25
+compute_s_n(n)
+```
+
+```{r}
+x <- 1:10
+sapply(x, sqrt)
+```
+
+```{r}
+n <- 1:25
+s_n <- sapply(n, compute_s_n)
+
+s_n
+```
+

@@ -1,0 +1,171 @@
+---
+title: "Assignment 2A"
+author: "Brian Roepke"
+date: "Sept 13, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+## Project Setup
+
+```{r}
+# clear all objects includes hidden objects from Global Environment
+rm(list = ls(all.names = TRUE)) 
+ls()
+```
+
+
+## Prerequsite
+
+```{r}
+library(dslabs) # load the package library
+
+# Load the US murders dataset from the library
+data(murders)
+```
+
+## Part 1
+
+ * Use function str to examine the structure of murders.
+ * Use head and tail functions to display the top/bottom records.
+ * Use the accessor $ to extract state abbreviations and assign them to an object a. Show the class of a?
+ * Use square brackets to extract state abbreviations and assign them to the object b. Use the identical function to determine if a and b are the same (hint: get usage help: ?identical).
+ * Use levels to show the regions (a factor) then use nlevels function to show the number of regions.
+ * Use the table function to create a table of states per region
+ 
+```{r}
+str(murders)
+```
+ 
+```{r}
+head(murders)
+```
+```{r}
+tail(murders)
+```
+ 
+```{r}
+a <- murders$abb
+
+class(a)
+a
+```
+
+```{r}
+b <- murders[['abb']]
+
+class(b)
+```
+
+```{r}
+identical(a,b)
+```
+
+```{r}
+levels(murders$region)
+nlevels(murders$region)
+```
+
+```{r}
+table(murders$region)
+```
+
+## Part 2
+
+ * Use the c (concatenate) function to create a vector called ‘temp’ containing high temperatures for Beijing, Lagos, Paris, Rio de Janeiro, San Juan, and Toronto with values: 35, 88, 42, 84, 81, and 30. Then print temp and show its class type.
+ * Create a vector called ‘city’ with the city names from temp (hint: use names with the c function). Then print city and show its class type.
+ * Use the [ and : operators to access the temperature of the first 3 cities of ‘temp’.
+ * Use the [ operator to access the temperature of Paris and San Juan.
+ * Use named index to get the temperature of Beijing
+ * Create a sequence called s with numberic values 12,13,14, …,73. Print it and show its class type.
+ * Create the sequence: a = seq(1, 10, 0.5). Then print it and show its class type.
+ * Create the sequence: b = seq(1, 10). Then print it and show its class type.
+ * Define the following vector: x = c(“1”, “3”, “5”) and coerce it to get integers. Show class of x
+ 
+```{r}
+temp <- c('Beijing' = 35, 'Lagos' = 88, 'Paris' = 42, 'Rio de Janeiro' = 84, 'San Juan' = 81,'Toronto' = 30)
+# temp <- c(35, 88, 42, 84, 81, 30)
+temp
+class(temp)
+```
+
+```{r}
+city <- names(temp)
+city
+class(city)
+```
+
+```{r}
+temp[1:3]
+```
+
+```{r}
+temp[3]
+temp[5]
+```
+
+```{r}
+temp['Beijing']
+```
+
+```{r}
+s <- seq(12,73)
+s
+class(s)
+```
+
+```{r}
+a = seq(1, 10, 0.5)
+a
+class(a)
+```
+
+```{r}
+b = seq(1, 10)
+b
+class(b)
+```
+
+```{r}
+x = c("1", "3", "5")
+x
+class(x)
+x <- as.numeric(x)
+class(x)
+```
+
+## Part 3
+
+ * Create a data frame from the following 4 given vectors and display the data frame:
+name: Anastasia, Dima, Katherine, James, Emily, Michael, Matthew, Laura, Kevin, Jonas
+score: 12.5, 9, 16.5, 12, 9, 20, 14.5, 13.5, 8, 19
+attempts: 1, 3, 2, 3, 2, 3, 1, 1, 2, 1
+qualify: yes, no, yes, no, no, yes, yes, no, no, yes
+ * Get the structure of the above data frame.
+ * Get the statistical summary and nature of the data of the above data frame.
+ * Extract 3rd and 5th rows with 1st and 3rd columns from the above data frame.
+ 
+```{r}
+
+name <- c('Anastasia', 'Dima', 'Katherine', 'James', 'Emily', 'Michael', 'Matthew', 'Laura', 'Kevin', 'Jonas')
+score <- c(12.5, 9, 16.5, 12, 9, 20, 14.5, 13.5, 8, 19)
+attempts <- c(1, 3, 2, 3, 2, 3, 1, 1, 2, 1)
+qualify <- c('yes', 'no', 'yes', 'no', 'no', 'yes', 'yes', 'no', 'no', 'yes')
+
+df <- data.frame(name = name, score = score, attempts = attempts, qualify = qualify)
+df
+```
+ 
+```{r}
+str(df)
+```
+ 
+```{r}
+summary(df)
+```
+ 
+```{r}
+df[c(3,5),c(1,3)]
+```
+ 
+ 

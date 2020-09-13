@@ -1,9 +1,0 @@
----
-title: "Session 2 Notebook"
-author: "Brian Roepke"
-date: "Sept 13, 2020"
-output:
-  html_document:
-    df_print: paged
----
-
