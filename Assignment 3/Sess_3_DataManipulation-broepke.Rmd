@@ -1,0 +1,52 @@
+---
+title: "Assignment 3A: Reading Input"
+author: "Brian Roepke"
+date: "Sept 26, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+# Project Description
+
+Review this notebook with techniques and approaches to data manipulation. Then complete the Exercises at the end.
+
+Reference: https://r4ds.had.co.nz/transform.html#introduction-2
+
+## Project Setup
+
+```{r}
+# clear all objects includes hidden objects from Global Environment
+rm(list = ls(all.names = TRUE)) 
+```
+
+## tydyverse
+
+“tidyverse” collects some of the most versatile R packages: ggplot2, dplyr, tidyr, readr, purrr, and tibble.
+The packages work in harmony to clean, process, model, and visualize data. 
+Note of the conflicts message that’s printed when you load the tidyverse. It tells you that dplyr overwrites some functions in base R. If you want to use the base version of these functions after loading dplyr, you’ll need to use their full names: stats::filter() and stats::lag().
+
+```{r}
+## load the tidyverse packages, incl. dplyr
+library("tidyverse")
+```
+
+## Loading Flights Dataset
+
+```{r}
+flights <- read_csv("flights.csv")
+```
+
+```{r}
+flights
+```
+
+## dplyr basics
+
+ * Pick observations by their values (filter()).
+ * Reorder the rows (arrange()).
+ * Pick variables by their names (select()).
+ * Create new variables with functions of existing variables (mutate()).
+ * Collapse many values down to a single summary (summarise()).
+ * These can all be used in conjunction with group_by() which changes the scope of each function from operating on the entire dataset to operating on it group-by-group. These six functions provide the verbs for a language of data manipulation.
+
+## Filter rows with filter()
