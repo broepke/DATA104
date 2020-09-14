@@ -1668,8 +1668,7 @@ ls()</code></pre>
 <pre class="r"><code>n &lt;- 10
 
 compute_s_n &lt;- function(n){
-  nums &lt;- seq(1:n)
-  total = sum(nums^2)
+  total = sum((1:n)^2)
 }</code></pre>
 <pre class="r"><code># validate the function returns 55 for the number 5
 print(compute_s_n(5))</code></pre>

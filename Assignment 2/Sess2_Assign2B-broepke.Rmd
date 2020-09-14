@@ -24,8 +24,7 @@ ls()
 n <- 10
 
 compute_s_n <- function(n){
-  nums <- seq(1:n)
-  total = sum(nums^2)
+  total = sum((1:n)^2)
 }
 ```
 
