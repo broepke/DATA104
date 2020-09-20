@@ -50,3 +50,8 @@ flights
  * These can all be used in conjunction with group_by() which changes the scope of each function from operating on the entire dataset to operating on it group-by-group. These six functions provide the verbs for a language of data manipulation.
 
 ## Filter rows with filter()
+
+```{r}
+
+```
+
