@@ -153,3 +153,4 @@ ggplot(data = df2, mapping = aes(x = Posts, y = Friends, color = Gender)) +
   geom_smooth()
 ```
 
+
