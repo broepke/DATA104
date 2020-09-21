@@ -4,7 +4,7 @@ author: "Brian Roepke"
 date: "Sept 26, 2020"
 output:
   html_document:
-    df_print: paged
+    df_print: tibble
 ---
 # Project Description
 
@@ -134,5 +134,22 @@ ggplot(data = df1) +
 ```{r}
 ggplot(data = df1, mapping = aes(x = Posts, y = Friends, color = Gender)) + 
   geom_boxplot()
+```
+
+```{r}
+df2 = df1 %>%
+  filter(Posts <= 200 & Friends <= 1000)
+df2
+```
+
+```{r}
+summary(df1)
+summary(df2)
+```
+
+```{r}
+ggplot(data = df2, mapping = aes(x = Posts, y = Friends, color = Gender)) + 
+  geom_point(position = "jitter") +
+  geom_smooth()
 ```
 
