@@ -4,7 +4,7 @@ author: "Brian Roepke"
 date: "Sept 26, 2020"
 output:
   html_document:
-    df_print: paged
+    df_print: tibble
 ---
 # Project Description
 
@@ -52,6 +52,507 @@ flights
 ## Filter rows with filter()
 
 ```{r}
-
+jan1 <- filter(flights, month == 1, day == 1)
+jan1
 ```
 
+```{r}
+# finds all flights that departed in November or December, assigns it and prints all in a single line of code
+# Note the use of | (OR operator)
+(jan_dec = filter(flights, month == 11 | month == 12))
+```
+
+```{r}
+# Select every row where x is one of the values in y (via %in% )
+# An alternative to the above (all flights departing in November or December)
+(nov_dec <- filter(flights, month %in% c(11, 12)))
+```
+
+```{r}
+# flights that weren’t delayed (on arrival or departure) by more than 2 hours, either of the following
+filter(flights, !(arr_delay > 120 | dep_delay > 120))
+```
+
+```{r}
+filter(flights, arr_delay <= 120, dep_delay <= 120)
+```
+
+## Missing values
+
+A common task in data analysis is dealing with missing values. In R, missing values are often represented by NA or some other value that represents missing values (i.e. 99, -1, 0, etc..)
+NA represents an unknown value. If you want to determine if a value is missing, use is.na(), works on vectors, lists, matrices, and data frames
+filter() only includes rows where the condition is TRUE; it excludes both FALSE and NA values. If you want to preserve missing values, ask for them explicitly.
+
+```{r}
+df <- tibble(x = c(1, NA, 3))
+filter(df, x > 1)
+```
+
+```{r}
+filter(df, is.na(x) | x > 1)
+```
+
+```{r}
+# vector with missing data
+x <- c(1:4, NA, 6:7, NA)
+x
+```
+
+```{r}
+is.na(x)
+```
+
+```{r}
+# data frame with missing data
+df <- data.frame(col1 = c(1:3, NA),
+                 col2 = c("this", NA,"is", "text"), 
+                 col3 = c(TRUE, FALSE, TRUE, TRUE), 
+                 col4 = c(2.5, 4.2, 3.2, NA),
+                 stringsAsFactors = FALSE)
+
+# identify NAs in full data frame
+is.na(df)
+```
+
+```{r}
+# identify NAs in specific data frame column
+is.na(df$col4)
+```
+
+```{r}
+# identify location of NAs in vector
+which(is.na(x))
+```
+
+```{r}
+# identify count of NAs in data frame
+sum(is.na(df))
+```
+
+```{r}
+#a convenient shortcut to compute the total missing values in each column of a dataframe is to use colSums():
+colSums(is.na(df))
+```
+
+## Recode missing values
+
+To recode missing values; or specific values that represent missing values, we can use normal subsetting and assignment operations. For example, we can recode missing values in vector x with the mean values in x by first subsetting the vector to identify NAs and then assign these elements a value. Similarly, if missing values are represented by another value (i.e. 99) we can subset the data for the elements that contain that value and then assign a desired value to those elements.
+
+```{r}
+# vector with missing data
+x <- c(1:4, NA, 6:7, NA)
+x
+```
+
+```{r}
+# recode missing values with the mean
+x[is.na(x)] <- mean(x, na.rm = TRUE)
+
+# data frame that codes missing values as 99
+df <- data.frame(col1 = c(1:3, 99), col2 = c(2.5, 4.2, 99, 3.2))
+
+# change 99s to NAs
+df[df == 99] <- NA
+df
+```
+
+```{r}
+# data frame with missing data
+df <- data.frame(col1 = c(1:3, NA),
+                 col2 = c("this", NA,"is", "text"), 
+                 col3 = c(TRUE, FALSE, TRUE, TRUE), 
+                 col4 = c(2.5, 4.2, 3.2, NA),
+                 stringsAsFactors = FALSE)
+                 
+# recode missing values in a single data frame variable
+df$col4[is.na(df$col4)] <- mean(df$col4, na.rm = TRUE)
+df
+```
+
+## Exclude missing values
+
+If we want to exclude missing values from mathematical operations use the na.rm = TRUE argument. If you do not exclude these values most functions will return an NA.
+
+```{r}
+# A vector with missing values
+x <- c(1:4, NA, 6:7, NA)
+
+# including NA values will produce an NA output
+mean(x)
+```
+
+```{r}
+# excluding NA values will calculate the mathematical operation for all non-missing values
+mean(x, na.rm = TRUE)
+```
+
+```{r}
+# you may desire to subset data to obtain complete observations, (rows). eg: dataset without  missing data
+
+# data frame with missing values
+df <- data.frame(col1 = c(1:3, NA),
+                 col2 = c("this", NA,"is", "text"), 
+                 col3 = c(TRUE, FALSE, TRUE, TRUE), 
+                 col4 = c(2.5, 4.2, 3.2, NA),
+                 stringsAsFactors = FALSE)
+
+df
+```
+
+```{r}
+# use na.omit() to omit all rows containing missing values.
+na.omit(df)
+```
+
+## Arrange rows with arrange()
+
+arrange() can be used to reorder (or sort) rows by one or more variables. It takes a data frame and a set of column names (or more complicated expressions) to order by. Use desc() to re-order by a column in descending order. Missing values are always sorted at the end:
+
+```{r}
+# flights by year, month, day
+arrange(flights, year, month, day)
+```
+
+```{r}
+# Use desc() to re-order by a column in descending order:
+arrange(flights, desc(dep_delay))
+```
+
+## Select columns with select()
+
+select() allows you to zoom in on a subset of data based on the names of the variables.
+There are a number of helper functions you can use within select():
+
+ * starts_with(“abc”): matches names that begin with “abc”.
+
+ * ends_with(“xyz”): matches names that end with “xyz”.
+
+ * contains(“ijk”): matches names that contain “ijk”.
+
+ * matches(“(.)\1”): selects variables that match a regular expression. This one matches any variables that contain repeated characters. You’ll learn more about regular expressions in strings.
+
+ * num_range(“x”, 1:3): matches x1, x2 and x3.
+
+See ?select for more details.
+
+```{r}
+# Select columns by name
+select(flights, year, month, day)
+```
+
+```{r}
+# Select all columns between year and day (inclusive)
+select(flights, year:day)
+```
+
+```{r}
+# Select all columns except those from year to day (inclusive)
+select(flights, -(year:day))
+```
+
+select() can be used to rename variables, but it’s rarely useful because it drops all of the variables not explicitly mentioned. Instead, use rename(), which is a variant of select() that keeps all the variables that aren’t explicitly mentioned: Eg: rename(flights, tail_num = tailnum)
+
+## Add new variables with mutate()
+
+Besides selecting sets of existing columns, it’s often useful to add new columns that are functions of existing columns
+
+ * mutate() adds new variables and preserves existing ones;
+ * transmute() adds new variables and drops existing ones.
+ * mutate() always adds new columns at the end of your dataset
+
+```{r}
+# create a smaller dataframe that includes columns year..day, dep_delay, distance, air_time
+# then use mutate to add 2 new columns gain, speed
+flights_sml <- select(flights, 
+  year:day, 
+  ends_with("delay"), 
+  distance, 
+  air_time
+)
+mutate(flights_sml,
+  gain = dep_delay - arr_delay,
+  speed = distance / air_time * 60
+)
+```
+
+you can refer to columns that you’ve just created:
+
+```{r}
+mutate(flights_sml,
+  gain = dep_delay - arr_delay,
+  hours = air_time / 60,
+  gain_per_hour = gain / hours
+)
+```
+
+If you only want to keep the new variables, use transmute():
+
+```{r}
+transmute(flights,
+  gain = dep_delay - arr_delay,
+  hours = air_time / 60,
+  gain_per_hour = gain / hours
+)
+```
+
+## Grouped summaries with summarise()
+summarise() is not very useful unless paried with group_by(). This changes the analysis from the complete dataset to individual groups. Then, when you use the dplyr verbs on a grouped data frame they’ll be automatically applied “by group”.
+When using a dataframe function, the na.rmlogical parameter tells the function whether or not to remove NA values from the calculation.
+
+## Suppress summarise info
+options(dplyr.summarise.inform = FALSE)
+
+```{r}
+options(dplyr.summarise.inform = FALSE)
+
+# summarize flights by mean delay, exclude NA's
+summarise(flights, delay = mean(dep_delay, na.rm = TRUE))
+```
+
+```{r}
+# get the average delay by date:
+by_day <- group_by(flights, year, month, day)
+summarise(by_day, delay = mean(dep_delay, na.rm = TRUE))
+```
+
+## Combining multiple operations with pipe
+%>%, or the “pipe” operator will forward a value, or the result of an expression, into the next function call/expression. For instance a function to filter data can be written as:
+
+filter(data, variable == numeric_value)
+or 
+data %>% filter(variable == numeric_value)
+
+Both functions complete the same task and the benefit of using %>% may not be immediately evident; however, when you desire to perform multiple functions its advantage becomes obvious. For Example:
+
+Group flights by destination.
+Summarise to compute distance, average delay, and number of flights.
+Filter to remove noisy points and Honolulu airport, which is almost twice as far away as the next closest airport.
+
+### Without pipe
+
+```{r}
+by_dest <- group_by(flights, dest)
+delay <- summarise(by_dest, .groups = 'drop',
+  count = n(),
+  dist = mean(distance, na.rm = TRUE),
+  delay = mean(arr_delay, na.rm = TRUE)
+)
+delay <- filter(delay, count > 20, dest != "HNL")
+```
+
+### Using Pipe
+
+```{r}
+delays <- flights %>% 
+  group_by(dest) %>% 
+  summarise( .groups = 'drop',
+    count = n(),
+    dist = mean(distance, na.rm = TRUE),
+    delay = mean(arr_delay, na.rm = TRUE)
+  ) %>% 
+  filter(count > 20, dest != "HNL")
+```
+
+This focuses on the transformations, not what’s being transformed, which makes the code easier to read. You can read it as a series of imperative statements: group, then summarise, then filter. As suggested by this reading, a good way to pronounce %>% when reading code is “then”.
+
+## Plot delay
+
+```{r}
+# It looks like delays increase with distance up to ~750 miles 
+# and then decrease. Maybe as flights get longer there's more 
+# ability to make up delays in the air?
+ggplot(data = delay, mapping = aes(x = dist, y = delay)) +
+  geom_point(aes(size = count), alpha = 1/3) +
+  geom_smooth(se = FALSE)
+```
+
+
+## Missing values
+Recall earler that calculations on data that contain NA’s results in NA. If we don’t set the na.rm paramerter, we end up with a bunch of NA’s
+
+```{r}
+flights %>% 
+  group_by(year, month, day) %>% 
+  summarise(mean = mean(dep_delay))
+```
+
+```{r}
+# Remove missing values fom calculations
+flights %>% 
+  group_by(year, month, day) %>% 
+  summarise(mean = mean(dep_delay, na.rm = TRUE))
+```
+
+## Counts
+Whenever you do any aggregation, it’s a good idea to include either a count (n()), or a count of non-missing values (sum(!is.na(x))). That way you can check that you’re not drawing conclusions based on very small amounts of data.
+
+ * n() - takes no arguments and returns the size of the current group.
+ * sum(!is.na(x)) - counts the number of non-missing values,
+ * n_distinct(x) - counts the number of distinct (unique) values
+ 
+```{r}
+# missing values represent cancelled flights. Create a dataframe with no cancelled flights
+not_cancelled <- flights %>% 
+  filter(!is.na(dep_delay), !is.na(arr_delay))
+
+# summarize flights by mean of departure delay 
+not_cancelled %>% 
+  group_by(year, month, day) %>% 
+  summarise(mean = mean(dep_delay))
+```
+ 
+```{r}
+# Which destinations have the most carriers?
+not_cancelled %>% 
+  group_by(dest) %>% 
+  summarise(carriers = n_distinct(carrier)) %>% 
+  arrange(desc(carriers))
+```
+ 
+```{r}
+# count of number of destinations
+not_cancelled %>% 
+  count(dest)
+```
+ 
+```{r}
+# “count” (sum) the total number of miles a plane flew:
+not_cancelled %>% 
+  count(tailnum, wt = distance)
+```
+
+```{r}
+# get the average arrival delays and plot it
+delays <- not_cancelled %>% 
+  group_by(tailnum) %>% 
+  summarise(
+    delay = mean(arr_delay)
+  )
+
+ggplot(data = delays, mapping = aes(x = delay)) + 
+  geom_freqpoly(binwidth = 10)
+```
+
+there are some planes that have an average delay of 5 hours (300 minutes)! We can get more insight if we draw a scatterplot of number of flights vs. average delay:
+
+```{r}
+delays <- not_cancelled %>% 
+  group_by(tailnum) %>% 
+  summarise(
+    delay = mean(arr_delay, na.rm = TRUE),
+    n = n()
+  )
+
+ggplot(data = delays, mapping = aes(x = n, y = delay)) + 
+  geom_point(alpha = 1/10)
+```
+
+Not surprisingly, there is much greater variation in the average delay when there are few flights. The shape of this plot is very characteristic: whenever you plot a mean (or other summary) vs. group size, you’ll see that the variation decreases as the sample size increases.
+
+When looking at this sort of plot, it’s often useful to filter out the groups with the smallest numbers of observations, so you can see more of the pattern and less of the extreme variation in the smallest groups.
+
+```{r}
+delays %>% 
+  filter(n > 25) %>% 
+  ggplot(mapping = aes(x = n, y = delay)) + 
+    geom_point(alpha = 1/10)
+```
+
+## Useful summary functions
+ * mean(x) - average
+ * median(x) - is a value where 50% of x is above it, and 50% is below it.
+Measures of spread: 
+* sd(x) - root mean squared deviation, or standard deviation * IQR(x) - interquartile range * mad(x) - median absolute deviation
+
+Measures of rank: 
+
+ * min(x),
+ * quantile(x, 0.25),
+ * max(x) Quantiles are a generalisation of the median. For example, quantile(x, 0.25) will find a value of x that is greater than 25% of the values, and less than the remaining 75%
+
+Measures of position: 
+
+ * first(x),
+ * nth(x, 2),
+ * last(x).
+
+These work similarly to x[1], x[2], and x[length(x)] but let you set a default value if that position does not exist (i.e. you’re trying to get the 3rd element from a group that only has two elements)
+
+## Exercises
+Find all flights that: 
+
+1. Flew to Houston (IAH or HOU)
+2. Were operated by United, American, or Delta
+3. Arrived more than 2 hours late, but didn’t leave late. Select by flight, arr_delay, dep_delay.
+4. How many flights have a missing dep_time? What other variables having missing values?
+5. Use arrange() to sort flights to find the 10 most delayed flights. Select by flight, carrier, dep_delay (hint: head with n parameter)
+6. Which 5 flights travelled the farthest? Which 5 travelled the shortest? Select by year, month, day, flight, carrier, distance.
+7. Count the number of daily flights.
+8. Count the number of flights by month.
+9. Count the number of flights by year.
+
+```{r}
+# Flew to Houston (IAH or HOU)
+filter(flights, dest == "IAH" | dest == "HOU")
+```
+
+```{r}
+# Were operated by United, American, or Delta
+filter(flights, carrier %in% c('UA', 'DL', 'AA'))
+```
+
+```{r}
+# Arrived more than 2 hours late, but didn’t leave late. Select by flight, arr_delay, dep_delay.
+filter(flights, dep_delay <= 0 & arr_delay > 120)
+```
+
+```{r}
+# How many flights have a missing dep_time?
+sum(is.na(flights$dep_time))
+```
+
+```{r}
+# What other variables having missing values?
+colnames(flights)[colSums(is.na(flights)) > 0]
+```
+
+```{r}
+# Use arrange() to sort flights to find the 10 most delayed flights. Select by flight, carrier, 
+
+
+flights %>%
+  arrange(desc(dep_delay)) %>%
+  select(flight, carrier, dep_delay) %>%
+  head(10)
+```
+
+```{r}
+# Which 5 flights travelled the farthest? Which 5 travelled the shortest? Select by year, month, day, flight, carrier, distance.
+flights %>%
+  arrange(desc(distance)) %>%
+  select(year, month, day, flight, carrier, distance) %>%
+  head(5)
+
+flights %>%
+  arrange(distance) %>%
+  select(year, month, day, flight, carrier, distance) %>%
+  head(5)
+```
+
+```{r}
+# Count the number of daily flights.
+group_by(flights, year, month, day) %>%
+  summarise(flights = n())
+```
+
+```{r}
+# Count the number of flights by month.
+group_by(flights, year, month) %>%
+  summarise(flights = n())
+```
+
+```{r}
+# Count the number of flights by year.
+group_by(flights, year) %>%
+  summarise(flights = n())
+```
