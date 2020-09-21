@@ -14,16 +14,125 @@ Learn how to read various data files, such as text, CSV, and Excel.
 
 Refer to the Data Camp tutorial. You can always get help for a command by typing ?[command] (eg: ?read.csv) in the RStudio Console
 
+```{r}
+# Setup
+library(tidyverse)
+library(XLConnect)
+```
+
+
 1) Load the FaceBook datasets provided into data frames, and compare reading different file types by creating 3 data frames for each file type.
+
+```{r}
+# Solution from StackOverflow:
+# https://stackoverflow.com/questions/1523126/how-to-read-data-when-some-numbers-contain-commas-as-thousand-separator
+
+setClass("num.with.commas")
+setAs("character", "num.with.commas", 
+        function(from) as.numeric(gsub(",", "", from) ) )
+```
+
+
+```{r}
+df_text <- read.table("Facebook Friends.txt", skip = 1, header = TRUE, sep = '\t', 
+                      skipNul = TRUE, colClasses=c('num.with.commas'))
+df_text
+```
+
+```{r}
+df_csv <- read.csv("Facebook Friends.csv", skip = 1, header = TRUE, sep = "\t",
+                   colClasses=c('num.with.commas'))
+df_csv
+```
+
+```{r}
+df_xls <- readWorksheetFromFile("Facebook Friends.xlsx", sheet = 1, startRow = 3)
+df_xls
+```
+
 
 2) For the data frame for the CSV file, use **attach** to add it into your environment, then use basic functions such as: **str** , **summary** , **head** and **tail** 
 
+```{r}
+# After attaching, each of the column names can be called directly without referencing the dataframe that was attached
+attach(df_csv)
+```
+
+```{r}
+str(df_csv)
+summary(df_csv)
+head(df_csv)
+tail(df_csv)
+```
+
 3) For the data frame above, use the **names** function to show the column names. Notice column called  "X..of.Tags". The column from the raw file is actually "# of Tags". R converted this due to spaces. Rename this column to "Tags" using base R. (see: the Cookbook resource in supplementals). 
+
+```{r}
+names(df_csv)
+```
+
+```{r}
+df_csv <- rename(df_csv, "Tags" = "X..of.Tags")
+names(df_csv)
+```
+
 
 4) After using the **str function** to inspect the structure of the data frame, do you observe other issues with the expected data types? What issues and how do you solve it?
 
+```{r}
+str(df_csv)
+```
+
+```{r}
+# Note: I noticed a few columns were "factors".  It turned out that these had "thousands" numbers with commas in them.  I did some reasearch and changed the way that i did the import, fixing this on the import vs. here.
+```
+
 5) Create a data frame from the CSV data frame, using **subset**  that includes 3 fields: Gender, Posts, Friends. Include only valid Gender values (Male=1; Female=0). Use **head**  to display the top records. (see: Quick-R: Data Management)
+
+```{r}
+df1 <- subset(df_csv, Gender == 0 | Gender == 1, select=c('Gender','Posts', 'Friends'))
+head(df1)
+```
+
+```{r}
+# One Last change - Make the Gender a Factor
+df1$Gender <- as.factor(df1$Gender)
+df1
+```
+
 
 6) We will use this dataset to do data visualization in the next session.  But you can start practicing a variety of data visualization appropriate for this dataset, such as histograms, pie charts, etc...  
 
 Create a couple of graphs of your choice.(see: Quick R: Graphics)
+
+```{r}
+attach(df1)
+```
+
+
+```{r}
+#Simple distribution of how many friends, 10 bins
+hist(Friends, col = "lightblue")
+```
+
+```{r}
+#Simple distribution of how many friends, 10 bins
+hist(Posts, col = "salmon")
+```
+
+
+```{r}
+ggplot(data = df1, mapping = aes(x = Posts, y = Friends, color = Gender)) + 
+  geom_point(position = "jitter") +
+  geom_smooth()
+```
+
+```{r}
+ggplot(data = df1) + 
+  geom_smooth(mapping = aes(x = Friends, y = Posts, color = Gender))
+```
+```{r}
+ggplot(data = df1, mapping = aes(x = Posts, y = Friends, color = Gender)) + 
+  geom_boxplot()
+```
+
