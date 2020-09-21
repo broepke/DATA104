@@ -1,0 +1,76 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+# count number of even numbers
+
+evencount <-
+
+  function(x)  {
+
+     k <- 0  # initialize the counter k to  0 
+
+     for (n in 1:x)  {
+
+        if (n %% 2 == 0)  #s modulo operator (eg: remainder div)
+
+          k <- k+1 
+
+     }
+
+     # explicit return, w/o it the value of the last executed statement is returneded by default.
+
+    return(k) 
+
+  }
+
+evencount2 <-
+
+  function(x)  {
+
+     k <- 0 
+
+     for (n in 1:x)  {
+
+        if (n %% 2 == 0) 
+
+          k <- k+1 
+
+     }
+
+     k  # R-way, possibly faster
+
+  }
+
+# returns nothing b/c the last executed statement is the for, rather than k-assignment
+
+evencount3 <-
+
+  function(x)  {
+
+     k <- 0  # assign 0 to k
+
+     for (n in 1:x)  {
+
+        if (n %% 2 == 0)  #s modulo operater (eg: remainder div)
+
+          k <- k+1 
+
+     }
+
+  }
+
+
+```
+
+```{r}
+evencount(5)
+
+evencount2(5)
+
+evencount3(5)
+```
+
