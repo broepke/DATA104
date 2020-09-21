@@ -138,7 +138,7 @@ ggplot(data = df1, mapping = aes(x = Posts, y = Friends, color = Gender)) +
 
 ```{r}
 df2 = df1 %>%
-  filter(Posts <= 200 & Friends <= 1000)
+  filter(Posts <= 100 & Friends <= 1000)
 df2
 ```
 
