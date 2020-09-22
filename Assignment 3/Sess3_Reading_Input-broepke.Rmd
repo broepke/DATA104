@@ -24,24 +24,25 @@ library(XLConnect)
 1) Load the FaceBook datasets provided into data frames, and compare reading different file types by creating 3 data frames for each file type.
 
 ```{r}
-# Solution from StackOverflow:
-# https://stackoverflow.com/questions/1523126/how-to-read-data-when-some-numbers-contain-commas-as-thousand-separator
-
-setClass("num.with.commas")
-setAs("character", "num.with.commas", 
-        function(from) as.numeric(gsub(",", "", from) ) )
-```
-
-
-```{r}
 df_text <- read.table("Facebook Friends.txt", skip = 1, header = TRUE, sep = '\t', 
-                      skipNul = TRUE, colClasses=c('num.with.commas'))
+                      skipNul = TRUE,  fileEncoding="UTF-16")
+
+# Clean up some of the columns
+df_text$Photos <- as.integer(gsub(",","", df_text$Photos))
+df_text$Friends <- as.integer(gsub(",","", df_text$Friends))
+df_text$Gender <- as.factor(df_text$Gender)
+
 df_text
 ```
 
 ```{r}
-df_csv <- read.csv("Facebook Friends.csv", skip = 1, header = TRUE, sep = "\t",
-                   colClasses=c('num.with.commas'))
+df_csv <- read.csv("Facebook Friends.csv", skip = 1, header = TRUE, sep = "\t")
+
+# Clean up some of the columns
+df_csv$Photos <- as.integer(gsub(",","", df_csv$Photos))
+df_csv$Friends <- as.integer(gsub(",","", df_csv$Friends))
+df_csv$Gender <- as.factor(df_csv$Gender)
+
 df_csv
 ```
 
@@ -93,13 +94,6 @@ str(df_csv)
 df1 <- subset(df_csv, Gender == 0 | Gender == 1, select=c('Gender','Posts', 'Friends'))
 head(df1)
 ```
-
-```{r}
-# One Last change - Make the Gender a Factor
-df1$Gender <- as.factor(df1$Gender)
-df1
-```
-
 
 6) We will use this dataset to do data visualization in the next session.  But you can start practicing a variety of data visualization appropriate for this dataset, such as histograms, pie charts, etc...  
 
