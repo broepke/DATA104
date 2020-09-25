@@ -23,12 +23,37 @@ fb <- read.csv("Facebook FriendsCSV.csv", skip = 2)
 # Clean up some of the columns
 fb$Photos <- as.integer(gsub(",","", fb$Photos))
 fb$Friends <- as.integer(gsub(",","", fb$Friends))
-fb$Gender <- as.factor(fb$Gender)
 
 fb
 ```
 
 ```{r}
 str(fb)
+```
+
+```{r}
+attach(fb)
+```
+
+## Data wrangling/munging/transformation
+Refers to the process of cleaning, structuring, enriching raw data into a format compatible for down stream processing such as analysis, plotting, etc. Perform the following transformations:
+
+ * Remove Friend field as it is not needed
+ * Convert to categorical fields to factors
+    * Add AgeGroup (13–17, 18–24, 25–34, 35–44, 45–54, 55-64, 65+)
+    * Update Gender values (male=1; female=0, 2=other)
+    * Update Sexual Orientation values (1=heterosexual; 0=other)
+    * Add InRelationship (1=yes; 0=no) and remove Relationship
+    * Update Emp values (employed=1, unemployed=0)
+    * Add HasCollege with yes/no: based on Edu where (1=High School or less; 0=college) then remove Edu
+    * Update USA values (yes=1; no=0)
+    * Add ProfilePic (1=self; 0=other) and remove Profile
+    * Add CoverPic (1=self; 0=other) and remove Cover
+    * Midwest, Southeast, West are represented. Update their values to be yes/no.
+    * But there are observations not represented in these groups. Add a Region column with values: (MidWest, Seast,West, Other) respectively
+
+
+```{r}
+Gender <- as.factor(Gender)
 ```
 
