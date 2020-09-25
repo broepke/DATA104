@@ -1,0 +1,8 @@
+theme: jekyll-theme-minimal
+title: Brian's DATA 104 Home Page
+description: Project files for my class at GGU.edu
+url:  https://broepke.github.io/DATA104/
+author: broepke
+plugins:
+  - jekyll-seo-tag
+google_analytics: 'UA-309309-8'
