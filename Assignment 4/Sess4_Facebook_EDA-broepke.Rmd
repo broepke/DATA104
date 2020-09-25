@@ -1,0 +1,34 @@
+---
+title: "Facebook EDA"
+author: "Brian Roepke"
+date: "Oct 4, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+# Project Description
+
+Perform Exploratory Data Analysis on the provided dataset. Refer to your reading on EDA as well as referenced resources provided in this notebook, e-learning and elsewhere. 
+**Your project MUST include meaningful analysis with description, similar to the EDA sample provided.**
+
+```{r}
+library(dplyr, warn.conflicts = FALSE) # suppress conflicts warning
+library(tidyr)
+library(ggplot2)
+```
+
+```{r}
+fb <- read.csv("Facebook FriendsCSV.csv", skip = 2)
+
+# Clean up some of the columns
+fb$Photos <- as.integer(gsub(",","", fb$Photos))
+fb$Friends <- as.integer(gsub(",","", fb$Friends))
+fb$Gender <- as.factor(fb$Gender)
+
+fb
+```
+
+```{r}
+str(fb)
+```
+
