@@ -1,0 +1,33 @@
+---
+title: "Google Analytics"
+output: html_notebook
+---
+
+
+```{r}
+library(googleAnalyticsR)
+ga_auth()
+```
+
+```{r}
+accounts = ga_account_list()
+head(accounts)
+```
+
+```{r}
+# account list will have a column called "viewId"
+accounts[c('webPropertyName', 'viewId')]
+```
+
+```{r}
+ga_data <- google_analytics(229668892,
+# date_range = c("2015-07-30","2015-10-01"), 
+  date_range = c("30daysAgo", "yesterday"), 
+  metrics = c("users", "sessions", "bounces"), 
+  dimensions = c("date"),
+  max = 10 # number of rows
+)
+
+ga_data
+```
+
