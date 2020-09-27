@@ -1,0 +1,80 @@
+---
+title: "Digital Marketing Regression"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Linear Regression
+Linear regression (or linear model) is used to predict a quantitative outcome variable (y) on the basis of one or multiple predictor variables (x) (James et al. 2014,P. Bruce and Bruce (2017)).
+
+The goal is to build a mathematical formula that defines y as a function of the x variable. Once, we built a statistically significant model, it’s possible to use it for predicting future outcome on the basis of new x values.
+
+The marketing data set included with package datarium is used to create a model for predicting sales units on the basis of the amount of money spent in the 3 advertising medias (youtube, facebook and newspaper)
+
+```{r}
+ #install.packages('datarium')
+library(dplyr, warn.conflicts = FALSE) # suppress conflicts warning
+
+# Load the data
+data("marketing", package = "datarium")
+
+# top 5 observations
+head(marketing, 5)
+```
+## Multiple Linear Regression
+
+```{r}
+options(width = 400) # increase width
+
+# correlation
+corr <- round(cor(marketing), 2)
+corr
+```
+
+```{r}
+library(corrplot)
+```
+
+```{r}
+corrplot(corr, method="circle")
+```
+
+We see that youtube (.78) and facebook (.58) contribute the most to sales while news paper (0.23) much less.
+Create a model with variables youtube and facebook.
+
+```{r}
+model <- lm(sales ~ youtube + facebook, data = marketing)
+
+# show model summary
+summary(model)
+```
+
+easier viewing of coefficients using broom
+
+```{r}
+library(broom)
+```
+
+```{r}
+tidy(model)
+```
+
+1. The model equation: sales = 3.50+ 0.045(youtube) + 0.187(facebook). 
+2. The intercept (eg: constant) is the expected mean value of Y when all X=0. In this case 3.50
+3. All have significant t-statistic values with significant p-values 
+4. For a one unit increase in youtube marketing we can expect a 0.045 increase in sales
+5. For a one unit increase in facebook marketing we can expect a 0.187 increase in sales
+
+**The Adjusted R-squared (0.896) indicates that about 90% of Sales is explained by this model.**
+
+
+## Including all variables
+Suppose we create a model with all variables
+
+```{r}
+model <- lm(sales ~. , data = marketing) # include all variables
+summary(model)
+```
+
+**From the output, we confirm that the variable newspaper is not statistically significant to the model with a p-value of (0.86)**
