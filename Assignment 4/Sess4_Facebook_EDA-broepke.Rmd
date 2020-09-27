@@ -13,6 +13,10 @@ Perform Exploratory Data Analysis on the provided dataset. Refer to your reading
 library(dplyr, warn.conflicts = FALSE) # suppress conflicts warning
 library(tidyr)
 library(ggplot2)
+library(car)
+library(corrplot)
+library(lsr)
+library(ggcorrplot)
 ```
 
 ```{r}
@@ -270,17 +274,55 @@ summary(fb)
 Plots of single variables to understand shape, distribution, et
 
 ```{r}
-ggplot(fb) +
-  geom_bar(aes(x = AgeGroup))
+fb %>%
+    ggplot(aes(Friends)) +
+    geom_histogram(binwidth = 100, color = "blue",fill = "lightblue") +
+    geom_vline(xintercept = mean(fb$Friends), lwd = 1) +
+    labs(title = "Distribution of Friends",
+         x = "Number of Friends",
+         y = "Count") +
+    theme_minimal() +
+    scale_x_continuous(breaks = seq(0,5000,1000))
+```
+**Mean number of Friends shown with black line**
 
-ggplot(fb) +
-  geom_bar(aes(x = Gender))
+```{r}
+fb %>%
+    ggplot(aes(Posts)) +
+    geom_density(color = "red",fill = "salmon") +
+    geom_vline(xintercept = mean(fb$Posts), lwd = 1) +
+    labs(title = "Distribution of Posts",
+         x = "Number of Posts",
+         y = "") +
+    theme_minimal() +
+    scale_x_continuous(breaks = seq(0,800,100))
+```
+**Mean number of Posts shown with black line**
 
-ggplot(fb) +
-  geom_histogram(aes(x = Friends))
+```{r}
+fb %>%
+    ggplot(aes(Age)) +
+    geom_histogram(binwidth = 10, color = "black",fill = "gray") +
+    geom_vline(xintercept = mean(fb$Age), lwd = 1) +
+    geom_vline(xintercept = mean(fb$Age)-sd(fb$Age), linetype="dashed") +
+    geom_vline(xintercept = mean(fb$Age)+sd(fb$Age), linetype="dashed") +
+    labs(title = "Distribution of Age",
+         x = "Age",
+         y = "Count") +
+    theme_minimal() +
+    scale_x_continuous(breaks = seq(10,100,10))
+```
+**Showing Mean Age and +/- 1 Standard Deviations**
 
-ggplot(fb) +
-  geom_histogram(aes(x = Posts))
+```{r}
+fb %>%
+    ggplot(aes(Gender,Friends)) +
+    geom_boxplot() +
+    labs(title = "Distribution of Friends Relative to Gender",
+         x = "Gender",
+         y = "Friends") +
+    theme_minimal() +
+    scale_y_continuous(breaks = seq(0,5000,1000)) 
 ```
 
 
@@ -289,33 +331,37 @@ ggplot(fb) +
 Plots of multiple variables to look for relationships, etc..
 
 ```{r}
-ggplot(fb) +
-  geom_bar(aes(x = AgeGroup, fill = Emp))
-
-ggplot(fb) +
-  geom_bar(aes(x = AgeGroup, fill = HasCollege))
-
-ggplot(fb) +
-  geom_bar(aes(x = HasCollege, fill = Gender))
-
-ggplot(fb) +
-  geom_bar(aes(x = Emp, fill = HasCollege))
-
 ggplot(fb, mapping = aes(x = Posts, y = Friends, color = Gender)) + 
-  geom_point(na.rm = TRUE)
-
-ggplot(fb, mapping = aes(x = Age, y = Posts, color = Gender)) + 
-  geom_point(na.rm = TRUE)
-
-ggplot(fb, mapping = aes(x = Age, y = Gender, color = Gender)) + 
-  geom_boxplot(na.rm = TRUE) +
-  coord_flip()
+  geom_point() + 
+  theme_minimal()
 ```
 
 ```{r}
-ggplot(fb) + 
-  geom_point(aes(x = Friends, y = Age, color = Gender)) + 
-  facet_wrap(~ Gender, nrow = 2)
+ggplot(fb, mapping = aes(x = Photos, y = Albums)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x) + 
+  theme_minimal()
+```
+
+```{r}
+ggplot(fb, mapping = aes(x = Age, y = Posts)) + 
+  geom_point() + 
+  theme_minimal()
+```
+
+```{r}
+fb %>% 
+    ggplot(aes(AgeGroup)) +
+    geom_bar(aes(fill = Gender)) +
+    theme_minimal()
+```
+
+
+
+```{r}
+# Tried this out, but not familiar with this method yet
+# my_anova <- aov(data = fb, Friends ~ .)
+# etaSquared(my_anova)
 ```
 
 
@@ -334,11 +380,49 @@ fb2 = fb %>%
 ```
 
 ```{r}
-cor(fb2)
+corr <- round(cor(fb2), 2)
+corr
 ```
 
 ```{r}
-library(car)
+corrplot(corr)
+```
+
+
+None of the predictor variables show a strong relationship to the response variable Friends. Of these, Photos (.25), # of Tags (.24), Albums (.23) and Likes (.23) are the strongest. Age (-20) and Children (-16) both have a weak negative correlation. While there appears to be weak correlation over all, these are the strongest and will be further analyzed as to their affect on Friends.
+
+Further there are a number of predictor variables that correlate to each other. For example # of Tags, Photos and Albums are moderately correlated. Similarly Posts and Replies are correlated as is Children and Age. To assess the level of multicollinearity let’s compute the variance inflation factor (VIF)
+
+```{r}
 car::vif(lm(Friends ~., data = fb2))
 ```
+
+## Multiple regression model
+
+Given the VIF for `Posts`, and `Replies` is greater than `5`, we should eliminated them from the model. Next, after eliminating them, we can see which variables have a *significant* effect on the model. 
+
+```{r}
+model <- lm(Friends ~ Age + Photos + Tags + Albums + Children + Likes + Events, data = fb2)
+summary(model)
+```
+
+After running that multiple regression model, we can see that `Albums`, `Children`, and `Events` are not significant.  We can simplify the model by removing some of these variables. 
+
+```{r}
+model <- lm(Friends ~ Age + Photos + Tags + Likes, data = fb2)
+summary(model)
+```
+
+
+### Summary
+After running the final linear model, we will use a combination of `Age`, `Photots`, `Tags`, and `Likes` to build a predictor for `Friends`.  The R-squared value is 0.136 telling us that 13.6% of the variance in the predicted number of Friends is explained by number number `Photots`, `Tags`, and `Likes` and the person's `Age`.  
+
+With this, we can state that this model **is not a sufficient predictor** of the number of Friends someone will have.
+
+**The model equation is:**
+
+`Y = 827.87677 - 11.93533(Age) + 0.06748(Photos) + 0.10946(Tags) + 0.41635(Likes)`
+
+
+
 

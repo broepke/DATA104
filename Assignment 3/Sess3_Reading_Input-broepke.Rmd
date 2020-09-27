@@ -17,7 +17,7 @@ Refer to the Data Camp tutorial. You can always get help for a command by typing
 ```{r}
 # Setup
 library(tidyverse)
-library(XLConnect)
+library(readxl)
 ```
 
 
@@ -47,7 +47,7 @@ df_csv
 ```
 
 ```{r}
-df_xls <- readWorksheetFromFile("Facebook Friends.xlsx", sheet = 1, startRow = 3)
+df_xls <- read_xlsx("Facebook Friends.xlsx", sheet = 1, skip = 2)
 df_xls
 ```
 
