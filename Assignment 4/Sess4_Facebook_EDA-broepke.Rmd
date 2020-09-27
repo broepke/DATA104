@@ -2,9 +2,7 @@
 title: "Facebook EDA"
 author: "Brian Roepke"
 date: "Oct 4, 2020"
-output:
-  html_document:
-    df_print: tibble
+output: html_document
 ---
 # Project Description
 
@@ -19,19 +17,61 @@ library(ggplot2)
 
 ```{r}
 fb <- read.csv("Facebook FriendsCSV.csv", skip = 2)
-
-# Clean up some of the columns
-fb$Photos <- as.integer(gsub(",","", fb$Photos))
-fb$Friends <- as.integer(gsub(",","", fb$Friends))
-
-fb
 ```
 
 ```{r}
 str(fb)
 ```
 
-## Data wrangling/munging/transformation
+```{r}
+names(fb)
+```
+
+# Data Prep
+Observe the following:
+
+ * X..of..Tags column name was generated due to spaces in the column name. Rename this to Tags
+ * The Friend field is not a data field but represents an instance (715 in total), and is not needed
+ * Fields with values 0 and 1 are actually categorical (eg: Emp,Profile, Edu, Events, USA, etc..)
+ * Gender is categorical ((Male=1; Female=0, 2=Other/Unknown)
+ * Fields ‘Photos’ and ‘Friends’ were treated as character when they should be numeric. We can use regular expressions to show which values are causing the data to be treated as chr
+ * Remaining fields are continuous
+
+## To Do
+1. Rename ‘X of Tags’ to ‘Tags’.
+2. Change the datatype from character to integer (Friends, Photos). To do this, need to remove the commas first, using gsub.
+
+```{r}
+# Rename ‘X of Tags’ to ‘Tags’.
+
+fb <- rename(fb, "Tags" = "X..of.Tags")
+```
+
+```{r}
+# Change the datatype from character to integer (Friends, Photos). To do this, need to remove the commas first, using gsub.
+
+fb$Photos <- as.integer(gsub(",","", fb$Photos))
+fb$Friends <- as.integer(gsub(",","", fb$Friends))
+```
+
+## Verify by looking at the structure again
+
+```{r}
+str(fb)
+```
+
+## Let’s take a look at the distribution of Age.
+
+```{r}
+summary(fb$Age)
+```
+
+We see that the min Age is 13, max is 81, average is 24. For plotting, create age groups: 13–17, 18–24, 25–34, 35–44, 45–54, 55-64, 65+
+
+Reference:
+https://www.statista.com/statistics/376128/facebook-global-user-age-distribution/
+
+# Data wrangling/munging/transformation
 Refers to the process of cleaning, structuring, enriching raw data into a format compatible for down stream processing such as analysis, plotting, etc. Perform the following transformations:
 
  * Remove Friend field as it is not needed
@@ -183,9 +223,13 @@ fb$Region <- as.factor(fb$Region)
 ```
 
 ```{r}
-fb <- rename(fb, "Tags" = "X..of.Tags")
+str(fb)
 ```
 
+
+## Verify Location values
+ * create a table showing the new Location values.
+ * show top 10 region/location values
 
 ```{r}
 select(fb, MidWest, Seast, West, Region, USA) %>%
@@ -199,8 +243,13 @@ summary(fb$Region)
 ## Show Top and Bottom observations
 
 ```{r}
-slice(fb, 10)
+head(fb)
 ```
+
+```{r}
+tail(fb)
+```
+
 
 # Exploratory Data Analysis (EDA)
  * Show stats, graphs and other exploratory techniques to gain insight.
@@ -212,5 +261,84 @@ slice(fb, 10)
 
 ```{r}
 summary(fb)
+```
+
+## Graphs and plots
+
+### Univariant
+
+Plots of single variables to understand shape, distribution, et
+
+```{r}
+ggplot(fb) +
+  geom_bar(aes(x = AgeGroup))
+
+ggplot(fb) +
+  geom_bar(aes(x = Gender))
+
+ggplot(fb) +
+  geom_histogram(aes(x = Friends))
+
+ggplot(fb) +
+  geom_histogram(aes(x = Posts))
+```
+
+
+### Multivariate
+
+Plots of multiple variables to look for relationships, etc..
+
+```{r}
+ggplot(fb) +
+  geom_bar(aes(x = AgeGroup, fill = Emp))
+
+ggplot(fb) +
+  geom_bar(aes(x = AgeGroup, fill = HasCollege))
+
+ggplot(fb) +
+  geom_bar(aes(x = HasCollege, fill = Gender))
+
+ggplot(fb) +
+  geom_bar(aes(x = Emp, fill = HasCollege))
+
+ggplot(fb, mapping = aes(x = Posts, y = Friends, color = Gender)) + 
+  geom_point(na.rm = TRUE)
+
+ggplot(fb, mapping = aes(x = Age, y = Posts, color = Gender)) + 
+  geom_point(na.rm = TRUE)
+
+ggplot(fb, mapping = aes(x = Age, y = Gender, color = Gender)) + 
+  geom_boxplot(na.rm = TRUE) +
+  coord_flip()
+```
+
+```{r}
+ggplot(fb) + 
+  geom_point(aes(x = Friends, y = Age, color = Gender)) + 
+  facet_wrap(~ Gender, nrow = 2)
+```
+
+
+### Regression Analysis
+Now that we’ve conducted EDA, we will create regression model(s) to predict some continuous value. Eg: predict the ‘# of Friends’.
+
+ * Create a multiple linear regression model to predict ‘# of friends’ with only continuous predictor variables (x).
+ * Select which x variables should be used in the regression model given correlation analysis. DO NOT split the dataset (use all) and no need to call predict. Only create the model, show its summary and speak to the model equation and what it means.
+ * Refer to references and lecture notes
+
+```{r}
+fb2 = fb %>% 
+  select_if(is.numeric)
+
+ str (fb2)
+```
+
+```{r}
+cor(fb2)
+```
+
+```{r}
+library(car)
+car::vif(lm(Friends ~., data = fb2))
 ```
 
