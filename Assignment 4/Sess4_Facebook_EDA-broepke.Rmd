@@ -287,7 +287,7 @@ fb %>%
 
 **Mean number of Friends shown with black line and +/- 1 Standard Deviations**
 
-Here we see that the distribution of number of friends is Right Skewed with a mean of 696.  We can see around the upper tail of the distribution that a few people have multiple-thousands of friends, but this is not typical. 67% of the people fall within the dashed lines (+/- 1 Standard Deviation) 
+Here we see that the distribution of number of friends is Right Skewed with a mean of `696`.  We can see around the upper tail of the distribution that a few people have multiple-thousands of friends, but this is not typical. `67%` of the people fall within the dashed lines (`+/- 1 Standard Deviation`) 
 
 ```{r}
 fb %>%
@@ -301,9 +301,7 @@ fb %>%
     scale_x_continuous(breaks = seq(0,800,100))
 ```
 
-**Median number of Posts shown with black line**
-
-Here we see the distribution for the number of posts that people made.  The a mean number of posts is shown in the black line of `38`.  With posts we see an incredible long and flat upper tail showing us a small number of people are posting more than 100 times for this dataset.
+Here we see the distribution for the number of posts that people made.  The a **median** number of posts is shown in the black line of `38`.  With posts we see an incredible long and flat upper tail showing us a small number of people are posting more than 100 times for this dataset.
 
 ```{r}
 fb %>%
@@ -321,7 +319,8 @@ fb %>%
 
 **Showing Mean Age and +/- 1 Standard Deviations**
 
-For the distribution of people in this dataset according to age, we can see that most people are in their twenty's with the next most common in their 30's.  
+For the distribution of people in this dataset according to age, we can see that most people are in their `20's` with the next most common in their `30's`.  
+
 
 ```{r}
 fb %>%
@@ -343,7 +342,7 @@ Plots of multiple variables to look for relationships, etc..
 
 ```{r}
 ggplot(fb, mapping = aes(x = Posts, y = Friends, color = Gender)) + 
-  geom_point() + 
+  geom_point(alpha = 0.4) + 
   theme_minimal()
 ```
 
@@ -351,7 +350,7 @@ For each person in the data set, plotting the number of posts they have vs. the 
 
 ```{r}
 ggplot(fb, mapping = aes(x = Photos, y = Albums)) + 
-  geom_point() + 
+  geom_point(color = 'darkgray', alpha = 0.4) + 
   geom_smooth(method = "lm", se = FALSE, formula = y ~ x) + 
   theme_minimal()
 ```
@@ -360,7 +359,7 @@ When looking at the number of photos posted, we can see this coorelates to the n
 
 ```{r}
 ggplot(fb, mapping = aes(x = Age, y = Posts)) + 
-  geom_point() + 
+  geom_point(color = 'darkblue', alpha = 0.4) + 
   theme_minimal()
 ```
 
@@ -373,15 +372,7 @@ fb %>%
     theme_minimal()
 ```
 
-Regarding Age Groups and the number of each gender in these groups, we can see that for the most part, each age group is balanced with regards to the number of peole in each Gender.  The exception is "Other", where they appear to be in the 18-24 group, but again.  There is not enough observations in the "Other" gender. 
-
-
-```{r}
-# Tried this out, but not familiar with this method yet
-# my_anova <- aov(data = fb, Friends ~ .)
-# etaSquared(my_anova)
-```
-
+We can see here that for each Age Group, the number of Males and Females is approximately the same regardless of Age. The exception is "Other", where they appear to be in the 18-24 group, but again.  There is not enough observations in the "Other" gender. 
 
 ### Regression Analysis
 Now that we’ve conducted EDA, we will create regression model(s) to predict some continuous value. Eg: predict the ‘# of Friends’.
@@ -415,7 +406,7 @@ Further there are a number of predictor variables that correlate to each other. 
 car::vif(lm(Friends ~., data = fb2))
 ```
 
-As a baseline, a model showing a simple linear regression between `Age` and `Friends` to use as a baseline for our multiple regression
+We're going to create a simple linear regression between `Age` and `Friends` to get a baseline R-squared value for our dataset.
 
 ```{r}
 model <- lm(Friends ~ Age, data = fb2)
