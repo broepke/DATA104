@@ -1,0 +1,23 @@
+---
+title: "R Notebook"
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+```
+
+```{r}
+sal <- read.csv("salary.csv")
+sal
+```
+
+```{r}
+model <- lm(Income ~ Male + NoHS + HighSchool + SomeCollege + Bachelors, data = sal)
+summary(model)
+```
+
+```{r}
+plot(model)
+```
+

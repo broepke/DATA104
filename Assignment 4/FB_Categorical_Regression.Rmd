@@ -1,0 +1,187 @@
+---
+title: "LM Categorical Dummy Test"
+output: html_document
+---
+
+http://www.sthda.com/english/articles/40-regression-analysis/163-regression-with-categorical-variables-dummy-coding-essentials-in-r/ 
+
+```{r}
+library(dplyr, warn.conflicts = FALSE) # suppress conflicts warning
+library(tidyr)
+library(ggplot2)
+```
+
+```{r}
+fb <- read.csv("Facebook FriendsCSV.csv", skip = 2)
+```
+
+```{r}
+# Rename ‘X of Tags’ to ‘Tags’.
+
+fb <- rename(fb, "Tags" = "X..of.Tags")
+```
+
+```{r}
+# Change the datatype from character to integer (Friends, Photos). To do this, need to remove the commas first, using gsub.
+
+fb$Photos <- as.integer(gsub(",","", fb$Photos))
+fb$Friends <- as.integer(gsub(",","", fb$Friends))
+```
+
+```{r}
+# Remove Friend field as it is not needed
+
+fb$Friend <- NULL
+```
+
+
+```{r}
+# Add AgeGroup (13–17, 18–24, 25–34, 35–44, 45–54, 55-64, 65+)
+
+fb <- fb %>% 
+  mutate(AgeGroup = case_when(Age >= 13  & Age <= 17 ~ '13–17', 
+                              Age >= 18  & Age <= 24 ~ '18-24',
+                              Age >= 25  & Age <= 34 ~ '25-34',
+                              Age >= 35  & Age <= 44 ~ '35-44',
+                              Age >= 45  & Age <= 54 ~ '45-54',
+                              Age >= 55  & Age <= 64 ~ '55-64',
+                              Age >= 65 ~ '65+'))
+
+fb$AgeGroup <- as.factor(fb$AgeGroup)
+```
+
+```{r}
+# Update Gender values (male=1; female=0, 2=other)
+
+fb$Gender[fb$Gender == 1] <- 'Male'
+fb$Gender[fb$Gender == 0] <- 'Female'
+fb$Gender[fb$Gender == 2] <- 'Other'
+
+fb$Gender <- as.factor(fb$Gender)
+```
+
+```{r}
+# Update Sexual Orientation values (1=heterosexual; 0=other)
+
+fb$Orientation[fb$Orientation == 1] <- 'Heterosexual'
+fb$Orientation[fb$Orientation == 0] <- 'Other'
+
+fb$Orientation <- as.factor(fb$Orientation)
+```
+
+```{r}
+# Add InRelationship (1=yes; 0=no) and remove Relationship
+
+fb <- fb %>% 
+  mutate(InRelationship = case_when(Relationship == 1 ~ 'Yes',
+                                    Relationship == 0 ~ 'No'))
+
+fb$InRelationship <- as.factor(fb$InRelationship)
+fb$Relationship <- NULL
+```
+
+```{r}
+# Update Emp values (employed=1, unemployed=0)
+
+fb$Emp[fb$Emp == 1] <- 'Employed'
+fb$Emp[fb$Emp == 0] <- 'Unemployed'
+
+fb$Emp <- as.factor(fb$Emp)
+```
+
+```{r}
+# Add HasCollege with yes/no: based on Edu where (1=High School or less; 0=college) then remove Edu
+
+fb <- fb %>% 
+  mutate(HasCollege = case_when(Edu == 1 ~ 'High School or Less',
+                                Edu == 0 ~ 'College'))
+
+fb$HasCollege <- as.factor(fb$HasCollege)
+fb$Edu <- NULL
+```
+
+```{r}
+# Update USA values (yes=1; no=0)
+
+fb$USA[fb$USA == 1] <- 'Yes'
+fb$USA[fb$USA == 0] <- 'No'
+
+fb$USA <- as.factor(fb$USA)
+```
+
+```{r}
+# Add ProfilePic (1=self; 0=other) and remove Profile
+
+fb <- fb %>% 
+  mutate(ProfilePic = case_when(Profile == 1 ~ 'Self',
+                                Profile == 0 ~ 'Other'))
+
+
+fb$ProfilePic <- as.factor(fb$ProfilePic)
+fb$Profile <- NULL
+```
+
+```{r}
+# Add CoverPic (1=self; 0=other) and remove Cover
+
+fb <- fb %>% 
+  mutate(CoverPic = case_when(Cover == 1 ~ 'Self',
+                              Cover == 0 ~ 'Other'))
+
+
+fb$CoverPic <- as.factor(fb$CoverPic)
+fb$Cover <- NULL
+```
+
+```{r}
+# Midwest, Southeast, West are represented. Update their values to be yes/no.
+
+fb$MidWest[fb$MidWest == 1] <- 'Yes'
+fb$MidWest[fb$MidWest == 0] <- 'No'
+
+fb$Seast[fb$Seast == 1] <- 'Yes'
+fb$Seast[fb$Seast == 0] <- 'No'
+
+fb$West[fb$West == 1] <- 'Yes'
+fb$West[fb$West == 0] <- 'No'
+
+fb$MidWest <- as.factor(fb$MidWest)
+fb$Seast <- as.factor(fb$Seast)
+fb$West <- as.factor(fb$West)
+```
+
+```{r}
+# But there are observations not represented in these groups. Add a Region column with values: (MidWest, Seast,West, Other) respectively
+
+fb <- fb %>% 
+  mutate(Region = case_when(MidWest == 'No'  & Seast == 'No' & West == 'No' ~ 'Other',
+                           MidWest == 'Yes' ~ 'MidWest',
+                           Seast == 'Yes' ~ 'Seast',
+                           West == 'Yes' ~ 'West'))
+
+fb$Region <- as.factor(fb$Region)
+```
+
+```{r}
+str(fb)
+```
+
+```{r}
+# Compute the model
+model <- lm(Friends ~ Gender, data = fb)
+summary(model)
+```
+
+
+
+
+```{r}
+# Compute the model
+model <- lm(Friends ~  Gender + Age + Photos + Tags + Likes, data = fb)
+summary(model)
+```
+
+
+
+
+

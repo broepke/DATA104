@@ -1,0 +1,142 @@
+---
+title: 'Regression with Categorical Variables: Dummy Coding Essentials in R'
+output: html_document
+---
+
+
+
+
+```{r}
+library(tidyverse, warn.conflicts = FALSE)
+library(car, warn.conflicts = FALSE)
+```
+
+## Example of data set
+
+We’ll use the Salaries data set [car package], which contains 2008-09 nine-month academic salary for Assistant Professors, Associate Professors and Professors in a college in the U.S.
+
+The data were collected as part of the on-going effort of the college’s administration to monitor salary differences between male and female faculty members.
+
+```{r}
+# Load the data
+data("Salaries", package = "car")
+# Inspect the data
+sample_n(Salaries, 3)
+```
+
+## Categorical variables with two levels
+
+Recall that, the regression equation, for predicting an outcome variable (y) on the basis of a predictor variable (x), can be simply written as `y = b0 + b1*x`. `b0` and `b1 are the regression beta coefficients, representing the intercept and the slope, respectively.
+
+Suppose that, we wish to investigate differences in salaries between males and females.
+
+Based on the gender variable, we can create a new dummy variable that takes the value:
+
+`1` if a person is male
+`0` if a person is female
+and use this variable as a predictor in the regression equation, leading to the following the model:
+
+`b0 + b1` if person is male
+bo if person is female
+The coefficients can be interpreted as follow:
+
+`b0` is the average salary among females,
+`b0 + b1` is the average salary among males,
+and `b1` is the average difference in salary between males and females.
+
+For simple demonstration purpose, the following example models the salary difference between males and females by computing a simple linear regression model on the Salaries data set [car package]. R creates dummy variables automatically:
+
+```{r}
+# Compute the model
+model <- lm(salary ~ sex, data = Salaries)
+summary(model)$coef
+```
+
+From the output above, the average salary for female is estimated to be `101002`, whereas males are estimated a total of     + `14088` = `115090.` The p-value for the dummy variable `sexMale` is very significant, suggesting that there is a statistical evidence of a difference in average salary between the genders.
+
+The `contrasts()` function returns the coding that R have used to create the dummy variables:
+
+```{r}
+contrasts(Salaries$sex)
+```
+
+R has created a sexMale dummy variable that takes on a value of 1 if the sex is Male, and 0 otherwise. The decision to code males as 1 and females as 0 (baseline) is arbitrary, and has no effect on the regression computation, but does alter the interpretation of the coefficients.
+
+You can use the function `relevel()` to set the baseline category to males as follow:
+
+```{r}
+Salaries <- Salaries %>%
+  mutate(sex = relevel(sex, ref = "Male"))
+```
+
+The output of the regression fit becomes:
+
+```{r}
+model <- lm(salary ~ sex, data = Salaries)
+summary(model)$coef
+```
+
+The fact that the coefficient for `sexFemale` in the regression output is negative indicates that being a Female is associated with decrease in salary (relative to Males).
+
+Now the estimates for `b0` and `b1` are `115090` and `-14088`, respectively, leading once again to a prediction of average salary of 115090 for males and a prediction of `115090 - 14088` = `101002` for females.
+
+Alternatively, instead of a 0/1 coding scheme, we could create a dummy variable -1 (male) / 1 (female) . This results in the model:
+
+`b0 - b1` if person is male
+`b0 + b1` if person is female
+
+So, if the categorical variable is coded as -1 and 1, then if the regression coefficient is positive, it is subtracted from the group coded as -1 and added to the group coded as 1. If the regression coefficient is negative, then addition and subtraction is reversed.
+
+## Categorical variables with more than two levels
+
+Generally, a categorical variable with n levels will be transformed into n-1 variables each with two levels. These n-1 new variables contain the same information than the single variable. This recoding creates a table called contrast matrix.
+
+For example rank in the Salaries data has three levels: “AsstProf”, “AssocProf” and “Prof”. This variable could be dummy coded into two variables, one called AssocProf and one Prof:
+
+If rank = AssocProf, then the column AssocProf would be coded with a 1 and Prof with a 0.
+If rank = Prof, then the column AssocProf would be coded with a 0 and Prof would be coded with a 1.
+If rank = AsstProf, then both columns “AssocProf” and “Prof” would be coded with a 0.
+This dummy coding is automatically performed by R. For demonstration purpose, you can use the function model.matrix() to create a contrast matrix for a factor variable:
+
+```{r}
+res <- model.matrix(~rank, data = Salaries)
+head(res[, -1])
+```
+
+When building linear model, there are different ways to encode categorical variables, known as contrast coding systems. The default option in R is to use the first level of the factor as a reference and interpret the remaining levels relative to this level.
+
+Note that, `ANOVA` (analyse of variance) is just a special case of linear model where the predictors are categorical variables. And, because R understands the fact that ANOVA and regression are both examples of linear models, it lets you extract the classic `ANOVA` table from your regression model using the R base `anova()` function or the `Anova()` function [in car package]. We generally recommend the `Anova()` function because it automatically takes care of unbalanced designs.
+
+The results of predicting salary from using a multiple regression procedure are presented below.
+
+```{r}
+model2 <- lm(salary ~ yrs.service + rank + discipline + sex,
+             data = Salaries)
+Anova(model2)
+```
+
+Taking other variables (yrs.service, rank and discipline) into account, it can be seen that the categorical variable sex is no longer significantly associated with the variation in salary between individuals. Significant variables are rank and discipline.
+
+If you want to interpret the contrasts of the categorical variable, type this:
+
+```{r}
+summary(model2)
+```
+
+For example, it can be seen that being from `discipline B` (applied departments) is significantly associated with an average increase of `13473.38` in salary compared to `discipline A` (theoretical departments).
+
+## Discussion
+
+In this chapter we described how categorical variables are included in linear regression model. As regression requires numerical inputs, categorical variables need to be recoded into a set of binary variables.
+
+We provide practical examples for the situations where you have categorical variables containing two or more levels.
+
+Note that, for categorical variables with a large number of levels it might be useful to group together some of the levels.
+
+Some categorical variables have levels that are ordered. They can be converted to numerical values and used as is. For example, if the professor grades (“AsstProf”, “AssocProf” and “Prof”) have a special meaning, you can convert them into numerical values, ordered from low to high, corresponding to higher-grade professors.
+
+
+
+
+
+
