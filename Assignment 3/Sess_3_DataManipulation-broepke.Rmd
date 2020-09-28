@@ -503,7 +503,9 @@ filter(flights, carrier %in% c('UA', 'DL', 'AA'))
 
 ```{r}
 # Arrived more than 2 hours late, but didn’t leave late. Select by flight, arr_delay, dep_delay.
-filter(flights, dep_delay <= 0 & arr_delay > 120)
+flights %>%
+  filter(dep_delay <= 0 & arr_delay > 120) %>%
+  select(flight, arr_delay, dep_delay)
 ```
 
 ```{r}
