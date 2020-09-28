@@ -277,33 +277,35 @@ Plots of single variables to understand shape, distribution, et
 fb %>%
     ggplot(aes(Friends)) +
     geom_histogram(binwidth = 100, color = "blue",fill = "lightblue") +
-    geom_vline(xintercept = mean(fb$Friends), lwd = 1) +
+    geom_vline(xintercept = mean(fb$Friends), lwd = 0.5) +
     labs(title = "Distribution of Friends",
          x = "Number of Friends",
          y = "Count") +
     theme_minimal() +
     scale_x_continuous(breaks = seq(0,5000,1000))
 ```
+
 **Mean number of Friends shown with black line**
 
 ```{r}
 fb %>%
     ggplot(aes(Posts)) +
     geom_density(color = "red",fill = "salmon") +
-    geom_vline(xintercept = mean(fb$Posts), lwd = 1) +
+    geom_vline(xintercept = median(fb$Posts), lwd = 0.5) +
     labs(title = "Distribution of Posts",
          x = "Number of Posts",
          y = "") +
     theme_minimal() +
     scale_x_continuous(breaks = seq(0,800,100))
 ```
-**Mean number of Posts shown with black line**
+
+**Median number of Posts shown with black line**
 
 ```{r}
 fb %>%
     ggplot(aes(Age)) +
     geom_histogram(binwidth = 10, color = "black",fill = "gray") +
-    geom_vline(xintercept = mean(fb$Age), lwd = 1) +
+    geom_vline(xintercept = mean(fb$Age), lwd = 0.5) +
     geom_vline(xintercept = mean(fb$Age)-sd(fb$Age), linetype="dashed") +
     geom_vline(xintercept = mean(fb$Age)+sd(fb$Age), linetype="dashed") +
     labs(title = "Distribution of Age",
@@ -312,6 +314,7 @@ fb %>%
     theme_minimal() +
     scale_x_continuous(breaks = seq(10,100,10))
 ```
+
 **Showing Mean Age and +/- 1 Standard Deviations**
 
 ```{r}
