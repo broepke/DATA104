@@ -25,7 +25,7 @@ ga_data <- google_analytics(229668892,
   date_range = c("30daysAgo", "yesterday"), 
   metrics = c("users", "sessions", "bounces"), 
   dimensions = c("date"),
-  max = 10 # number of rows
+  max = 31 # number of rows
 )
 
 ga_data
