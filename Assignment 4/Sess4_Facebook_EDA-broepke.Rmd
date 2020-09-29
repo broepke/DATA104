@@ -271,6 +271,8 @@ summary(fb)
 
 ### Univariant
 
+We will start to inspect this dataset across different columns to better understand the distributions of different fields.
+
 ```{r}
 fb %>%
     ggplot(aes(Friends)) +
@@ -287,9 +289,7 @@ fb %>%
     scale_x_continuous(breaks = seq(0,5000,1000))
 ```
 
-**Mean number of Friends shown with black line and +/- 1 Standard Deviations**
-
-Here we see that the distribution of number of friends is Right Skewed with a mean (solid black line) of `696`.  We can see around the upper tail of the distribution that a few people have multiple-thousands of friends, but this is not typical. `67%` of the people fall within the first and second dashed lines (`+/- 1 Standard Deviation`). `+2` and `+3` Standard Deviations also shown.  the bars to the right of the last dash line are only `0.15%` of all people in the dataset. 
+Here we see that the distribution of number of `Friends` is Right Skewed with a mean (*noted by the solid black line*) of `696`.  We can see in the upper tail of the distribution that only a small percentage of people (`< 0.15%`) have multiple-thousands of friends. `67%` of the observations in the dataset fall within the first and second dashed lines (`+/- 1 Standard Deviation`). `+2` and `+3` Standard Deviations also shown to help visualize the proportions of the rest of the distribution.
 
 ```{r}
 fb %>%
@@ -303,12 +303,12 @@ fb %>%
     scale_x_continuous(breaks = seq(0,800,100))
 ```
 
-Here we see the distribution for the number of posts that people made.  The a **median** number of posts is shown in the black line of `38`.  With posts we see an incredible long and flat upper tail showing us a small number of people are posting more than 100 times for this dataset.
+Here we see the distribution for the number of posts that people made.  The a **median** number of posts is shown in the black line of `38`.  With `Posts` we also see an incredibly long and flat upper tail showing us a small number of people are posting more than 100 times for this dataset.
 
 ```{r}
 fb %>%
     ggplot(aes(Age)) +
-    geom_histogram(binwidth = 10, color = "black",fill = "gray", alpha=0.8) +
+    geom_histogram(binwidth = 5, color = "black",fill = "gray", alpha=0.8) +
     geom_vline(xintercept = mean(fb$Age), lwd = 0.5) +
     geom_vline(xintercept = mean(fb$Age)-sd(fb$Age), linetype="dashed") +
     geom_vline(xintercept = mean(fb$Age)+sd(fb$Age), linetype="dashed") +
@@ -316,10 +316,8 @@ fb %>%
          x = "Age",
          y = "Count") +
     theme_minimal() +
-    scale_x_continuous(breaks = seq(10,100,10))
+    scale_x_continuous(breaks = seq(10,100,5))
 ```
-
-**Showing Mean Age and +/- 1 Standard Deviations**
 
 For the distribution of people in this dataset according to age, we can see that most people are in their `20's` with the next most common in their `30's`.  
 
@@ -336,13 +334,11 @@ fb %>%
     coord_flip()
 ```
 
-**TO DO: Fix this paragraph**
-
-The number of friends for each Gender is displayed in the box and whisker plots. We can see that the inner quartile ranges for females is larger than for males, showing a little more variation in the number of friends women have vs. men relative to the median number. The median for men and women however, appears to be quite similar to each other, where as the meian for Other is lower.  Note: the number of observations of "Other" in this dataset is relatively small.  
+The number of `Friends` for each `Age Group` is displayed in the box and whisker plots.  People in the age group `18-24` show the largest Inner Quartile Range (IQR) as well as the most outliers with larger friend counts.  This age group, `18-24`, also shows the highest mean number of `Friends`.
 
 ### Multivariate
 
-Plots of multiple variables to look for relationships, etc..
+Next we'll further inspect the dataset to better understand the **relationship** between different variables.  First starting with `Friends` and `Posts`.
 
 ```{r}
 ggplot(fb, mapping = aes(x = Posts, y = Friends, color = Gender)) + 
@@ -353,13 +349,23 @@ ggplot(fb, mapping = aes(x = Posts, y = Friends, color = Gender)) +
 For each person in the data set, plotting the number of posts they have vs. the number of friends shows a a high level of concentration below about 1500 friends and below 70-100 posts.  There are a few outliers however that either have a lot of posts and a smaller amout of friends and vice versa.  This dataset does not show entries that have a high amount of both friends and posts. 
 
 ```{r}
+fb %>% filter(Posts <= 100 & Friends <= 1500) %>%
+  ggplot(mapping = aes(x = Posts, y = Friends, color = Gender)) + 
+  geom_point(alpha = 0.4) + 
+  theme_minimal()
+```
+
+Taking a look at the same data but filtered for those ranges stated above.  We get a better view of the distribution.   The data has a **slight positive correlation**, but not a strong one. 
+
+
+```{r}
 ggplot(fb, mapping = aes(x = Photos, y = Albums)) + 
   geom_point(color = 'black', alpha = 0.3) + 
   geom_smooth(method = "lm", se = FALSE, formula = y ~ x) + 
   theme_minimal()
 ```
 
-When looking at the number of photos posted, we can see this coorelates to the number of Albumns a person has as well.  A fairly strong relationship between the two.  This logically makes sense as people are organizging their photos by albumn online.
+When looking at the number of `Photos` posted, we can see a **positive correlation** to the number of `Albums` a person has, showin a fairly strong relationship between the two.  This makes sense as people are organizing their photos by album online.
 
 ```{r}
 ggplot(fb, mapping = aes(x = Age, y = Friends)) + 
@@ -367,7 +373,7 @@ ggplot(fb, mapping = aes(x = Age, y = Friends)) +
   theme_minimal()
 ```
 
-Here we see Age on the X axis and Friends on the Y.  We can see that people starting at about age `20` to about age `30` represent a large concentration of the people in this dataset, and as the data also shows, they tend to have more Friends, or even represent the extreme Friend counts.
+Here we see `Age` on the `X` axis and `Friends` on the `Y`.  We can see that people starting at about age `20` to about age `30` represent a large concentration of the people in this dataset, and as the data also shows, they tend to have more Friends, or even represent the extreme Friend counts.
 
 ```{r}
 fb %>% 
@@ -376,7 +382,7 @@ fb %>%
     theme_minimal()
 ```
 
-We can see here that for each Age Group, the number of Males and Females is approximately the same regardless of Age. The exception is "Other", where they appear to be in the 18-24 group, but again.  There is not enough observations in the "Other" gender. 
+We can see here that for each Age Group, the number of `Males` and `Females` is approximately the same regardless of `Age.` The exception is "Other", where they appear to be in the 18-24 group, but again.  There are not enough observations in the `Other` category. 
 
 ### Regression Analysis
 Now that we’ve conducted EDA, we will create regression model(s) to predict some continuous value. Eg: predict the ‘# of Friends’.
@@ -388,7 +394,6 @@ Now that we’ve conducted EDA, we will create regression model(s) to predict so
 ```{r}
 fb2 = fb %>% 
   select_if(is.numeric)
-
  str (fb2)
 ```
 
@@ -410,25 +415,25 @@ Further there are a number of predictor variables that correlate to each other. 
 car::vif(lm(Friends ~., data = fb2))
 ```
 
-We're going to create a simple linear regression between `Age` and `Friends` to get a baseline R-squared value for our dataset. Based on the EDA above, there seems to be the strongest relationship between the age of a person and the number of friends they have.
+We're going to create a simple linear regression between `Age` and `Friends` to get a baseline `R-squared` value for our dataset. Based on the EDA above, there seems to be the decent relationship between the age of a person and the number of friends they have.
 
 ```{r}
 model <- lm(Friends ~ Age, data = fb2)
 summary(model)
 ```
 
-Using Only age we get an R-squared value of 0.039 telling us that only 4% of the variance is explained by age alone.  We will build a Multiple Regression model to see if we can improve on that.
+Using only age we get an `R-squared` value of `0.039` telling us that only `4%` of the variance is explained by age alone.  Not a good model based on these results.  We will build a Multiple Regression model to see if we can improve on that.
 
 ## Multiple regression model
 
-Given the VIF for `Posts`, and `Replies` is greater than `5`, we will eliminate them from the model. Next, after eliminating them, we can see which variables have a *significant* effect on the model. 
+Given the VIF for `Posts`, and `Replies` is greater than `5`, we will eliminate them from the model. Next, we can see which variables have a *significant* effect on the model. 
 
 ```{r}
 model <- lm(Friends ~ Age + Photos + Tags + Albums + Children + Likes + Events, data = fb2)
 summary(model)
 ```
 
-After running that multiple regression model, we can see that `Albums`, `Children`, and `Events` are not significant.  We can simplify the model by removing some of these variables. 
+Upon inspecting the resulting `p-values` for the different variables after running that multiple regression model, we can see that `Albums`, `Children`, and `Events` are not significant.  We can simplify the model by removing them.  The R-squared value for this model is `0.14`, telling us that `14%` of the variance in the data is described with these independent variables on the dependent `Friends` variable. 
 
 ```{r}
 model <- lm(Friends ~ Age + Photos + Tags + Likes, data = fb2)
@@ -445,3 +450,6 @@ With this, we can state that this model **is not a sufficient predictor** of the
 
 `Y = 827.87677 - 11.93533(Age) + 0.06748(Photos) + 0.10946(Tags) + 0.41635(Likes)`
 
+Brian Roepke
+Data 104
+broepke@my.ggu.edu
