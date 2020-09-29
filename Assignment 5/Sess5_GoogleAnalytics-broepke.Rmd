@@ -1,0 +1,46 @@
+---
+title: "Session 5 Assignment"
+output:
+  html_document: default
+---
+
+## Google Analytics with R
+
+```{r}
+library(dplyr, warn.conflicts = FALSE)
+options(dplyr.summarise.inform = FALSE) # Suppress summarise info
+suppressPackageStartupMessages(library(tidyverse)) # suppress startup message
+library(googleAnalyticsR)
+```
+
+```{r}
+options(googleAuthR.webapp.client_id = clientid)
+options(googleAuthR.webapp.client_secret = clientsecret)
+ga_auth()
+
+# http://code.markedmondson.me/googleAnalyticsR/articles/setup.html#your-own-google-project
+```
+
+
+```{r}
+accounts = ga_account_list()
+head(accounts)
+```
+
+```{r}
+# account list will have a column called "viewId"
+accounts[c('webPropertyName', 'viewId')]
+```
+
+
+```{r}
+ga_data <- google_analytics(229668892,
+# date_range = c("2015-07-30","2015-10-01"), 
+  date_range = c("30daysAgo", "yesterday"), 
+  metrics = c("users", "sessions", "bounces"), 
+  dimensions = c("date"),
+  max = 31 # number of rows
+)
+
+ga_data
+```
