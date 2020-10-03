@@ -14,8 +14,8 @@ library(googleAnalyticsR)
 ```
 
 ```{r}
-options(googleAuthR.webapp.client_id = clientid)
-options(googleAuthR.webapp.client_secret = clientsecret)
+#options(googleAuthR.webapp.client_id = clientid)
+#options(googleAuthR.webapp.client_secret = clientsecret)
 ga_auth()
 
 # http://code.markedmondson.me/googleAnalyticsR/articles/setup.html#your-own-google-project
@@ -44,3 +44,8 @@ ga_data <- google_analytics(229668892,
 
 ga_data
 ```
+
+```{r}
+plot(ga_data)
+```
+

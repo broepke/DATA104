@@ -1,0 +1,157 @@
+---
+title: "Facebook EDA"
+author: "Brian Roepke"
+date: "Oct 4, 2020"
+output: html_document
+---
+# Project Description
+
+Perform Exploratory Data Analysis on the provided dataset. Refer to your reading on EDA as well as referenced resources provided in this notebook, e-learning and elsewhere. 
+**Your project MUST include meaningful analysis with description, similar to the EDA sample provided.**
+
+```{r}
+library(dplyr, warn.conflicts = FALSE) # suppress conflicts warning
+library(tidyr)
+library(ggplot2)
+library(car)
+library(corrplot)
+library(lsr)
+library(ggcorrplot)
+```
+
+```{r}
+fb <- read.csv("Facebook FriendsCSV.csv", skip = 2)
+```
+
+```{r}
+str(fb)
+```
+
+```{r}
+names(fb)
+```
+
+# Data Prep
+Observe the following:
+
+ * X..of..Tags column name was generated due to spaces in the column name. Rename this to Tags
+ * The Friend field is not a data field but represents an instance (715 in total), and is not needed
+ * Fields with values 0 and 1 are actually categorical (eg: Emp,Profile, Edu, Events, USA, etc..)
+ * Gender is categorical ((Male=1; Female=0, 2=Other/Unknown)
+ * Fields ‘Photos’ and ‘Friends’ were treated as character when they should be numeric. We can use regular expressions to show which values are causing the data to be treated as chr
+ * Remaining fields are continuous
+
+## To Do
+1. Rename ‘X of Tags’ to ‘Tags’.
+2. Change the datatype from character to integer (Friends, Photos). To do this, need to remove the commas first, using gsub.
+
+```{r}
+# Rename ‘X of Tags’ to ‘Tags’.
+
+fb <- rename(fb, "Tags" = "X..of.Tags")
+```
+
+```{r}
+# Change the datatype from character to integer (Friends, Photos). To do this, need to remove the commas first, using gsub.
+
+fb$Photos <- as.integer(gsub(",","", fb$Photos))
+fb$Friends <- as.integer(gsub(",","", fb$Friends))
+```
+
+## Verify by looking at the structure again
+
+```{r}
+str(fb)
+```
+
+## Let’s take a look at the distribution of Age.
+
+```{r}
+summary(fb$Age)
+```
+
+We see that the min Age is 13, max is 81, average is 24. For plotting, create age groups: 13–17, 18–24, 25–34, 35–44, 45–54, 55-64, 65+
+
+Reference:
+https://www.statista.com/statistics/376128/facebook-global-user-age-distribution/
+
+# Data wrangling/munging/transformation
+Refers to the process of cleaning, structuring, enriching raw data into a format compatible for down stream processing such as analysis, plotting, etc. Perform the following transformations:
+
+ * Remove Friend field as it is not needed
+ * Convert to categorical fields to factors
+    * Add AgeGroup (13–17, 18–24, 25–34, 35–44, 45–54, 55-64, 65+)
+    * Update Gender values (male=1; female=0, 2=other)
+    * Update Sexual Orientation values (1=heterosexual; 0=other)
+    * Add InRelationship (1=yes; 0=no) and remove Relationship
+    * Update Emp values (employed=1, unemployed=0)
+    * Add HasCollege with yes/no: based on Edu where (1=High School or less; 0=college) then remove Edu
+    * Update USA values (yes=1; no=0)
+    * Add ProfilePic (1=self; 0=other) and remove Profile
+    * Add CoverPic (1=self; 0=other) and remove Cover
+    * Midwest, Southeast, West are represented. Update their values to be yes/no.
+    * But there are observations not represented in these groups. Add a Region column with values: (MidWest, Seast,West, Other) respectively
+
+```{r}
+# Remove Friend field as it is not needed
+
+fb$Friend <- NULL
+```
+
+
+
+```{r}
+fb <- fb %>% mutate(AgeGroup = case_when(
+    Age >=13 & Age <= 17   ~ '13-17',
+    Age >=18 & Age <= 24   ~ '18-24',
+    Age >=25 & Age <= 34   ~ '25-34',
+    Age >=35 & Age <= 44   ~ '35-44',
+    Age >=45 & Age <= 54   ~ '45-54',
+    Age >=55 & Age <= 64   ~ '55-64',
+    Age > 64 ~ '65'
+))
+
+fb$AgeGroup <- as.factor(fb$AgeGroup)
+```
+
+
+```{r}
+str(fb)
+```
+
+```{r}
+# Midwest, Southeast, West are represented. Update their values to be yes/no.
+
+fb$MidWest[fb$MidWest == 1] <- 'yes'
+fb$MidWest[fb$MidWest == 0] <- 'no'
+
+fb$Seast[fb$Seast == 1] <- 'yes'
+fb$Seast[fb$Seast == 0] <- 'no'
+
+fb$West[fb$West == 1] <- 'yes'
+fb$West[fb$West == 0] <- 'no'
+
+fb$MidWest <- as.factor(fb$MidWest)
+fb$Seast <- as.factor(fb$Seast)
+fb$West <- as.factor(fb$West)
+```
+
+
+```{r}
+fb <- mutate(fb, Region= case_when(
+    MidWest == 'yes' ~ 'midwest',
+    Seast == 'yes' ~ 'Southeast',
+    West == 'yes' ~ 'West',
+    TRUE ~ 'other'
+))
+fb$Region <- as.factor(fb$Region)
+```
+
+```{r}
+str(fb)
+```
+
+```{r}
+summary(fb$Region)
+```
+
