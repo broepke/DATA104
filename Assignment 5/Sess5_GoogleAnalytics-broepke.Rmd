@@ -28,15 +28,29 @@ head(accounts)
 ```
 
 ```{r}
+broepke = filter(accounts, accountName == 'broepke')
+my_viewId = broepke$viewId
+my_viewId
+```
+```{r}
+my_viewId = accounts %>%
+  filter(accountName == 'broepke') %>%
+  select(viewId)
+
+my_viewID = my_viewId$viewId
+```
+
+
+```{r}
 # account list will have a column called "viewId"
 accounts[c('webPropertyName', 'viewId')]
 ```
 
 
 ```{r}
-ga_data <- google_analytics(229668892,
+ga_data <- google_analytics(my_viewID,
 # date_range = c("2015-07-30","2015-10-01"), 
-  date_range = c("30daysAgo", "yesterday"), 
+  date_range = c("28daysAgo", "today"), 
   metrics = c("users", "sessions", "bounces"), 
   dimensions = c("date"),
   max = 31 # number of rows
@@ -46,6 +60,6 @@ ga_data
 ```
 
 ```{r}
-plot(ga_data)
+
 ```
 
