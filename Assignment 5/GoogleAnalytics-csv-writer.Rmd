@@ -8,14 +8,13 @@ output:
 
 ```{r}
 library(dplyr, warn.conflicts = FALSE)
-options(dplyr.summarise.inform = FALSE) # Suppress summarise info
-suppressPackageStartupMessages(library(tidyverse)) # suppress startup message
+library(tidyverse)
 library(googleAnalyticsR)
 ```
 
 ```{r}
-#options(googleAuthR.webapp.client_id = clientid)
-#options(googleAuthR.webapp.client_secret = clientsecret)
+# options(googleAuthR.webapp.client_id = clientid)
+# options(googleAuthR.webapp.client_secret = clientsecret)
 ga_auth()
 
 # http://code.markedmondson.me/googleAnalyticsR/articles/setup.html#your-own-google-project
@@ -32,6 +31,8 @@ broepke = filter(accounts, accountName == 'broepke')
 my_viewId = broepke$viewId
 my_viewId
 ```
+
+
 ```{r}
 my_viewId = accounts %>%
   filter(accountName == 'broepke') %>%
@@ -50,16 +51,26 @@ accounts[c('webPropertyName', 'viewId')]
 ```{r}
 ga_data <- google_analytics(my_viewID,
 # date_range = c("2015-07-30","2015-10-01"), 
-  date_range = c("28daysAgo", "today"), 
+  date_range = c("30daysAgo", "yesterday"), 
   metrics = c("users", "sessions", "bounces"), 
-  dimensions = c("date"),
-  max = 31 # number of rows
+  dimensions = c("date", "dayOfWeek", "hour"),
+  max = 1000 # number of rows
 )
 
 ga_data
 ```
 
 ```{r}
-
+# number of non-zero sessions
+df = subset(ga_data, sessions > 0)
+addmargins(with(df, table(df$date, df$sessions, dnn = c('date', 'sessions'))))
 ```
+
+
+```{r}
+my_path = "~/Projects/DATA104/Assignment 5/ga_data.csv"
+write_csv(ga_data, path = my_path)
+read_csv(my_path)
+```
+
 
