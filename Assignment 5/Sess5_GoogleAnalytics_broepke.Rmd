@@ -8,16 +8,14 @@ output:
 ## Google Analytics with R
 
 ```{r}
+library(dplyr)
 library(tidyverse)
-library(dplyr, warn.conflicts = FALSE)
 library(googleAnalyticsR)
-library(ggplot2)
 ```
 
 
 ```{r}
-my_path <- "~/Projects/DATA104/Assignment 5/ga_data.csv"
-ga <- read.csv(my_path)
+ga <- read.csv("~/Projects/DATA104/Assignment 5/ga_data.csv")
 ```
 
 ```{r}
@@ -41,15 +39,18 @@ head(ga)
 tail(ga)
 ```
 
-### Show statistic Summary
-
- * TODO Describe your observations in words.
+###  Summary Statistics
 
 ```{r}
 summary(ga)
 ```
 
-Describe the output
+ * **Date**: the summary statistics for the date show you with the min/max values the start and end dates of your dataset.  The median additionally shows you the mid point.
+  * **Day of Week**: Because this data is a Factor, this simply tells us how many days of each day of the week are in the set. Since there are 24 hours in a day, dividing the numbers in day of week gives us 5 days for "0" and "6" and 4 for the rest.
+ * **Hour**: Represents the hours in a day from 0-23 (24 hours)
+ * **Users**: The number of total unique users per period.  In our case hourly samples.  There were at max 2 users in a single one hour period of time and a min of 0.
+ * **Sessions**: The max number of sessions in any given hour here was 2, with a min of 0.  
+ * **Bounces**: The max bounce rate is 1, showing us that about 1/2 our users in any given hour that visitied, went to more than one page (Given we only have two users max per hour).
 
 ```{r}
 cum_sesson_totals = ga %>%
@@ -138,7 +139,6 @@ ggplot(cum_sesson_totals, mapping = aes(x = date, y = total_sessions)) +
 cum_dayofweek_totals = ga %>%
   group_by(date, dayOfWeek)  %>%
   summarize(total_sessions = sum(sessions), .groups = 'keep')
-cum_dayofweek_totals
 ```
 
 ## Create boxplots showing the number of sessions by day of week (use cum_dayofweek_totals)
