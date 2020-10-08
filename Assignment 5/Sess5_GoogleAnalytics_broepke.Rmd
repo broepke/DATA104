@@ -122,7 +122,7 @@ ggplot(cum_sesson_totals, mapping = aes(x = date, y = total_sessions)) +
   geom_line(color = 'black') + 
   theme_minimal()
 ```
-
+The page was mostly idle until October 5th.  The site was shared on various social media sites and produced an influx of new users.  
 
 ## Create a scatter plot with a trend line showing sessions over time (use cum_sesson_totals)
 
