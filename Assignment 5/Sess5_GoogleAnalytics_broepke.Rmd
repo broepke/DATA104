@@ -8,8 +8,10 @@ output:
 ## Google Analytics with R
 
 ```{r}
-library(dplyr)
-library(tidyverse)
+library(dplyr, warn.conflicts = FALSE)
+library(tidyverse, warn.conflicts = FALSE)
+suppressPackageStartupMessages(library(tidyverse)) # suppress startup message
+options(dplyr.summarise.inform = FALSE) # Suppress summarise info
 library(googleAnalyticsR)
 ```
 
@@ -41,19 +43,28 @@ tail(ga)
 
 ###  Summary Statistics
 
+** fix thid to only have data / sessinos / users / bounes
+
 ```{r}
-summary(ga)
+ga %>% 
+  select(date, sessions, users, bounces) %>% 
+  summary()
+```
+
+
+```{r}
+
 ```
 
  * **Date**: the summary statistics for the date show you with the min/max values the start and end dates of your dataset.  The median additionally shows you the mid point.
-  * **Day of Week**: Because this data is a Factor, this simply tells us how many days of each day of the week are in the set. Since there are 24 hours in a day, dividing the numbers in day of week gives us 5 days for "0" and "6" and 4 for the rest.
+  * **Day of Week**: Because this data is a Factor, this simply tells us how many days of each day of the week are in the set. Since there are 24 hours in a day, dividing the numbers in day of week gives us 5 days for "2", "3", and "4" and 4 for the rest.
  * **Hour**: Represents the hours in a day from 0-23 (24 hours)
- * **Users**: The number of total unique users per period.  In our case hourly samples.  There were at max 2 users in a single one hour period of time and a min of 0.
- * **Sessions**: The max number of sessions in any given hour here was 2, with a min of 0.  
- * **Bounces**: The max bounce rate is 1, showing us that about 1/2 our users in any given hour that visitied, went to more than one page (Given we only have two users max per hour).
+ * **Users**: The number of total unique users per period.  In our case hourly samples.  There were at max 25 users in a single one hour period of time and a min of 0.
+ * **Sessions**: The max number of sessions in any given hour here was 25, equal to the number of users.  We might see this number be higher than the users on a traditional web site, however here we see that each users is essentially visiting it once.  
+ * **Bounces**: The max bounce rate is 21 showing us that *most* users are bouncing after a single page is viwed.  To be understood given this sample web site doesn't have much to navigate through.
 
 ```{r}
-cum_sesson_totals = ga %>%
+cum_sesson_totals <- ga %>%
   group_by(date)  %>%
   summarize(total_sessions = sum(sessions), .groups = 'keep')
 cum_sesson_totals
@@ -91,28 +102,6 @@ at_least_one_session
 addmargins(with(at_least_one_session, table(date, total_sessions, dnn = c('date', 'total_sessions'))))
 ```
 
-## Informational only (don’t need to include)
-
-```{r}
-df = ga %>%
-  subset(sessions > 0) %>%
-  group_by(date, hour)  %>%
-  summarize(sessions)
-
-df
-```
-
-```{r}
-# contingency table that shows the days that have at least 1 session
-addmargins(with(df, table(date, sessions, dnn = c('date', 'sessions'))))
-```
-
-```{r}
-# filter by session on 9/6 to confirm that 9/16 has 6 sessions
-ga  %>%
-  filter(date=='2020-09-24' & sessions > 0) %>%
-  summarize(date, hour, sessions)
-```
 
 ## Create a time series (eg: line chart) with sessions by day (use cum_sesson_totals )
 
@@ -128,7 +117,8 @@ The page was mostly idle until October 5th.  The site was shared on various soci
 
 ```{r}
 ggplot(cum_sesson_totals, mapping = aes(x = date, y = total_sessions)) + 
-  geom_point(color = 'black', alpha = 0.5) + 
+  geom_point(color = 'black', alpha = 0.5) +
+  geom_line(color = 'gray', alpha = 0.5) + 
   geom_smooth() +
   theme_minimal()
 ```
