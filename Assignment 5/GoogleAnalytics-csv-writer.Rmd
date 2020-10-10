@@ -51,7 +51,7 @@ accounts[c('webPropertyName', 'viewId')]
 ```{r}
 ga_data <- google_analytics(my_viewID,
 # date_range = c("2015-07-30","2015-10-01"), 
-  date_range = c("30daysAgo", "today"), 
+  date_range = c("30daysAgo", "yesterday"), 
   metrics = c("users", "sessions", "bounces"), 
   dimensions = c("date", "dayOfWeek", "hour"),
   max = 1000 # number of rows

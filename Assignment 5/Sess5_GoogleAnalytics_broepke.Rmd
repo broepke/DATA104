@@ -43,25 +43,21 @@ tail(ga)
 
 ###  Summary Statistics
 
-** fix thid to only have data / sessinos / users / bounes
-
 ```{r}
 ga %>% 
-  select(date, sessions, users, bounces) %>% 
+  select(date, users, sessions, bounces) %>% 
   summary()
 ```
 
+ * **Date**: The summary statistics for the date show you with the min/max values the start and end dates of your dataset.  We can see we have 30 days of data in this dataset.
+ * **Users**: The number of total unique users per period.  In our case, hourly samples.  There were at max 25 users in a single one hour period of time and a min of 0.
+ * **Sessions**: The max number of sessions in any given hour here was 25, in this case, equal to the number of users.  We might see this number be higher than the users on a traditional website; however, we see that each user is essentially visiting it once.  
+ * **Bounces**: The maximum bounce number is 21 showing us that *most* users are bouncing after a single page is viewed.  This particular max value is most likely paired with the high of 25 users,  suggesting all but 4 of these bounced after landing on the page.
 
-```{r}
 
-```
+## Session Totals by Date
 
- * **Date**: the summary statistics for the date show you with the min/max values the start and end dates of your dataset.  The median additionally shows you the mid point.
-  * **Day of Week**: Because this data is a Factor, this simply tells us how many days of each day of the week are in the set. Since there are 24 hours in a day, dividing the numbers in day of week gives us 5 days for "2", "3", and "4" and 4 for the rest.
- * **Hour**: Represents the hours in a day from 0-23 (24 hours)
- * **Users**: The number of total unique users per period.  In our case hourly samples.  There were at max 25 users in a single one hour period of time and a min of 0.
- * **Sessions**: The max number of sessions in any given hour here was 25, equal to the number of users.  We might see this number be higher than the users on a traditional web site, however here we see that each users is essentially visiting it once.  
- * **Bounces**: The max bounce rate is 21 showing us that *most* users are bouncing after a single page is viwed.  To be understood given this sample web site doesn't have much to navigate through.
+New data frame for later use, calculating the aggregated number of user sessions by date.  This will sum all of the hourly sessions into a single day total.
 
 ```{r}
 cum_sesson_totals <- ga %>%
@@ -69,24 +65,37 @@ cum_sesson_totals <- ga %>%
   summarize(total_sessions = sum(sessions), .groups = 'keep')
 cum_sesson_totals
 ```
-## How many days had 0 sessions? Which days? (use cum_sesson_totals)
+
+## Sessions Overview
+
+Answering the following questions: 
+ * How many days had 0 sessions?
+ * Which days had 0 sessions?
+ * How many days with sessions?
+ * Which days had sessions?
+ * Create a contingency table showing the session counts by date
+
+### How many days had 0 sessions? Which days?
 
 ```{r}
 length(which(cum_sesson_totals$total_sessions == 0))
 ```
 
+There were 19 days out of our 30 which had 0 sessions (no activity).
 
 ```{r}
 cum_sesson_totals %>%
   filter(total_sessions == 0)
 ```
 
-## How many days with 1 or more sessions? Which days? (use cum_sesson_totals)
+
+### How many days with 1 or more sessions? Which days?
 
 ```{r}
 length(which(cum_sesson_totals$total_sessions >= 1))
 ```
 
+There were 11 days (out of 30) which had at least one session.
 
 ```{r}
 at_least_one_session <- cum_sesson_totals %>%
@@ -95,33 +104,56 @@ at_least_one_session <- cum_sesson_totals %>%
 at_least_one_session
 ```
 
-## contingency table with total sessions by date (for dates with 1 or more sessions)
+### Contingency table with total sessions by date (for dates with 1 or more sessions)
+
+Contingency tables (also called crosstabs or two-way tables) are used in statistics to summarize the relationship between several categorical variables. A contingency table is a special type of frequency distribution table, where two variables are shown simultaneously.[1]
+
+[1] https://www.statisticshowto.com/what-is-a-contingency-table/ 
 
 ```{r}
-# contingency table that shows the days that have at least 1 session
+# Contingency table that shows the days that have at least 1 session
 addmargins(with(at_least_one_session, table(date, total_sessions, dnn = c('date', 'total_sessions'))))
 ```
 
+According to the contingency table, we can sum the total_sessions multiplied by the number of occurances on different days (as shown by the sum row for the columns).  Given that we have:
 
-## Create a time series (eg: line chart) with sessions by day (use cum_sesson_totals )
+`(3 * 1) + 2 + 3 + 4 + 13 + 34 + 55 + 98 + 139 = 351` total sessions across 11 days.
 
+We can quickly validate that by creating summarizing our original data/number of sessions.
+
+
+```{r}
+ga %>%
+  summarize(total_sessions = sum(sessions), .groups = 'keep')
+```
+
+There was in fact 351 sessions accross those 11 days. 
+
+## Number of Sessions by Day
 
 ```{r}
 ggplot(cum_sesson_totals, mapping = aes(x = date, y = total_sessions)) + 
   geom_line(color = 'black') + 
+  xlab("Date") + 
+  ylab("Total Number of Sessions") +
   theme_minimal()
 ```
-The page was mostly idle until October 5th.  The site was shared on various social media sites and produced an influx of new users.  
 
-## Create a scatter plot with a trend line showing sessions over time (use cum_sesson_totals)
+The page was mostly idle until October 5th, the was shared on various social media sites and produced an influx of new users.  The most massive spike was on the 5th, then dropping from there over the subsequent days. 
+
+## Scatter Plot with a Trend Line of sessions
 
 ```{r}
 ggplot(cum_sesson_totals, mapping = aes(x = date, y = total_sessions)) + 
   geom_point(color = 'black', alpha = 0.5) +
   geom_line(color = 'gray', alpha = 0.5) + 
   geom_smooth() +
+  xlab("Date") + 
+  ylab("Total Number of Sessions") +
   theme_minimal()
 ```
+
+Given the massive spike in users from October 5th, the trend line appears to have strong upward momentum. However, we can see that the number of sessions had been dropping, giving us less confidence (regardless of the confidence interval shown) that the trend will continue.
 
 ## Create a new dataframe called cum_dayofweek_totals, with session totals by date and dayOfWeek
 
@@ -136,10 +168,16 @@ cum_dayofweek_totals = ga %>%
 ```{r}
 ggplot(cum_dayofweek_totals, aes(x = dayOfWeek, y = total_sessions)) + 
   geom_boxplot() +
+  scale_x_discrete(labels = c('Sun', 'Mon', 'Tues', 'Wed', 'Thur', 'Fri', 'Sat'),
+                   guide = guide_axis(angle = 90)) +
+  xlab("Day of the Week") + 
+  ylab("Total Sessions") +
   theme_minimal()
 ```
 
-## Create a new dataframe called cum_users_totals, with user totals by hour and dayOfWeek
+Here we can see summary statistics as box plots for each day of the week.  We can see that weekend days were the least active, and early in the week were the most active.  Monday was the strongest, and each subsequent day after that shows slightly less activity.
+
+## User Totals by Hour and 'Day of Week'
 
 ```{r}
 cum_user_totals = ga %>%
@@ -156,9 +194,15 @@ ggplot(cum_user_totals, aes(x = dayOfWeek, y = hour, fill = users)) +
   geom_tile(color = "gray") +
   scale_fill_gradient(low="white", high="blue") + 
   theme_gray() +
-  scale_x_discrete(labels = c('Sun', 'Mon', 'Tues', 'Wed', 'Thur', 'Fri', 'Sat'),guide = guide_axis(angle = 90)) +
+  scale_x_discrete(labels = c('Sun', 'Mon', 'Tues', 'Wed', 'Thur', 'Fri', 'Sat'),
+                   guide = guide_axis(angle = 90)) +
   ggtitle("Users by Time of Day") +
   xlab("Day of the Week") + 
   ylab("Hour of the Day (24h Scale)")
 ```
 
+The heat map above shows which days and hours were most active for users.  As we saw in the box plots, Monday was bar far the busiest day.  In the heatmap, we see all user's activity displayed via color intensity for each hour.  However, different from what we could see with the box plots, we can visualize which hour was the most active.  
+
+We can see around 7 A.M. on Monday, the activity picked up with a spike/max users at 8:00 and into the 9:00 hour.  This pattern suggests that whatever drove new user acquisition happened early in the morning and carried through the early afternoon.  Another cohort of approximately 10-15 users happened at 8:00 P.M., potentially when other parts of the world started to become active.
+
+On Tuesday, the morning saw similar activity, however, with less intensity.  On Wednesday, the pattern was different, with minimal movement in the morning. Still, a small ramp up at 3:00 in the afternoon, potentially signaling that action that drove new user activity happened later in the day.  Finally, Thursday reverted to the morning pattern, again, with less intensity.
