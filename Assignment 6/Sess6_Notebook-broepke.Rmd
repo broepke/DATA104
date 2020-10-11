@@ -1,0 +1,67 @@
+---
+title: "Assignment 6A"
+author: "Brian Roepke"
+date: "October 18, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+## Assignment 6A: Google Studio HOA & R Programming
+
+```{r}
+library(dplyr, warn.conflicts = FALSE)
+library(readxl)
+library(tidyr)
+```
+
+```{r}
+df <- read_excel('SocialMediaRevenue.xlsx', 'Dataset1') 
+```
+
+```{r}
+df <- df %>%
+  rename(social_media = 'Social Network') %>% 
+  rename_all(tolower) %>%
+  drop_na()
+```
+
+```{r}
+df
+```
+
+### 2) Perform data translations:
+- add these columns. (hint: use mutate) Observe values are percentages!
+    - `session_share` = `sessions` / `sum(sessions)` 
+    - `sales_share` = `transactions` /  `sum(transactions)` 
+    - `revenue_share` = `revenue` / `sum(revenue)`
+- Rename transactions to `sales`
+- Then sort by `session_share` in descending order.
+
+```{r}
+
+```
+
+
+### 3) Show the structure, contents and summary of the transformed data frame.
+
+```{r}
+
+```
+
+
+### 4) Plot `session_share` vs `sales_share` by `social_media.`
+This plot shows the relationship between `sessions` vs `sales` (as a percentage of total) for each social media, even those which did not produce any sales. That is, do not perform any filtering.
+
+```{r}
+
+```
+
+Describe insights gained from the visualization.
+
+
+### 5) Create the same plot above, but this time, filter the data set to only show observations with `sales > 0`. Following is an example
+
+```{r}
+
+```
+
