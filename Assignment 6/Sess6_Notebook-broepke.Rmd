@@ -13,6 +13,7 @@ library(dplyr, warn.conflicts = FALSE)
 library(readxl)
 library(tidyr)
 library(tidyverse)
+library(ggrepel)
 ```
 
 ```{r}
@@ -68,12 +69,18 @@ summary(df)
 ### 4) Plot `session_share` vs `sales_share` by `social_media.`
 This plot shows the relationship between `sessions` vs `sales` (as a percentage of total) for each social media, even those which did not produce any sales. That is, do not perform any filtering.
 
-```{r}
-ggplot(df, mapping = aes(x = session_share, y = sales_share, color = social_media)) + 
+```{r} 
+ggplot(df, mapping = aes(x = session_share, 
+                         y = sales_share, 
+                         color = social_media, 
+                         label = social_media)) + 
+  geom_label_repel(aes(),
+                   show.legend = FALSE
+             ) +
   geom_point()
 ```
 
-Describe insights gained from the visualization.
+A large number of the Social Media sites had negligable contribution to both sales and session proportions.  
 
 
 ### 5) Create the same plot above, but this time, filter the data set to only show observations with `sales > 0`. Following is an example
@@ -81,9 +88,19 @@ Describe insights gained from the visualization.
 ```{r}
 df1 <- filter(df, sales > 0)
 
-ggplot(df1, mapping = aes(x = session_share, y = sales_share, color = social_media)) + 
+ggplot(df1, mapping = aes(x = session_share, 
+                          y = sales_share, 
+                          color = social_media, 
+                          label = social_media)) +
+  geom_label_repel(aes(),
+                   show.legend = FALSE) +
+  ggtitle("Shares of Sessions vs. Sales by Social Media") +
+  xlab("Sessions") + 
+  ylab("Sales") + 
   geom_point()
 ```
+
+
 
 ### 6) Create another visualization of your choice for key metrics such as ​conversion rate​. Consider session versus user for determining conversion rate.
 
