@@ -12,6 +12,7 @@ output:
 library(dplyr, warn.conflicts = FALSE)
 library(readxl)
 library(tidyr)
+library(tidyverse)
 ```
 
 ```{r}
@@ -25,10 +26,6 @@ df <- df %>%
   drop_na()
 ```
 
-```{r}
-df
-```
-
 ### 2) Perform data translations:
 - add these columns. (hint: use mutate) Observe values are percentages!
     - `session_share` = `sessions` / `sum(sessions)` 
@@ -38,28 +35,57 @@ df
 - Then sort by `session_share` in descending order.
 
 ```{r}
+df <- df %>% 
+  mutate(session_share = sessions / sum(sessions)) %>%
+  mutate(sales_share = transactions / sum(transactions)) %>%
+  mutate(revenue_share = revenue / sum(revenue))
 
+names(df)[names(df) == "transactions"] <- "sales"
+df <- df[order(-df$session_share),]
+
+df
 ```
-
 
 ### 3) Show the structure, contents and summary of the transformed data frame.
 
 ```{r}
-
+str(df)
 ```
+
+```{r}
+summary(df)
+```
+
+ * **sales**: The quantity of sales per social media channel.  Numbers were fairly low with only a max of 2.0. 
+  * **users**: Total number of users per social media channel. The larget channel had `19,679` users and the smallest only `10`. This large variace is also displayed by the delta between the mean (`2693.6`) and median (`201.5`) of the values.  
+  * **revenue**: Total amount of revenue per social media channel. Max of `217` and min of `0`. The mean of `43.91` across all channels gives us a pretty good indication of the sals potential with regards to social media channels.
+  * **sessions**: Total number of sessions per social media channel. with the max of 21028 just greater than the user max of 1967 we can see that most users are visiting the site just once.
+  * **session_share**: This column is calculated as the how many sessions each channel makes up of the whole.  Descriptive statistics here are less useful considering this.  We do see however that the largest share was `71.9%`, showing us that one channel was dominant (YouTube)
+  * **sales_share**: Sales share is also a calculation of the proportion of sales relative to the whole.  The max in this case was `28.5%`, dramatically lower than the session share.
+  * **revenue_share**: Reneue share is our last calculated column, this shows us that the max value was `49.4%` telling us that half the revenue was generated from a single channel (Facebook).
 
 
 ### 4) Plot `session_share` vs `sales_share` by `social_media.`
 This plot shows the relationship between `sessions` vs `sales` (as a percentage of total) for each social media, even those which did not produce any sales. That is, do not perform any filtering.
 
 ```{r}
-
+ggplot(df, mapping = aes(x = session_share, y = sales_share, color = social_media)) + 
+  geom_point()
 ```
 
 Describe insights gained from the visualization.
 
 
 ### 5) Create the same plot above, but this time, filter the data set to only show observations with `sales > 0`. Following is an example
+
+```{r}
+df1 <- filter(df, sales > 0)
+
+ggplot(df1, mapping = aes(x = session_share, y = sales_share, color = social_media)) + 
+  geom_point()
+```
+
+### 6) Create another visualization of your choice for key metrics such as ​conversion rate​. Consider session versus user for determining conversion rate.
 
 ```{r}
 
