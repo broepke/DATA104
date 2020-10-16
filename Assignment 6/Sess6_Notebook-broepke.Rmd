@@ -4,7 +4,7 @@ author: "Brian Roepke"
 date: "October 18, 2020"
 output:
   html_document:
-    df_print: paged
+    df_print: tibble
 ---
 ## Assignment 6A: Google Studio HOA & R Programming
 
@@ -43,8 +43,6 @@ df <- df %>%
 
 names(df)[names(df) == "transactions"] <- "sales"
 df <- df[order(-df$session_share),]
-
-df
 ```
 
 ### 3) Show the structure, contents and summary of the transformed data frame.
@@ -54,20 +52,25 @@ str(df)
 ```
 
 ```{r}
+df
+```
+
+```{r}
 summary(df)
 ```
 
- * **sales**: The quantity of sales per social media channel.  Numbers were fairly low with only a max of 2.0. 
-  * **users**: Total number of users per social media channel. The larget channel had `19,679` users and the smallest only `10`. This large variace is also displayed by the delta between the mean (`2693.6`) and median (`201.5`) of the values.  
-  * **revenue**: Total amount of revenue per social media channel. Max of `217` and min of `0`. The mean of `43.91` across all channels gives us a pretty good indication of the sals potential with regards to social media channels.
-  * **sessions**: Total number of sessions per social media channel. with the max of 21028 just greater than the user max of 1967 we can see that most users are visiting the site just once.
-  * **session_share**: This column is calculated as the how many sessions each channel makes up of the whole.  Descriptive statistics here are less useful considering this.  We do see however that the largest share was `71.9%`, showing us that one channel was dominant (YouTube)
-  * **sales_share**: Sales share is also a calculation of the proportion of sales relative to the whole.  The max in this case was `28.5%`, dramatically lower than the session share.
-  * **revenue_share**: Reneue share is our last calculated column, this shows us that the max value was `49.4%` telling us that half the revenue was generated from a single channel (Facebook).
+ * **sales**: The number of sales per social media channel.  The numbers were relatively low, with only a max of 2.0. 
+  * **users**: Total number of users per social media channel. The largest channel had `19,679` users and the smallest only `10`. This large variance is also displayed by the delta between the mean (`2033.6`) and median (`258.5`) values.  
+  * **revenue**: Total amount of revenue per social media channel. Max of `217` and min of `0`. The mean of `31.36` across all channels gives us a pretty good indication of the sales potential regarding social media channels.
+  * **sessions**: Total number of sessions per social media channel. with the max of `21028` just larger than the user max of `19679`, most users visit the site only once.
+  * **session_share**: This column is calculated as the how many sessions each channel makes up of the whole.  Descriptive statistics here are less useful considering this.  We do see, however, that the largest share was `68.1%`, showing us that one channel was dominant (YouTube)
+  * **sales_share**: Sales share is also a calculation of the proportion of sales relative to the whole.  In this case, the max was `28.6%`, dramatically lower than the session share.
+  * **revenue_share**: Revenue share is our last calculated column; this shows us that the max value was `49.4%`, telling us that half the revenue was generated from a single channel (Facebook).
 
 
 ### 4) Plot `session_share` vs `sales_share` by `social_media.`
-This plot shows the relationship between `sessions` vs `sales` (as a percentage of total) for each social media, even those which did not produce any sales. That is, do not perform any filtering.
+
+This plot shows the relationship between `sessions` vs `sales` (as a percentage of total) for each social media, even those which did not produce any sales.
 
 ```{r} 
 ggplot(df, mapping = aes(x = session_share, 
@@ -77,11 +80,13 @@ ggplot(df, mapping = aes(x = session_share,
   geom_label_repel(aes(),
                    show.legend = FALSE
              ) +
+    ggtitle("Shares of Sessions vs. Sales by Social Media") +
+  xlab("Sessions") + 
+  ylab("Sales") + 
   geom_point()
 ```
 
-A large number of the Social Media sites had negligable contribution to both sales and session proportions.  
-
+A large number of Social Media sites had a negligible contribution to both sales and session proportions. These are all clustered in the lower left of the scatter plot.  Four different sites constitute nearly all of the sessions and sales: Google Groups, Facebook, Twitter, and the leader, YouTube.
 
 ### 5) Create the same plot above, but this time, filter the data set to only show observations with `sales > 0`. Following is an example
 
@@ -100,11 +105,65 @@ ggplot(df1, mapping = aes(x = session_share,
   geom_point()
 ```
 
+The same plot as above but, those with 0 sales removed from the plot regardless of sessions.  We see about the same picture as before; however, it shows the contrast in the delta between Google Groups and the other three; Facebook, Twitter, and YouTube.
 
+### 6) Share of Revenue vs. Share of Sessions
 
-### 6) Create another visualization of your choice for key metrics such as ​conversion rate​. Consider session versus user for determining conversion rate.
+```{r} 
+ggplot(df1, mapping = aes(x = session_share, 
+                         y = revenue_share, 
+                         color = social_media, 
+                         label = social_media)) + 
+  geom_label_repel(aes(),
+                   show.legend = FALSE
+             ) +
+  ggtitle("Shares of Sessions vs. Revenue by Social Media") +
+  xlab("Sessions") + 
+  ylab("Revenue") + 
+  geom_point()
+```
+ 
+As an alternate of the above Scatter Plot, mapping `Revenue` vs. `Sessions`; you see a different performance view.  Facebook is the clear leader in revenue, and while YouTube drove a significantly higher share of sessions, it doesn't produce the revenue commiserate with those sessions.
+
+## Conversion Rate of Sales by Users
 
 ```{r}
-
+df2 <- df %>% 
+  mutate(user_convrate_perc = (sales / users)) %>%
+  filter(sales > 0)
 ```
 
+
+```{r}
+ggplot(df2, aes(social_media, user_convrate_perc)) +
+  ggtitle("Sales Conversion Rate by User") +
+  xlab("Social Media Site") + 
+  ylab("Conversion Rate") + 
+  geom_text(aes(label=scales::percent(user_convrate_perc),
+                vjust=-0.25)) + 
+  scale_y_continuous(labels = scales::percent) +
+  geom_col()
+```
+Based on the conversion rate, Google groups actually performed the best with Facebook second.  Facebook being the best overall performer in revenue (as show previously) as well. 
+
+## Plotting Users vs. Sessions
+
+```{r}
+ggplot(df, mapping = aes(x = sessions, 
+                         y = users, 
+                         color = social_media, 
+                         label = social_media)) + 
+  geom_point()
+```
+
+Because we can see a positive correlation displayed by the linear relationship of the points, additionally, we'll run a quick linear regression model to see how close this relationship is.
+
+```{r}
+model <- lm(users ~ sessions, data = df)
+
+summary(model)
+```
+
+The R-squared value of `0.9999` tells us that `99.99%` of all variance in the fixed, variable Users relationship is explained by the number of sessions on the site. This model allows us to build a reliable prediction model for how many users there are on a site based on the session per social media source.
+
+https://datastudio.google.com/reporting/1d723b47-b61b-4ae1-9259-dfc32dad76ee
