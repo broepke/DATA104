@@ -27,13 +27,7 @@ df <- df %>%
   drop_na()
 ```
 
-### 2) Perform data translations:
-- add these columns. (hint: use mutate) Observe values are percentages!
-    - `session_share` = `sessions` / `sum(sessions)` 
-    - `sales_share` = `transactions` /  `sum(transactions)` 
-    - `revenue_share` = `revenue` / `sum(revenue)`
-- Rename transactions to `sales`
-- Then sort by `session_share` in descending order.
+### 2) Data Translations
 
 ```{r}
 df <- df %>% 
@@ -45,7 +39,7 @@ names(df)[names(df) == "transactions"] <- "sales"
 df <- df[order(-df$session_share),]
 ```
 
-### 3) Show the structure, contents and summary of the transformed data frame.
+### 3) Structure, contents and summary of the transformed data frame.
 
 ```{r}
 str(df)
@@ -59,7 +53,9 @@ df
 summary(df)
 ```
 
- * **sales**: The number of sales per social media channel.  The numbers were relatively low, with only a max of 2.0. 
+### Summary Statistics Interpretation
+
+ * **sales**: The number of sales transactions per social media channel.  The numbers were relatively low, with only a max of `2.0`. 
   * **users**: Total number of users per social media channel. The largest channel had `19,679` users and the smallest only `10`. This large variance is also displayed by the delta between the mean (`2033.6`) and median (`258.5`) values.  
   * **revenue**: Total amount of revenue per social media channel. Max of `217` and min of `0`. The mean of `31.36` across all channels gives us a pretty good indication of the sales potential regarding social media channels.
   * **sessions**: Total number of sessions per social media channel. with the max of `21028` just larger than the user max of `19679`, most users visit the site only once.
@@ -68,7 +64,7 @@ summary(df)
   * **revenue_share**: Revenue share is our last calculated column; this shows us that the max value was `49.4%`, telling us that half the revenue was generated from a single channel (Facebook).
 
 
-### 4) Plot `session_share` vs `sales_share` by `social_media.`
+### Session Share vs Sales Share by Social Media
 
 This plot shows the relationship between `sessions` vs `sales` (as a percentage of total) for each social media, even those which did not produce any sales.
 
@@ -88,7 +84,7 @@ ggplot(df, mapping = aes(x = session_share,
 
 A large number of Social Media sites had a negligible contribution to both sales and session proportions. These are all clustered in the lower left of the scatter plot.  Four different sites constitute nearly all of the sessions and sales: Google Groups, Facebook, Twitter, and the leader, YouTube.
 
-### 5) Create the same plot above, but this time, filter the data set to only show observations with `sales > 0`. Following is an example
+### 5) Remove all Social Media Sites without Sales
 
 ```{r}
 df1 <- filter(df, sales > 0)
@@ -109,6 +105,8 @@ The same plot as above but, those with 0 sales removed from the plot regardless 
 
 ### 6) Share of Revenue vs. Share of Sessions
 
+Next looking at Revenue ($) contribution as opposed to sales transactions.
+
 ```{r} 
 ggplot(df1, mapping = aes(x = session_share, 
                          y = revenue_share, 
@@ -126,6 +124,8 @@ ggplot(df1, mapping = aes(x = session_share,
 As an alternate of the above Scatter Plot, mapping `Revenue` vs. `Sessions`; you see a different performance view.  Facebook is the clear leader in revenue, and while YouTube drove a significantly higher share of sessions, it doesn't produce the revenue commiserate with those sessions.
 
 ## Conversion Rate of Sales by Users
+
+Calculate how each social media site performs regarding conversion rate.
 
 ```{r}
 df2 <- df %>% 
@@ -147,7 +147,32 @@ ggplot(df2, aes(social_media, user_convrate_perc)) +
 
 Based on the conversion rate, Google groups actually performed the best with Facebook second.  Facebook being the best overall performer in revenue (as show previously) as well. 
 
+## User Distribution
+
+```{r}
+df %>%
+    ggplot(aes(users)) +
+    geom_density(color = "blue",fill = "lightblue") +
+    geom_vline(xintercept = mean(df$users), lwd = 0.5) +
+    geom_vline(xintercept = median(df$users), lwd = 0.5, linetype = 'dashed') +
+    labs(title = "Distribution of Users",
+         x = "Users",
+         y = "Count")
+
+```
+
+In the summary statistics we observed a large difference between the mean `2033.6` (shown as dotted line) and median `258.5`(shown as solid line) of the dataset.  The density plot shows us both that it is right skewed and that we have most of our users in the left tail.
+
+```{r}
+library(moments)
+skewness(df$users)
+```
+
+A skewness of `0` would equal a normla distribution, a skewness of `3.1` shows that the data is extremely right skewed.
+
 ## Plotting Users vs. Sessions
+
+Next, exploring the correlation of Users and Sessions and building a prediction model.
 
 ```{r}
 ggplot(df, mapping = aes(x = sessions, 
@@ -157,7 +182,7 @@ ggplot(df, mapping = aes(x = sessions,
   geom_point()
 ```
 
-Because we can see a positive correlation displayed by the linear relationship of the points, additionally, we'll run a quick linear regression model to see how close this relationship is.
+Because we can see a positive correlation displayed by the linear relationship of the points, we'll run a quick linear regression model to see how close this relationship is.
 
 ```{r}
 model <- lm(users ~ sessions, data = df)
