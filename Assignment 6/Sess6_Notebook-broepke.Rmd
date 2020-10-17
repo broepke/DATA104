@@ -11,8 +11,8 @@ output:
 ```{r}
 library(dplyr, warn.conflicts = FALSE)
 library(readxl)
-library(tidyr)
-library(tidyverse)
+library(tidyr, warn.conflicts = FALSE)
+library(tidyverse, warn.conflicts = FALSE)
 library(ggrepel)
 ```
 
@@ -144,6 +144,7 @@ ggplot(df2, aes(social_media, user_convrate_perc)) +
   scale_y_continuous(labels = scales::percent) +
   geom_col()
 ```
+
 Based on the conversion rate, Google groups actually performed the best with Facebook second.  Facebook being the best overall performer in revenue (as show previously) as well. 
 
 ## Plotting Users vs. Sessions
@@ -165,5 +166,3 @@ summary(model)
 ```
 
 The R-squared value of `0.9999` tells us that `99.99%` of all variance in the fixed, variable Users relationship is explained by the number of sessions on the site. This model allows us to build a reliable prediction model for how many users there are on a site based on the session per social media source.
-
-https://datastudio.google.com/reporting/1d723b47-b61b-4ae1-9259-dfc32dad76ee
