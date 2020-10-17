@@ -1,0 +1,66 @@
+---
+title: "Assignment 6A"
+author: "Brian Roepke"
+date: "October 18, 2020"
+output:
+  html_document:
+    df_print: tibble
+---
+## Assignment 6A: Google Studio HOA & R Programming
+
+```{r}
+library(dplyr, warn.conflicts = FALSE)
+library(readxl)
+library(tidyr, warn.conflicts = FALSE)
+library(tidyverse, warn.conflicts = FALSE)
+library(ggrepel)
+```
+
+```{r}
+df <- read_excel('SocialMediaRevenue.xlsx', 'Dataset1') 
+```
+
+```{r}
+df <- df %>%
+  rename(social_media = 'Social Network') %>% 
+  rename_all(tolower) %>%
+  drop_na()
+```
+
+### 2) Data Translations
+
+```{r}
+df <- df %>% 
+  mutate(session_share = sessions / sum(sessions)) %>%
+  mutate(sales_share = transactions / sum(transactions)) %>%
+  mutate(revenue_share = revenue / sum(revenue))
+
+names(df)[names(df) == "transactions"] <- "sales"
+df <- df[order(-df$session_share),]
+```
+
+
+
+
+### 5) Remove all Social Media Sites without Sales
+
+```{r}
+df1 <- filter(df, sales > 0)
+
+ggplot(df1, aes(x= session_share, fill = social_media, y = sales_share )) +
+  geom_point() +
+  geom_label_repel(
+    aes(label = social_media, color = social_media),
+    segment.colour = 'black',
+    fontface = 'bold', color = 'white',
+    box.padding = unit(0.35, "lines"),
+    point.padding = unit(0.5, "lines"),
+    segment.color = 'grey50') +
+  guides(fill = guide_legend(override.aes = aes(label = ""))) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_x_continuous(labels = scales::percent_format(scale = 1)) +
+  ggtitle("Session Share vs Sales Share by Social Media")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlab("Sessions") +
+  ylab("Sales") 
+```
