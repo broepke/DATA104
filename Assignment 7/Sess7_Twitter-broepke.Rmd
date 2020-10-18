@@ -1,0 +1,180 @@
+---
+title: "2020 Election Analysis using Twitter"
+author: "Brian Roepke"
+date: "October 25, 2020"
+output:
+  html_document:
+    df_print: tibble
+---
+# Project Description
+Demonstrate how to access Twitter data using rtweet package.
+Follow instructions for each section and include text annotation/ interpretation of results!
+What can be concluded based on the data investigation?
+
+https://cran.r-project.org/web/packages/rtweet/vignettes/intro.html
+
+
+```{r}
+# twitter library 
+library(rtweet)
+
+# plotting and pipes - tidyverse
+library(ggplot2)
+library(dplyr, warn.conflicts = FALSE)
+options(dplyr.summarise.inform = FALSE) # Suppress summarise info
+
+# text mining library
+suppressPackageStartupMessages(library(tidyverse)) # suppress startup message
+
+# date/time libaray
+library(lubridate, warn.conflicts = FALSE)
+```
+
+```{r}
+library(rtweet)
+get_token()
+```
+
+## Retrieve most recent 3200 timelines of Trump and Biden
+ * use: ‘JoeBiden’ and ‘realDonaldTrump’
+ * don’t exclude anything
+ * save to csv file, so you don’t have to call the api subsequently, in case of long delays
+ * read the csv file into a dataframe and use that df for subsequent analysis.
+     * You will notice using the View (df) function that the the object structure of the original dataframe after the AP call is different from the one you read in. The original has embedded list objects, whereas the one read in is flattend. Also the date/time fields such as ‘create_at’ is char rather than Twitter’s POSIX time format. Use lubridate datetime functions (eg: as_datetime) to convert.
+Show the column names
+
+```{r}
+## tmls <- get_timelines(c("JoeBiden", "realDonaldTrump"), n = 3200)
+## write_as_csv(tmls, "tweets.csv")
+```
+
+
+```{r}
+timelinesdf <- read_twitter_csv("tweets.csv")
+```
+
+```{r}
+head(timelinesdf)
+```
+
+```{r}
+# Clean up some of the data types
+timelinesdf$created_at <- as_datetime(timelinesdf$created_at)
+timelinesdf$status_id <- as.factor(timelinesdf$status_id)
+timelinesdf$screen_name <- as.factor(timelinesdf$screen_name)
+
+head(timelinesdf)
+```
+
+```{r}
+names(timelinesdf)
+```
+
+## Number of Observations for Each Candidate
+
+```{r}
+## timelinesdf %>%
+##   group_by(screen_name) %>%
+##   summarise(user_id = n())
+summary(timelinesdf$screen_name)
+```
+
+## Show the top and bottom (select by fields shown) and show a summary of ‘created_at’
+
+```{r}
+new_view <- timelinesdf %>%
+  select(created_at, screen_name, text)
+
+head(new_view)
+```
+
+```{r}
+tail(new_view)
+```
+
+
+```{r}
+summary(new_view$created_at)
+```
+
+## Create a dataframe that filters on just Biden as follows:
+ * for timelines past 2020-02-01
+ * sorted by favorite_count
+
+Show the top 10 observations (by fields shown) and the count/size
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Plot the frequency of tweets for each user
+
+```{r}
+## plot the frequency of tweets for each user over time
+timelinesdf %>%
+  dplyr::group_by(screen_name) %>%
+  ts_plot("days", trim = 0L) +
+  ggplot2::geom_line() +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(
+    legend.title = ggplot2::element_blank(),
+    legend.position = "bottom",
+    plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL, y = NULL,
+    title = "Frequency of Tweets by  Candidate by Day",
+    subtitle = "Last 3,200 Tweets per candidate retreived",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet"
+  )
+```
+
+
+```{r}
+## plot the frequency of tweets for each user over time
+timelinesdf %>%
+  dplyr::group_by(screen_name) %>%
+  ts_plot("weeks", trim = 0L) +
+  ggplot2::geom_line() +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(
+    legend.title = ggplot2::element_blank(),
+    legend.position = "bottom",
+    plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL, y = NULL,
+    title = "Frequency of Tweets by  Candidate by Month",
+    subtitle = "Last 3,200 Tweets per candidate retreived",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet"
+  )
+```
+
+```{r}
+## plot the frequency of tweets for each user over time
+timelinesdf %>%
+  dplyr::group_by(screen_name, is_retweet) %>%
+  ts_plot("month", trim = 1L) +
+  ggplot2::geom_line() +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(
+    # legend.title = ggplot2::element_blank(),
+    legend.position = "right",
+    plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL, y = NULL,
+    title = "Frequency of Tweets by  Candidate",
+    subtitle = "Last 3,200 Tweets per candidate retreived",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet"
+  )
+```
+
