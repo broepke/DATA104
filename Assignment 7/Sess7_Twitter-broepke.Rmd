@@ -299,7 +299,7 @@ timelinesdf %>%
   )
 ```
 
-This graph is showing the data aggregated by Month, with the addition / differentiation of showing the tweets (solid line) vs retweets (dashed line).  This shows how Trump is a much more active retweeter vs. Biden, by a significant margin.
+This graph is showing the data aggregated by Month, with the addition/differentiation of showing the tweets (*solid line*) vs retweets (*dashed line*).  This shows how Trump is a much more active retweeter vs. Biden, by a significant margin.
 
 ## Get number of followers for Biden and Trump
 
@@ -371,6 +371,10 @@ https://developer.twitter.com/en/docs/twitter-ads-api/timezones
 
 ```{r}
 election_hastag$location[election_hastag$location == "Washington, DC"] <- "Washington D.C."
+election_hastag$location[election_hastag$location == "Washington, D.C."] <- "Washington D.C."
+election_hastag$location[election_hastag$location == "United States of America"] <- "USA"
+election_hastag$location[election_hastag$location == "California"] <- "California, USA"
+election_hastag$location[election_hastag$location == "Texas"] <- "Texas, USA"
 ```
 
 
@@ -381,7 +385,7 @@ loc <- election_hastag %>%
   drop_na() %>%
   tally(sort = TRUE, name = "count", )
 
-loc
+head(loc, n = 20L)
 ```
 
 ```{r}
@@ -396,6 +400,8 @@ loc[1:10,] %>%
     caption = "\nSource: Data collected from Twitter's REST API via rtweet"
   )
 ```
+
+As suspected, The top 10 tweets show US based locations (`Earth` being an exception). Position 11 shows `Melbourne` as the location.  Which could be either Australia or Florida, which has the same spelling as the Australian city.  Of course, this is to be expected because it's a US election, however, the US does effect the global economy so it tends to be watched by many people around the world.
 
 ## Show top 10 most frequently shared link (hint: urls_expanded_url)
 
@@ -460,4 +466,7 @@ top_tweeter %>%
   arrange(desc(retweet_count)) %>%
   head(n = 20L)
 ```
+
+This is super boring.  It's a bot that's retweeting Twitter Follower's Stats. 
+
 
