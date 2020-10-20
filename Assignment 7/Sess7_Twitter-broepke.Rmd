@@ -31,7 +31,6 @@ library(lubridate, warn.conflicts = FALSE)
 ```
 
 ```{r}
-library(rtweet)
 get_token()
 ```
 
@@ -54,16 +53,16 @@ timelinesdf <- read_twitter_csv("tweets.csv")
 ```
 
 ```{r}
-head(timelinesdf)
-```
-
-```{r}
-# Clean up some of the data types
+# Convert the date field to a datetime
 timelinesdf$created_at <- as_datetime(timelinesdf$created_at)
+
+#Changed some fields to factors for easier manipulation later
 timelinesdf$status_id <- as.factor(timelinesdf$status_id)
 timelinesdf$screen_name <- as.factor(timelinesdf$screen_name)
 
-head(timelinesdf)
+# Fix up the reply count field.  It should be a int and NAs set to 0
+timelinesdf$reply_count[is.na(timelinesdf$reply_count)] <- 0
+timelinesdf$reply_count <- as.integer(timelinesdf$reply_count)
 ```
 
 ```{r}
@@ -73,29 +72,28 @@ names(timelinesdf)
 ## Number of Observations for Each Candidate
 
 ```{r}
-## timelinesdf %>%
-##   group_by(screen_name) %>%
-##   summarise(user_id = n())
 summary(timelinesdf$screen_name)
 ```
 
 ## Show the top and bottom (select by fields shown) and show a summary of ‘created_at’
 
 ```{r}
-new_view <- timelinesdf %>%
+top_and_bottom <- timelinesdf %>%
   select(created_at, screen_name, text)
 
-head(new_view)
+head(top_and_bottom)
 ```
 
 ```{r}
-tail(new_view)
+tail(top_and_bottom)
 ```
 
 
 ```{r}
-summary(new_view$created_at)
+summary(top_and_bottom$created_at)
 ```
+
+Date range for the `3,200` tweets per user received span from `2019-11-09` to `2020-10-18`
 
 ## Create a dataframe that filters on just Biden as follows:
  * for timelines past 2020-02-01
@@ -103,22 +101,137 @@ summary(new_view$created_at)
 
 Show the top 10 observations (by fields shown) and the count/size
 
+```{r}
+df_biden <- timelinesdf %>%
+  filter(screen_name == 'JoeBiden' & created_at > '2020-02-01') %>%
+  select(created_at, favorite_count, retweet_count, text) %>%
+  arrange(desc(favorite_count))
+
+head(df_biden, n = 10L)
+```
+```{r}
+nrow(df_biden)
+```
+
+After filtering out the tweets by date, Biden's count dropped to `2,599`, vs. the `3,200` pulled down originally.  
+
+## Retweets, Replies, and Original Tweets Aggregated over Months for Biden
 
 
+```{r}
+df_biden_2 <- timelinesdf %>%
+  mutate(mon = floor_date(created_at, 'month')) %>%
+  mutate(original = is_retweet==FALSE & is_quote==FALSE & is.na(reply_to_status_id)) %>%
+  filter(screen_name == 'JoeBiden' & created_at > '2020-02-01') %>%
+  group_by(mon) %>%
+  summarise(retweet_count = sum(retweet_count), 
+            replies_count = sum(reply_count), 
+            orig_count = sum(original))
+
+df_biden_2
+```
+
+```{r}
+summary(df_biden_2)
+```
+
+ * **mon**: dates span from the month of feb through month of Oct.  Note - the dates were only through the middle of October and not a complete month.  This suggests that activity might increase dramatically for October
+ * **retweet_count**: A max of 5.5million retweets.  A staggering number of monthly retweet totals.
+ * **replies_count**: this column was empty in the dataset.  Investigating further, this attribute is only available with the premium API twitter access (see URL below).
+ * **orig_count**: This represents the total number of original Tweets by Biden per month.  Fairly consistent with a mean of `227`.
+ 
+ https://stackoverflow.com/questions/47851662/reply-count-attribute-missing-from-tweet-object 
+
+```{r}
+df_biden_2 %>%
+  ggplot(aes(x = mon)) +
+  geom_line(aes(y = retweet_count , color = "retweet"), linetype="dotdash") +
+  geom_line(aes(y = replies_count , color = "replies"), linetype="dotdash") +
+  geom_line(aes(y = orig_count , color = "original"), linetype="dotdash") +
+  scale_color_manual(name = "Legend",
+                       values = c("retweet" = "red", 
+                                  "replies" = "blue", 
+                                  "original" = "black")) +
+  scale_y_continuous(trans='log10') +
+  theme(
+    legend.position = "right",
+    plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL, y = "Tweets",
+    title = "Biden Retweets, Original Tweets, and Replies Over Months",
+    subtitle = "01 February 2020 to 09 2020"
+  )
+```
+
+Plotting the three different values on a log scale, you see exactly those observations.  The number of total retweets is steadily increasing overtime and Biden's original tweet activity is reasonably consistent.
+
+## Comparing the Same Activity, but for Trump
+
+```{r}
+df_trump <- timelinesdf %>%
+  filter(screen_name == 'realDonaldTrump' & created_at > '2020-02-01') %>%
+  select(created_at, favorite_count, retweet_count, text) %>%
+  arrange(desc(favorite_count))
+
+df_trump
+```
+```{r}
+nrow(df_trump)
+```
+
+Here we can see that during the same period of time, Trump tweeted `3,178` times vs. Biden's `2,599`  `~800` more tweets in the same period retreived 
+
+## Show and Plot retweets, replies, and original tweets aggregated over months for Trump
+
+```{r}
+df_trump_2 <- timelinesdf %>%
+  mutate(mon = floor_date(created_at, 'month')) %>%
+  mutate(original = is_retweet==FALSE & is_quote==FALSE & is.na(reply_to_status_id)) %>%
+  filter(screen_name == 'realDonaldTrump' & created_at > '2020-02-01') %>%
+  group_by(mon) %>%
+  summarise(retweet_count = sum(retweet_count), 
+            replies_count = sum(reply_count), 
+            orig_count = sum(original))
+
+df_trump_2
+```
+
+```{r}
+summary(df_trump_2)
+```
+
+ * **mon**: The dates for trump are a smaller window regardless of the filter, because the API reached the max of `3,200` in `August.`
+ * **retweet_count**: A max of `21 million` retweets.  A (`even more`) staggering number of monthly retweet totals.
+ * **replies_count**: this column was empty in the dataset.  Investigating further, this attribute is only available with the premium API twitter access (see URL below).
+ * **orig_count**: This represents the total number of original Tweets by Trump per month.  While Biden's mean was `227`, Trump's activity was `413` for the window collected.
 
 
+```{r}
+df_trump_2 %>%
+  ggplot(aes(x = mon)) +
+  geom_line(aes(y = retweet_count , color = "retweet"), linetype="dotdash") +
+  geom_line(aes(y = replies_count , color = "replies"), linetype="dotdash") +
+  geom_line(aes(y = orig_count , color = "original"), linetype="dotdash") +
+  scale_color_manual(name = "Legend",
+                       values = c("retweet" = "red", 
+                                  "replies" = "blue", 
+                                  "original" = "black")) +
+  scale_y_continuous(trans='log10') +
+  theme(
+    legend.position = "right",
+    plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL, y = "Tweets",
+    title = "Trump Retweets, Original Tweets, and Replies Over Months",
+    subtitle = "01 February 2020 to 09 2020"
+  )
+```
 
-
-
-
-
-
-
-
-
-
+For the retweets, we see a much smoother line over the shorter time period.  A more consistent set of values during this time.  Original tweets peeked about September 1st and tapered to October.  But note that this is (1) not a complete month and (2) there are only three data points (months) plotted here.
 
 ## Plot the frequency of tweets for each user
+
+### by days
 
 ```{r}
 ## plot the frequency of tweets for each user over time
@@ -133,12 +246,17 @@ timelinesdf %>%
     plot.title = ggplot2::element_text(face = "bold")) +
   ggplot2::labs(
     x = NULL, y = NULL,
-    title = "Frequency of Tweets by  Candidate by Day",
+    title = "Frequency of Tweets by Candidate by Day",
     subtitle = "Last 3,200 Tweets per candidate retreived",
     caption = "\nSource: Data collected from Twitter's REST API via rtweet"
   )
 ```
 
+This plot visualizes the point that was made above with the compressed window of time.  Trump's tweet volume hit the `3,200` tweet limit in August, where as Biden overall has had much less activity and therefore we see a longer time line.
+
+This visual also nicely shows the volume of activity per day of Biden vs. Trump.  While it has increased for Biden during the period we have for Trump, we can see the overall per day tweets from Trump is about `5-8x` that of Biden.
+
+### by weeks
 
 ```{r}
 ## plot the frequency of tweets for each user over time
@@ -153,28 +271,193 @@ timelinesdf %>%
     plot.title = ggplot2::element_text(face = "bold")) +
   ggplot2::labs(
     x = NULL, y = NULL,
-    title = "Frequency of Tweets by  Candidate by Month",
+    title = "Frequency of Tweets by  Candidate by Week",
     subtitle = "Last 3,200 Tweets per candidate retreived",
     caption = "\nSource: Data collected from Twitter's REST API via rtweet"
   )
 ```
 
+When viewing the same data aggregated by Week, we can see a little bit of the noise taken out.  Trump consistently tweeting on a Weekly basis more than trump. 
+
+### By Month (Adding Tweets vs. Retweets)
+
 ```{r}
 ## plot the frequency of tweets for each user over time
 timelinesdf %>%
   dplyr::group_by(screen_name, is_retweet) %>%
-  ts_plot("month", trim = 1L) +
+  ts_plot("month", trim = 0L) +
   ggplot2::geom_line() +
   ggplot2::theme_minimal() +
   ggplot2::theme(
-    # legend.title = ggplot2::element_blank(),
     legend.position = "right",
     plot.title = ggplot2::element_text(face = "bold")) +
   ggplot2::labs(
     x = NULL, y = NULL,
-    title = "Frequency of Tweets by  Candidate",
+    title = "Frequency of Tweets by Candidate",
     subtitle = "Last 3,200 Tweets per candidate retreived",
     caption = "\nSource: Data collected from Twitter's REST API via rtweet"
   )
+```
+
+This graph is showing the data aggregated by Month, with the addition / differentiation of showing the tweets (solid line) vs retweets (dashed line).  This shows how Trump is a much more active retweeter vs. Biden, by a significant margin.
+
+## Get number of followers for Biden and Trump
+
+```{r}
+timelinesdf %>%
+  group_by(screen_name) %>%
+  summarise(followers_count = max(followers_count))
+```
+Trump's followers are `87 million` vs. Biden's `11 million`. Followers in social media are a sign of how much reach someone has, however Twitter is an open platform so reach / read doesn't equate to how many people follow.
+
+## Search 5000 tweets with
+ * the hashtag #2020Election
+ * exclude retweets
+ * save tweets to csv file
+
+```{r}
+# election_hastag <- search_tweets("#2020Election", n = 5000, include_rts = FALSE)
+# write_as_csv(election_hastag, "hashtag.csv")
+```
+
+```{r}
+election_hastag <- read_twitter_csv("hashtag.csv")
+```
+
+```{r}
+# Convert the date field to a datetime
+election_hastag$created_at <- as_datetime(election_hastag$created_at)
+
+#Changed some fields to factors for easier manipulation later
+election_hastag$status_id <- as.factor(election_hastag$status_id)
+election_hastag$screen_name <- as.factor(election_hastag$screen_name)
+election_hastag$location <- as.factor(election_hastag$location)
+
+# Fix up the reply count field.  It should be a int and NAs set to 0
+election_hastag$reply_count[is.na(election_hastag$reply_count)] <- 0
+election_hastag$reply_count <- as.integer(election_hastag$reply_count)
+```
+
+## Show summary of creation date
+
+```{r}
+summary(election_hastag$created_at)
+```
+
+## Plot hourly timeline of tweets
+
+```{r}
+election_hastag %>%
+  ts_plot("hours", trim = 0L) +
+  ggplot2::geom_line() +
+  ggplot2::theme(
+    plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL, y = NULL,
+    title = "Frequency of Tweets with #2020 Hashtag",
+    subtitle = "Oct 16, 2020 to Oct 19, 2020",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet"
+  )
+```
+
+This time series is plotting `5,000` tweets on an hourly basis.  The scale on the X-axis shows the daily spacing and the peaks and valleys of the data shows a frequency of activity ramping up around 8:00 am Eastern Time and then maintaining a push through 8:00pm eastern.  There is a small dip around 9-10 pm as well.  
+
+This consistency probably suggests that most of these tweets are from the United States.  If they were global, we wouldn't see the consistent up and down pattern we see here.  
+
+We can explore this next.
+
+**Note**: *Twitter returns time in UTC format.  Therefore UTC 12:00 pm will be 8:00 am eastern time.*
+https://developer.twitter.com/en/docs/twitter-ads-api/timezones 
+
+```{r}
+election_hastag$location[election_hastag$location == "Washington, DC"] <- "Washington D.C."
+```
+
+
+```{r}
+loc <- election_hastag %>%
+  select(location) %>%
+  group_by(location) %>%
+  drop_na() %>%
+  tally(sort = TRUE, name = "count", )
+
+loc
+```
+
+```{r}
+loc[1:10,] %>% 
+  ggplot() +
+  geom_col(aes(x = reorder(location, count), y = count)) + 
+  coord_flip() +
+  ggplot2::labs(
+    x = "Count", 
+    y = "Location",
+    title = "Where Twitter users are from - Unique Locations",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet"
+  )
+```
+
+## Show top 10 most frequently shared link (hint: urls_expanded_url)
+
+```{r}
+election_hastag %>%
+  select(urls_expanded_url) %>%
+  group_by(urls_expanded_url) %>%
+  drop_na() %>%
+  tally(sort = TRUE, name = "count", ) %>%
+  head(n = 10L)
+```
+
+## Show top 3 most retweeted tweet (hint: retweet_count)
+
+```{r}
+election_hastag %>%
+  select(created_at, retweet_count, screen_name, text) %>%
+  arrange(desc(retweet_count)) %>%
+  head(n = 3L)
+```
+
+## Show top 3 most favorited tweet (hint: favorite_count)
+
+```{r}
+election_hastag %>%
+  select(created_at, favorite_count, screen_name, text) %>%
+  arrange(desc(favorite_count)) %>%
+  head(n = 3L)
+```
+
+## Show top 10 tweeters
+
+```{r}
+election_hastag %>%
+  select(screen_name) %>%
+  group_by(screen_name) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  head(n = 10L)
+```
+
+## What is the top tweeter saying? (In this example, it’s AdlerLarry since they tweeted the most)
+
+```{r}
+# top_tweeter <- get_timelines("2020Followers", n = 100)
+# write_as_csv(top_tweeter, "top_tweeter.csv")
+```
+
+```{r}
+top_tweeter <- read_twitter_csv("top_tweeter.csv")
+
+# Convert the date field to a datetime
+top_tweeter$created_at <- as_datetime(top_tweeter$created_at)
+
+#Changed some fields to factors for easier manipulation later
+top_tweeter$screen_name <- as.factor(top_tweeter$screen_name)
+```
+
+```{r}
+top_tweeter %>%
+  select(created_at, retweet_count, text) %>%
+  arrange(desc(retweet_count)) %>%
+  head(n = 20L)
 ```
 
