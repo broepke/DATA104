@@ -1,0 +1,56 @@
+---
+title: "Assignment 6A"
+author: "Brian Roepke"
+date: "October 18, 2020"
+output:
+  html_document:
+    df_print: tibble
+---
+## Assignment 6A: Google Studio HOA & R Programming
+
+```{r}
+library(dplyr, warn.conflicts = FALSE)
+library(readxl)
+library(tidyr, warn.conflicts = FALSE)
+library(tidyverse, warn.conflicts = FALSE)
+library(ggrepel)
+```
+
+```{r}
+df <- read_excel('regression.xlsx', 'Dataset1') 
+```
+
+```{r}
+names(df)
+```
+
+
+```{r}
+df2 <- select(df, "Source", "Users", "Sessions")
+
+df2 <- df2 %>% 
+  mutate(Conversion = (Users / Sessions) * 100)
+
+df2
+```
+
+## Plotting Users vs. Sessions
+
+Next, exploring the correlation of Users and Sessions and building a prediction model.
+
+```{r}
+ggplot(df, mapping = aes(x = Sessions, 
+                         y = Users, 
+                         color = Source, 
+                         label = Source)) +
+   theme(legend.position = "none") +
+  geom_point()
+```
+
+
+```{r}
+model <- lm(Users ~ Sessions, data = df)
+
+summary(model)
+```
+
