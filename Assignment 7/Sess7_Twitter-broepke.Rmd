@@ -113,7 +113,7 @@ head(df_biden, n = 10L)
 nrow(df_biden)
 ```
 
-After filtering out the tweets by date, Biden's count dropped to `2,599`, vs. the `3,200` pulled down originally.  
+After filtering out the tweets by date, Biden's count dropped to `2,599`, vs. the `3,200` pulled down initially.  
 
 ## Retweets, Replies, and Original Tweets Aggregated over Months for Biden
 
@@ -135,10 +135,10 @@ df_biden_2
 summary(df_biden_2)
 ```
 
- * **mon**: dates span from the month of feb through month of Oct.  Note - the dates were only through the middle of October and not a complete month.  This suggests that activity might increase dramatically for October
+ * **mon**: dates span from the month of Feb through Oct.  Note - the dates were only through the middle of October and not a full month.  This suggests that activity might increase dramatically for October
  * **retweet_count**: A max of 5.5million retweets.  A staggering number of monthly retweet totals.
- * **replies_count**: this column was empty in the dataset.  Investigating further, this attribute is only available with the premium API twitter access (see URL below).
- * **orig_count**: This represents the total number of original Tweets by Biden per month.  Fairly consistent with a mean of `227`.
+ * **replies_count**: This column was empty in the dataset.  After investigating the missing data further, this attribute is only available with the premium API twitter access (see URL below).
+ * **orig_count**: This represents the total number of original Tweets by Biden per month. Reasonably consistent with a mean of `227`.
  
  https://stackoverflow.com/questions/47851662/reply-count-attribute-missing-from-tweet-object 
 
@@ -163,7 +163,7 @@ df_biden_2 %>%
   )
 ```
 
-Plotting the three different values on a log scale, you see exactly those observations.  The number of total retweets is steadily increasing overtime and Biden's original tweet activity is reasonably consistent.
+Plotting the three different values on a log scale, you see precisely those observations.  The number of total retweets is steadily increasing over time, and Biden's original tweet activity is reasonably consistent.
 
 ## Comparing the Same Activity, but for Trump
 
@@ -179,7 +179,7 @@ df_trump
 nrow(df_trump)
 ```
 
-Here we can see that during the same period of time, Trump tweeted `3,178` times vs. Biden's `2,599`  `~800` more tweets in the same period retreived 
+Here we can see that during the same period, Trump tweeted `3,178` times vs. Biden's `2,599`  `~800` more tweets in the same period retrieved.
 
 ## Show and Plot retweets, replies, and original tweets aggregated over months for Trump
 
@@ -200,9 +200,9 @@ df_trump_2
 summary(df_trump_2)
 ```
 
- * **mon**: The dates for trump are a smaller window regardless of the filter, because the API reached the max of `3,200` in `August.`
+ * **mon**: The dates for Trump are a smaller window regardless of the filter because the API reached the max of `3,200` in `August.`
  * **retweet_count**: A max of `21 million` retweets.  A (`even more`) staggering number of monthly retweet totals.
- * **replies_count**: this column was empty in the dataset.  Investigating further, this attribute is only available with the premium API twitter access (see URL below).
+ * **replies_count**: This column was empty in the dataset.  After investigating the missing data further, this attribute is only available with the premium API Twitter access.
  * **orig_count**: This represents the total number of original Tweets by Trump per month.  While Biden's mean was `227`, Trump's activity was `413` for the window collected.
 
 
@@ -227,7 +227,7 @@ df_trump_2 %>%
   )
 ```
 
-For the retweets, we see a much smoother line over the shorter time period.  A more consistent set of values during this time.  Original tweets peeked about September 1st and tapered to October.  But note that this is (1) not a complete month and (2) there are only three data points (months) plotted here.
+We see a much smoother line for the retweets over the shorter period—a more consistent set of values during this time.  Original tweets peeked about September 1st and tapered to October.  But note that this is (1) not a full month, and (2) there are only three data points (months) plotted here.
 
 ## Plot the frequency of tweets for each user
 
@@ -252,7 +252,7 @@ timelinesdf %>%
   )
 ```
 
-This plot visualizes the point that was made above with the compressed window of time.  Trump's tweet volume hit the `3,200` tweet limit in August, where as Biden overall has had much less activity and therefore we see a longer time line.
+This plot visualizes the point that was made above with the compressed window of time.  Trump's tweet volume hit the `3,200` tweet limit in August, whereas Biden overall has had much less activity, and therefore we see a more extended timeline.
 
 This visual also nicely shows the volume of activity per day of Biden vs. Trump.  While it has increased for Biden during the period we have for Trump, we can see the overall per day tweets from Trump is about `5-8x` that of Biden.
 
@@ -277,7 +277,7 @@ timelinesdf %>%
   )
 ```
 
-When viewing the same data aggregated by Week, we can see a little bit of the noise taken out.  Trump consistently tweeting on a Weekly basis more than trump. 
+When viewing the same data aggregated by Week, we can see a little bit of the noise taken out.  Trump was consistently tweeting weekly more than Biden. 
 
 ### By Month (Adding Tweets vs. Retweets)
 
@@ -299,7 +299,7 @@ timelinesdf %>%
   )
 ```
 
-This graph is showing the data aggregated by Month, with the addition/differentiation of showing the tweets (*solid line*) vs retweets (*dashed line*).  This shows how Trump is a much more active retweeter vs. Biden, by a significant margin.
+This graph shows the data aggregated by Month, with the addition/differentiation of showing the tweets (*solid line*) vs. retweets (*dashed line*).  This shows how Trump is a much more active retweeter vs. Biden, by a significant margin.
 
 ## Get number of followers for Biden and Trump
 
@@ -310,7 +310,7 @@ lu_users %>%
   select(screen_name, followers_count)
 
 ```
-Trump's followers are `87 million` vs. Biden's `11 million`. Followers in social media are a sign of how much reach someone has, however Twitter is an open platform so reach / read doesn't equate to how many people are actually exposed to the content.
+Trump's followers are `87 million` vs. Biden's `11 million`. Followers in social media signify how much reach someone has; however, Twitter is an open platform, so reach/read doesn't equate to how many people are exposed to the content.
 
 ## Search 5000 tweets with
  * the hashtag #2020Election
@@ -363,11 +363,9 @@ election_hastag %>%
   )
 ```
 
-This time series is plotting `5,000` tweets on an hourly basis.  The scale on the X-axis shows the daily spacing and the peaks and valleys of the data shows a frequency of activity ramping up around 8:00 am Eastern Time and then maintaining a push through 8:00 pm eastern.  
+This time series is plotting `5,000` tweets on an hourly basis.  The X-axis scale shows the daily spacing, and the peaks and valleys of the data show a frequency of activity increasing around 8:00 am Eastern Time and then maintaining a push through 8:00 pm eastern.  The final day of activity does have a slightly higher peak. 
 
-This consistency probably suggests that most of these tweets are from the United States.  If they were global, we wouldn't see the consistent up and down pattern we see here.  
-
-We can explore this next.
+This consistency probably suggests that most of these tweets are from the same region of the world.  If they were global, we wouldn't see the consistent up and down pattern we see here. Most likely, the traffic is US based, and we can explore this next.
 
 **Note**: *Twitter returns time in UTC format.  Therefore UTC 12:00 pm will be 8:00 am eastern time.*
 https://developer.twitter.com/en/docs/twitter-ads-api/timezones 
@@ -404,7 +402,7 @@ loc[1:10,] %>%
   )
 ```
 
-As suspected, The top 10 tweets show US based locations. Position `15` shows `Melbourne` as the location.  Which could be either Australia or Florida, which has the same spelling as the Australian city.  Of course, this is to be expected because it's a US election, however, the US does effect the global economy so it tends to be watched by many people around the world.
+As suspected, The top 10 tweets show US-based locations. Position `15` shows `Melbourne` as the location, either Australia or Florida, which has the same spelling as the Australian city.  Of course, this is to be expected because it's a US election; however, the US affects the global economy, so it tends to be watched by many people around the world.
 
 ## Show top 10 most frequently shared link (urls_expanded_url)
 
@@ -443,8 +441,6 @@ election_hastag %>%
   head(n = 10L)
 ```
 
-
-
 ## What is the top tweeter saying?
 
 ```{r}
@@ -471,11 +467,11 @@ top_tweeter %>%
 
 **Note 1**: I selected the second users from the list.  The first one was essentially a bot that tweeted out the number of followers each of the candidates had.  Not interesting.  
 
-What we can see from the list is that two of this user's recent tweets went "viral,: one generating `~45k` retweets and another `~14.5k` retweets.  The rest are fairly benign.  The text for the two most retweeted tweets are:
+What we can see from the list is that two of this user's recent tweets went "viral: one generating `~45k` retweets and another `~14.5k` retweets.  The rest are relatively benign.  The text for the two most retweeted tweets are:
 
- * The salary of a U.S. Senator is $174,000 per year. This is Joe Biden’s house.... seems legit https://t.co/DtD0DzXlrY
+ * *"The salary of a U.S. Senator is $174,000 per year. This is Joe Biden’s house.... seems legit https://t.co/DtD0DzXlrY"*
 
- * After corruptly blocking readers from accessing the New York Post’s expose on Hunter and Joe Biden, Twitter is now throttling circulation of a Fox News story detailing Biden’s business ties in communist China. https://t.co/CIaE1raYHP*
+ * *"After corruptly blocking readers from accessing the New York Post’s expose on Hunter and Joe Biden, Twitter is now throttling circulation of a Fox News story detailing Biden’s business ties in communist China. https://t.co/CIaE1raYHP"*
 
 ```{r}
 top_profile <- lookup_users("usaguyme")
@@ -483,6 +479,6 @@ create_date <- top_profile$account_created_at
 create_date
 ```
 
-**Note 2**: This users profile which made it to the top of this hashtag list, was created on October 16th, 2008.  I suspected that this might be a bot account, but judging by the older account it's probably a human. While this profile only has 129 followers, we can see here, just by picking up the right hashtag, a user can get themselves into the conversation.
+**Note 2**: This user profile, which made it to the top of this hashtag list, was created on October 16th, 2008.  I suspected that this might be a bot account, but judging by the fact that the account is 12 years old, it's probably a human. While this profile only has 129 followers, we can see here, just by picking up the right hashtag, a user can get themselves into the conversation.
 
 
