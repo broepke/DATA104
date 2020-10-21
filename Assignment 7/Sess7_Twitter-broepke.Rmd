@@ -242,7 +242,7 @@ timelinesdf %>%
   ggplot2::theme_minimal() +
   ggplot2::theme(
     legend.title = ggplot2::element_blank(),
-    legend.position = "bottom",
+    legend.position = "right",
     plot.title = ggplot2::element_text(face = "bold")) +
   ggplot2::labs(
     x = NULL, y = NULL,
@@ -267,7 +267,7 @@ timelinesdf %>%
   ggplot2::theme_minimal() +
   ggplot2::theme(
     legend.title = ggplot2::element_blank(),
-    legend.position = "bottom",
+    legend.position = "right",
     plot.title = ggplot2::element_text(face = "bold")) +
   ggplot2::labs(
     x = NULL, y = NULL,
@@ -304,11 +304,13 @@ This graph is showing the data aggregated by Month, with the addition/differenti
 ## Get number of followers for Biden and Trump
 
 ```{r}
-timelinesdf %>%
-  group_by(screen_name) %>%
-  summarise(followers_count = max(followers_count))
+lu_users <- lookup_users(c("JoeBiden", "realDonaldTrump"))
+
+lu_users %>%
+  select(screen_name, followers_count)
+
 ```
-Trump's followers are `87 million` vs. Biden's `11 million`. Followers in social media are a sign of how much reach someone has, however Twitter is an open platform so reach / read doesn't equate to how many people follow.
+Trump's followers are `87 million` vs. Biden's `11 million`. Followers in social media are a sign of how much reach someone has, however Twitter is an open platform so reach / read doesn't equate to how many people are actually exposed to the content.
 
 ## Search 5000 tweets with
  * the hashtag #2020Election
@@ -332,6 +334,7 @@ election_hastag$created_at <- as_datetime(election_hastag$created_at)
 election_hastag$status_id <- as.factor(election_hastag$status_id)
 election_hastag$screen_name <- as.factor(election_hastag$screen_name)
 election_hastag$location <- as.factor(election_hastag$location)
+election_hastag$urls_expanded_url <- as.factor(election_hastag$urls_expanded_url)
 
 # Fix up the reply count field.  It should be a int and NAs set to 0
 election_hastag$reply_count[is.na(election_hastag$reply_count)] <- 0
@@ -360,7 +363,7 @@ election_hastag %>%
   )
 ```
 
-This time series is plotting `5,000` tweets on an hourly basis.  The scale on the X-axis shows the daily spacing and the peaks and valleys of the data shows a frequency of activity ramping up around 8:00 am Eastern Time and then maintaining a push through 8:00pm eastern.  There is a small dip around 9-10 pm as well.  
+This time series is plotting `5,000` tweets on an hourly basis.  The scale on the X-axis shows the daily spacing and the peaks and valleys of the data shows a frequency of activity ramping up around 8:00 am Eastern Time and then maintaining a push through 8:00 pm eastern.  
 
 This consistency probably suggests that most of these tweets are from the United States.  If they were global, we wouldn't see the consistent up and down pattern we see here.  
 
@@ -370,6 +373,7 @@ We can explore this next.
 https://developer.twitter.com/en/docs/twitter-ads-api/timezones 
 
 ```{r}
+# Clean up some of the obvious data discrepancies.  This is an impossible task to fully clean up, but for the purpose of the "top 10" results we can make it more accurate.
 election_hastag$location[election_hastag$location == "Washington, DC"] <- "Washington D.C."
 election_hastag$location[election_hastag$location == "Washington, D.C."] <- "Washington D.C."
 election_hastag$location[election_hastag$location == "United States of America"] <- "USA"
@@ -383,9 +387,8 @@ loc <- election_hastag %>%
   select(location) %>%
   group_by(location) %>%
   drop_na() %>%
-  tally(sort = TRUE, name = "count", )
-
-head(loc, n = 20L)
+  tally(sort = TRUE, name = "count") %>%
+  head(n = 15L)
 ```
 
 ```{r}
@@ -401,20 +404,20 @@ loc[1:10,] %>%
   )
 ```
 
-As suspected, The top 10 tweets show US based locations (`Earth` being an exception). Position 11 shows `Melbourne` as the location.  Which could be either Australia or Florida, which has the same spelling as the Australian city.  Of course, this is to be expected because it's a US election, however, the US does effect the global economy so it tends to be watched by many people around the world.
+As suspected, The top 10 tweets show US based locations. Position `15` shows `Melbourne` as the location.  Which could be either Australia or Florida, which has the same spelling as the Australian city.  Of course, this is to be expected because it's a US election, however, the US does effect the global economy so it tends to be watched by many people around the world.
 
-## Show top 10 most frequently shared link (hint: urls_expanded_url)
+## Show top 10 most frequently shared link (urls_expanded_url)
+
 
 ```{r}
 election_hastag %>%
-  select(urls_expanded_url) %>%
-  group_by(urls_expanded_url) %>%
+  count(urls_expanded_url, sort = TRUE) %>%
   drop_na() %>%
-  tally(sort = TRUE, name = "count", ) %>%
   head(n = 10L)
 ```
 
-## Show top 3 most retweeted tweet (hint: retweet_count)
+
+## Show top 3 most retweeted tweet (retweet_count)
 
 ```{r}
 election_hastag %>%
@@ -436,17 +439,16 @@ election_hastag %>%
 
 ```{r}
 election_hastag %>%
-  select(screen_name) %>%
-  group_by(screen_name) %>%
-  summarise(count = n()) %>%
-  arrange(desc(count)) %>%
+  count(screen_name, sort = TRUE) %>%
   head(n = 10L)
 ```
 
-## What is the top tweeter saying? (In this example, it’s AdlerLarry since they tweeted the most)
+
+
+## What is the top tweeter saying?
 
 ```{r}
-# top_tweeter <- get_timelines("2020Followers", n = 100)
+# top_tweeter <- get_timelines("usaguyme", n = 100)
 # write_as_csv(top_tweeter, "top_tweeter.csv")
 ```
 
@@ -467,6 +469,20 @@ top_tweeter %>%
   head(n = 20L)
 ```
 
-This is super boring.  It's a bot that's retweeting Twitter Follower's Stats. 
+**Note 1**: I selected the second users from the list.  The first one was essentially a bot that tweeted out the number of followers each of the candidates had.  Not interesting.  
+
+What we can see from the list is that two of this user's recent tweets went "viral,: one generating `~45k` retweets and another `~14.5k` retweets.  The rest are fairly benign.  The text for the two most retweeted tweets are:
+
+ * The salary of a U.S. Senator is $174,000 per year. This is Joe Biden’s house.... seems legit https://t.co/DtD0DzXlrY
+
+ * After corruptly blocking readers from accessing the New York Post’s expose on Hunter and Joe Biden, Twitter is now throttling circulation of a Fox News story detailing Biden’s business ties in communist China. https://t.co/CIaE1raYHP*
+
+```{r}
+top_profile <- lookup_users("usaguyme")
+create_date <- top_profile$account_created_at
+create_date
+```
+
+**Note 2**: This users profile which made it to the top of this hashtag list, was created on October 16th, 2008.  I suspected that this might be a bot account, but judging by the older account it's probably a human. While this profile only has 129 followers, we can see here, just by picking up the right hashtag, a user can get themselves into the conversation.
 
 
