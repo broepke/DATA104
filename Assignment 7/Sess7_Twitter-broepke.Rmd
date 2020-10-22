@@ -375,6 +375,7 @@ https://developer.twitter.com/en/docs/twitter-ads-api/timezones
 election_hastag$location[election_hastag$location == "Washington, DC"] <- "Washington D.C."
 election_hastag$location[election_hastag$location == "Washington, D.C."] <- "Washington D.C."
 election_hastag$location[election_hastag$location == "United States of America"] <- "USA"
+election_hastag$location[election_hastag$location == "United States"] <- "USA"
 election_hastag$location[election_hastag$location == "California"] <- "California, USA"
 election_hastag$location[election_hastag$location == "Texas"] <- "Texas, USA"
 ```
@@ -402,7 +403,7 @@ loc[1:10,] %>%
   )
 ```
 
-As suspected, The top 10 tweets show US-based locations. Position `15` shows `Melbourne` as the location, either Australia or Florida, which has the same spelling as the Australian city.  Of course, this is to be expected because it's a US election; however, the US affects the global economy, so it tends to be watched by many people around the world.
+The top 10 tweets show US-based locations. Position `10` shows `Melbourne` as the location, either Australia or Florida, which has the same spelling as the Australian city.  Of course, this is to be expected because it's a US election; however, the US affects the global economy, so it tends to be watched by many people around the world.
 
 ## Show top 10 most frequently shared link (urls_expanded_url)
 
