@@ -1,0 +1,57 @@
+---
+title: "Midterm 1"
+author: "Brian Roepke"
+date: "October 30, 2020"
+output:
+  html_document:
+    df_print: tibble
+---
+# Data 104 Midterm
+
+```{r}
+# plotting and pipes - tidyverse
+library(ggplot2)
+library(dplyr, warn.conflicts = FALSE)
+options(dplyr.summarise.inform = FALSE) # Suppress summarise info
+
+# text mining library
+suppressPackageStartupMessages(library(tidyverse)) # suppress startup message
+
+# date/time libaray
+library(lubridate, warn.conflicts = FALSE)
+```
+
+
+
+
+```{r}
+ga <- read.csv("bq-results.csv")
+```
+
+```{r}
+head(ga)
+```
+
+
+```{r}
+ga$date <- as.character(ga$date)
+ga$date <- as.Date(ga$date, "%Y%m%d")
+ga$browser <- as.factor(ga$browser)
+ga$deviceCategory <- as.factor(ga$deviceCategory)
+ga$country <- as.factor(ga$country)
+ga$region <- as.factor(ga$region)
+str(ga)
+```
+
+```{r}
+select(ga, date, session, pageviews, transactions, totalTransactionRevenue, browser, deviceCategory, country, region, hitNumber) %>%
+  summary()
+```
+
+```{r}
+head(ga)
+tail(ga)
+```
+
+
+
