@@ -40,6 +40,10 @@ ga$browser <- as.factor(ga$browser)
 ga$deviceCategory <- as.factor(ga$deviceCategory)
 ga$country <- as.factor(ga$country)
 ga$region <- as.factor(ga$region)
+
+# Rescale totalTransactionRevenue by dividing by 1 million
+ga$totalTransactionRevenue <- ga$totalTransactionRevenue / 1e+6
+
 str(ga)
 ```
 
