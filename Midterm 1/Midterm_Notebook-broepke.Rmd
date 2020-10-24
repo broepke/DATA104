@@ -47,6 +47,7 @@ ga$totalTransactionRevenue <- ga$totalTransactionRevenue / 1e+6
 str(ga)
 ```
 
+
 ```{r}
 select(ga, date, session, pageviews, transactions, totalTransactionRevenue, browser, deviceCategory, country, region, hitNumber) %>%
   summary()
@@ -58,4 +59,40 @@ tail(ga)
 ```
 
 
+
+
+
+## Question #1 
+What was the average number of product pageviews for users ​who did​ make a purchase?
+
+**Note:** *General calculation: SUM(total_pagesviews_per_user) / COUNT(users)*
+
+
+## Question #2
+
+What was the average number of product pageviews for users who ​did not​ make a purchase?
+
+
+
+## Question #3 
+What was the average total transactions per user that made a purchase?
+
+**Note:** *General calculation: SUM (total_transactions_per_user) / COUNT(userID)*
+
+
+## Question #4
+What is the average amount of money spent per session? Here per session is the total of ‘visits’ by user.
+
+**Note:** *General calculation: SUM(total_transactionrevenue_per_user) / SUM(total_visits_per_user)*
+
+## Question #5
+What is the total number of transactions generated per browser type ? Results should be in tabular form that shows the aggregated transactions by browser, including those that resulted in 0 transactions.
+
+
+## Extra Credit
+
+Create a model:
+ * Linear Regression - continuous outcome variable
+ * Logistic Regression - binary outcome variable;
+   * Ex: predicting conversion. Eg: converted = transactions >= 1 is either True (1) or False (0)
 
