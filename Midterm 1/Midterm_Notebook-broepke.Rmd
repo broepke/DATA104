@@ -28,10 +28,6 @@ library(lubridate, warn.conflicts = FALSE)
 ga <- read.csv("bq-results.csv")
 ```
 
-```{r}
-head(ga)
-```
-
 
 ```{r}
 ga$date <- as.character(ga$date)
@@ -40,16 +36,23 @@ ga$browser <- as.factor(ga$browser)
 ga$deviceCategory <- as.factor(ga$deviceCategory)
 ga$country <- as.factor(ga$country)
 ga$region <- as.factor(ga$region)
+ga$userID <- as.factor(ga$userID)
 
 # Rescale totalTransactionRevenue by dividing by 1 million
 ga$totalTransactionRevenue <- ga$totalTransactionRevenue / 1e+6
+
+# Columns to remove - Not needed for the analysis.  Removing these will make the data a little simpler
+ga$hitNumber <- NULL
+ga$pagePath <- NULL
 
 str(ga)
 ```
 
 
 ```{r}
-select(ga, date, session, pageviews, transactions, totalTransactionRevenue, browser, deviceCategory, country, region, hitNumber) %>%
+select(ga, date, session, pageviews, transactions,
+       totalTransactionRevenue, browser, 
+       deviceCategory, country, region) %>%
   summary()
 ```
 
@@ -59,6 +62,61 @@ tail(ga)
 ```
 
 
+## Aggregate a View for User Activity Per Session
+
+Values repeat themselves in the table for all variables per session.  So we can group these together to get a more accurate view of each session's activity.
+
+```{r}
+ga_aggregate <- ga %>%
+  group_by(userID, sessionID) %>%
+  distinct()
+
+ga_aggregate
+```
+
+
+
+```{r}
+user_revenue <- ga_aggregate %>%
+  filter(!is.na(transactions))
+
+user_revenue
+```
+
+```{r}
+user_revenue %>%
+  ggplot(aes(y = totalTransactionRevenue, x = date)) + 
+  geom_col()
+```
+
+```{r}
+ga_aggregate %>%
+  filter(!is.na(transactions)) %>%
+  summarise(date, totalTransactionRevenue, pageviews) %>%
+  ggplot(aes(x = pageviews, y = totalTransactionRevenue)) + 
+  geom_point(alpha = 0.4) + 
+  theme_minimal()
+
+```
+
+```{r}
+user_revenue %>%
+  ggplot(aes(x = date)) + 
+  geom_histogram()
+```
+
+
+```{r}
+ga_aggregate %>%
+    ggplot(aes(browser)) +
+    geom_bar() +
+    coord_flip() +
+    theme_minimal()
+```
+
+
+
+
 
 
 
@@ -66,6 +124,26 @@ tail(ga)
 What was the average number of product pageviews for users ​who did​ make a purchase?
 
 **Note:** *General calculation: SUM(total_pagesviews_per_user) / COUNT(users)*
+
+
+
+
+```{r}
+ga_aggregate %>%
+  filter(!is.na(transactions)) %>%
+  summarise(total_sessions = sum(session))
+```
+
+
+```{r}
+q1 <- ga_aggregate %>%
+  filter(!is.na(transactions)) %>%
+  group_by(year=floor_date(date, "year"), userID) %>%
+  summarise(avg_pageviews = sum(pageviews))
+
+q1
+```
+
 
 
 ## Question #2
