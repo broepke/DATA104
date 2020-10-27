@@ -311,7 +311,7 @@ What was the average number of product `pageviews` for users who **did not** mak
 
 ```{r}
 ga %>%
-  filter(is.na(transactions)) %>%
+  filter(transactions == 0) %>%
   distinct() %>%
   summarise(avg_pageviews = (sum(pageviews) / n_distinct(userID)))
 ```
