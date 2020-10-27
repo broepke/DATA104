@@ -36,7 +36,7 @@ ga$browser <- as.factor(ga$browser)
 ga$deviceCategory <- as.factor(ga$deviceCategory)
 ga$country <- as.factor(ga$country)
 ga$region <- as.factor(ga$region)
-ga$userID <- as.factor(ga$userID)
+# ga$userID <- as.character(ga$userID)
 
 # Rescale totalTransactionRevenue by dividing by 1 million
 ga$totalTransactionRevenue <- ga$totalTransactionRevenue / 1e+6
@@ -64,98 +64,117 @@ tail(ga)
 
 ## Aggregate a View for User Activity Per Session
 
-Values repeat themselves in the table for all variables per session.  So we can group these together to get a more accurate view of each session's activity.
 
 ```{r}
-ga_aggregate <- ga %>%
-  group_by(userID, sessionID) %>%
-  distinct()
-
-ga_aggregate
+ga %>%
+  filter(transactions > 0 & userID == 14262055593378384) %>%
+  group_by(userID) %>%
+  distinct() %>%
+  summarise(pg_views = sum(pageviews), revenue = sum(totalTransactionRevenue))
 ```
 
 
 
-```{r}
-user_revenue <- ga_aggregate %>%
-  filter(!is.na(transactions))
-
-user_revenue
-```
+### What days of the month produced the most revenue
 
 ```{r}
-user_revenue %>%
+ga %>%
+  filter(transactions > 0) %>%
   ggplot(aes(y = totalTransactionRevenue, x = date)) + 
   geom_col()
 ```
 
-```{r}
-ga_aggregate %>%
-  filter(!is.na(transactions)) %>%
-  summarise(date, totalTransactionRevenue, pageviews) %>%
-  ggplot(aes(x = pageviews, y = totalTransactionRevenue)) + 
-  geom_point(alpha = 0.4) + 
-  theme_minimal()
 
-```
+### How many Users had more at least one transaction.
+
+Determine how many users there are, and how many total 
 
 ```{r}
-user_revenue %>%
-  ggplot(aes(x = date)) + 
-  geom_histogram()
-```
+users_w_trans <- ga %>%
+  filter(transactions > 0) %>%
+  group_by(userID) %>%
+  distinct() %>%
+  summarise(transactions = sum(transactions)) %>%
+  arrange(desc(transactions))
 
+users_w_trans
+
+#set a variable for the number of users
+total_users_w_trans <- nrow(users_w_trans)
+```
+### Filter by a single user
+
+Simple tool to check a user's data
 
 ```{r}
-ga_aggregate %>%
-    ggplot(aes(browser)) +
-    geom_bar() +
-    coord_flip() +
-    theme_minimal()
+ga %>%
+  filter(userID == 9417857471295131648) %>%
+  head(n=500)
 ```
-
-
 
 
 
 
 
 ## Question #1 
-What was the average number of product pageviews for users ​who did​ make a purchase?
+What was the average number of product `pageviews` for users **who did** make a purchase?
 
 **Note:** *General calculation: SUM(total_pagesviews_per_user) / COUNT(users)*
 
 
-
-
 ```{r}
-ga_aggregate %>%
-  filter(!is.na(transactions)) %>%
-  summarise(total_sessions = sum(session))
+ga %>%
+  filter(transactions > 0) %>%
+  distinct() %>%
+  summarise(avg_pageviews = (sum(pageviews) / n_distinct(userID)))
 ```
 
+What we find is that users have an average of `28` pageviews that make a transaction. 
+
+**Note:** *This calculation represent distinct users, which takes into account users that have made more than one transaction.  for example, if there was a user that had 2 sessions which resulted in transactions, they are not counted as two users, they are counted as a single person.* 
+
+#### Validation
+
+The following is a simple validation tool for 
 
 ```{r}
-q1 <- ga_aggregate %>%
-  filter(!is.na(transactions)) %>%
-  group_by(year=floor_date(date, "year"), userID) %>%
-  summarise(avg_pageviews = sum(pageviews))
-
-q1
+# Use the following to test for 1 or 2 users
+ga %>%
+  filter(transactions > 0 & (userID == 6911334202687206 | userID == 14262055593378384)) %>%
+  distinct() %>%
+  summarise(avg_pageviews = (sum(pageviews) / n_distinct(userID)))
 ```
 
 
 
 ## Question #2
 
-What was the average number of product pageviews for users who ​did not​ make a purchase?
+What was the average number of product `pageviews` for users who **did not** make a purchase?
 
+```{r}
+ga %>%
+  filter(is.na(transactions)) %>%
+  distinct() %>%
+  summarise(avg_pageviews = (sum(pageviews) / n_distinct(userID)))
+```
+
+The average number of pageviews for users that did not page a purchase is `4.22`.
+
+
+**Note:** *This calculation represent distinct users, which takes into account users that have made more than one visit to the site that didn't result in a transaction.  This doesn't mean the user didn't eventually make a transaction in another session.*
 
 
 ## Question #3 
 What was the average total transactions per user that made a purchase?
 
 **Note:** *General calculation: SUM (total_transactions_per_user) / COUNT(userID)*
+
+```{r}
+ga %>%
+  filter(transactions > 0) %>%
+  distinct() %>%
+  summarise(average_transaction = (sum(totalTransactionRevenue) / n_distinct(userID)))
+```
 
 
 ## Question #4
