@@ -7,18 +7,40 @@ output:
     df_print: tibble
 ---
 # Data 104 Midterm
+The sample dataset contains obfuscated Google Analytics 360 data from the Google Merchandise Store, a real ecommerce store that sells Google branded merchandise. The dataset was pulled using Google’s BigQuery.
+
+The following are the definitions of the fields from Google Analytics:
+
+ * **date** - session in YYYYMMDD format
+ * **userID** - (eg: fullVisitorId) ; The unique visitor ID (also known as client ID).
+ * **sessionID** - (eg: visitId); Identifier for this session. Only unique to the user. For a completely
+unique ID, you use a combination of fullVisitorId and visitId.
+ * **session** - (eg: visitNumber); The session number for this user. If this is the first session, then this
+is set to 1.
+ * **pageviews** - Total number of pageviews within the session.
+ * **newVisits** - Total number of new users in session (for convenience). If this is the first visit, this value is 1, otherwise it is null.
+ * **transactions** - Total number of ecommerce transactions within the session.
+ * **visits** - This value is 1 for sessions with interaction events. The value is null if there are no
+interaction events in the session
+ * **totalTransactionRevenue** - Total transaction revenue, expressed as the value passed to
+Analytics multiplied by 10^6 (e.g., 2.40 would be given as 2400000)
+ * **browser** - browser used (e.g., "Chrome" or "Firefox").
+ * **deviceCategory** - Type of device (Mobile, Tablet, Desktop).
+ * **country** - Country from which sessions originated
+ * **region** - Region from which sessions originate. In the U.S., a region is a state, such as New
+York.
+ * **hitNumber** - Sequence of pages that a user looked at within one session. (eg: the sequenced hit
+number). For the first hit of each session, this is set to 1.
+ * **pagePath** - URL path of the page.
 
 ```{r}
 # plotting and pipes - tidyverse
 library(ggplot2)
 library(dplyr, warn.conflicts = FALSE)
 options(dplyr.summarise.inform = FALSE) # Suppress summarise info
-
-# text mining library
 suppressPackageStartupMessages(library(tidyverse)) # suppress startup message
-
-# date/time libaray
 library(lubridate, warn.conflicts = FALSE)
+library(corrplot)
 
 # don't use scientific notation (for the userID field)
 options(scipen=999)
@@ -28,7 +50,7 @@ options(scipen=999)
 
 
 ```{r}
-ga <- read.csv("bq-results.csv")
+ga <- read.csv("bq-results.csv", colClasses=c("userID"="character"))
 ```
 
 
@@ -48,21 +70,157 @@ ga$totalTransactionRevenue <- ga$totalTransactionRevenue / 1e+6
 ga$hitNumber <- NULL
 ga$pagePath <- NULL
 
+# Clean up some of the values to more useful settings
+ga$region[ga$region == "not available in demo dataset"] <- NA
+ga$region[ga$region == "(not set)"] <- NA
+ga$transactions[is.na(ga$transactions)] <- 0
+
 str(ga)
 ```
 
 
 ```{r}
-select(ga, date, session, pageviews, transactions,
-       totalTransactionRevenue, browser, 
-       deviceCategory, country, region) %>%
-  summary()
-```
-
-```{r}
 head(ga)
 tail(ga)
 ```
+
+```{r}
+ga %>%
+  distinct() %>%
+  select(date, session, pageviews, transactions,
+         totalTransactionRevenue, browser, 
+         deviceCategory, country, region) %>%
+  summary()
+```
+
+## EDA for Single UserID and single SessionID
+
+```{r}
+ga %>%
+  filter(userID == "0014262055593378383" & sessionID == 1499123682) %>%
+  head(n = 50)
+```
+Here we can see that a single user's activity, with 30 pageviews, results in 30 rows in the data.  Each of these rows contain the same information with the exception of `hitNumber` and `pagePath` (which have been dropped from the dataset already, since they will not be used in the analysis,)
+
+
+### Distinct User Activity
+
+Remove all the duplicate rows, so there is a single entry for each user session
+
+```{r}
+ga %>%
+  filter(userID == "0014262055593378383") %>%
+  distinct() %>%
+  select(date, session, pageviews, transactions,
+         totalTransactionRevenue, browser, 
+         deviceCategory, country, region) %>%
+  summary()
+
+```
+
+For this `UserID`.  We can see thy have `5` visits today (both `session` count `4 - 8`, and the Factor `country` and `region` showing `5`).  we see that out of the `5` visions, they made `2` transactions, and have a mean transaction amount of `37.40`. 
+
+
+## Activity by Location Information
+
+```{r}
+ga %>%
+  distinct() %>%
+  count(country, sort = TRUE)  %>%
+  mutate(country = reorder(country, n))  %>%
+  slice_max(order_by=country, n = 10) %>% 
+
+  # Create a Colum chart of top 10
+  ggplot(aes(x = country, y = n)) + 
+  geom_col() + 
+  coord_flip() + 
+  theme_minimal() +
+  labs(x = "Count",
+       y = "Country",
+       title = "Top Locations of Users")
+```
+
+```{r}
+ga %>%
+  distinct() %>%
+  filter(transactions > 0) %>%
+  count(country, sort = TRUE)  %>%
+  mutate(country = reorder(country, n))  %>%
+  slice_max(order_by=country, n = 10) %>% 
+
+  # Create a Colum chart of top 10
+  ggplot(aes(x = country, y = n)) + 
+  geom_col() + 
+  coord_flip() + 
+  theme_minimal() +
+  labs(x = "Count",
+       y = "Country",
+       title = "Top Countries of Users Who Made a Transaction")
+```
+
+
+```{r}
+ga %>%
+  distinct() %>%
+  count(region, sort = TRUE)  %>%
+  mutate(region = reorder(region, n))  %>%
+  slice_max(order_by=region, n = 10) %>% 
+
+  # Create a Colum chart of top 10
+  ggplot(aes(x = region, y = n)) + 
+  geom_col() + 
+  coord_flip() + 
+  theme_minimal() +
+  labs(x = "Count",
+       y = "Country",
+       title = "Top Regions of Users")
+```
+
+
+## EDA of Transactions
+
+```{r}
+ga %>%
+  distinct() %>%
+  filter(transactions > 0) %>%
+  ggplot(aes(x = totalTransactionRevenue)) + 
+  geom_histogram() + 
+  theme_minimal() +
+  labs(x = "Revenue",
+       y = "Count",
+       title = "Top Locations of Users")
+```
+
+```{r}
+ga %>%
+  distinct() %>%
+  filter(transactions > 0) %>%
+  ggplot(aes(x = pageviews, y = totalTransactionRevenue)) + 
+  geom_point(alpha = 0.5) + 
+  theme_minimal() +
+  labs(x = "Revenue",
+       y = "Pageviews",
+       title = "Correlation of Pageviews vs. Revenue")
+```
+
+
+
+```{r}
+ga_corr <- ga %>%
+    select(session, pageviews, transactions,
+         totalTransactionRevenue)
+
+corr <- round(cor(ga_corr), 2)
+corr
+```
+
+```{r}
+corrplot(corr, method="color")
+```
+
+
+
+
 
 
 ## Aggregate a View for User Activity Per Session
@@ -70,7 +228,7 @@ tail(ga)
 
 ```{r}
 ga %>%
-  filter(transactions > 0 & userID == 14262055593378384) %>%
+  filter(transactions > 0 & userID == "0014262055593378383") %>%
   group_by(userID) %>%
   distinct() %>%
   summarise(pg_views = sum(pageviews), revenue = sum(totalTransactionRevenue))
@@ -83,6 +241,7 @@ ga %>%
 ```{r}
 ga %>%
   filter(transactions > 0) %>%
+  distinct() %>%
   ggplot(aes(y = totalTransactionRevenue, x = date)) + 
   geom_col()
 ```
@@ -93,26 +252,22 @@ ga %>%
 Determine how many users there are, and how many total 
 
 ```{r}
-users_w_trans <- ga %>%
+ga %>%
   filter(transactions > 0) %>%
-  group_by(userID) %>%
-  distinct() %>%
-  summarise(transactions = sum(transactions)) %>%
-  arrange(desc(transactions))
+  distinct(userID) %>%
+  summarise(userID = n())
 
-users_w_trans
-
-#set a variable for the number of users
-total_users_w_trans <- nrow(users_w_trans)
 ```
+
+
 ### Filter by a single user
 
 Simple tool to check a user's data
 
 ```{r}
 ga %>%
-  filter(userID == 9417857471295131648) %>%
-  head(n=500)
+  filter(userID == "0014262055593378383") %>%
+  head(n=100)
 ```
 
 
@@ -138,12 +293,12 @@ What we find is that users have an average of `28` pageviews that make a transac
 
 #### Validation
 
-The following is a simple validation tool for 
+The following is a simple validation tool for checking two users's combined avg paige views.
 
 ```{r}
 # Use the following to test for 1 or 2 users
 ga %>%
-  filter(transactions > 0 & (userID == 6911334202687206 | userID == 14262055593378384)) %>%
+  filter(transactions > 0 & (userID == "0006911334202687206" | userID == "0014262055593378383")) %>%
   distinct() %>%
   summarise(avg_pageviews = (sum(pageviews) / n_distinct(userID)))
 ```
@@ -188,11 +343,54 @@ What is the average amount of money spent per session? Here per session is the t
 ## Question #5
 What is the total number of transactions generated per browser type ? Results should be in tabular form that shows the aggregated transactions by browser, including those that resulted in 0 transactions.
 
+```{r}
+ga %>%
+  distinct() %>%
+  dplyr::group_by(browser) %>%
+  dplyr::summarise(trans = sum(transactions)) %>%
+  arrange(desc(trans))
+```
 
-## Extra Credit
 
-Create a model:
- * Linear Regression - continuous outcome variable
- * Logistic Regression - binary outcome variable;
-   * Ex: predicting conversion. Eg: converted = transactions >= 1 is either True (1) or False (0)
+
+## Regression Analysis
+
+```{r}
+names(ga)
+```
+
+### Logistic Regression to Predict Converstion
+
+Convert the transaction field into a binary value in a new Data Frame
+
+```{r}
+summary(ga$transactions)
+ga_log <- ga
+ga_log$transactions[ga_log$transactions > 0] = 1
+summary(ga_log$transactions)
+```
+
+
+```{r}
+ga_glm <- ga_log %>%
+  distinct()
+
+model <- glm(formula = transactions ~ pageviews, data = ga_glm)
+
+summary(model)
+```
+
+## Multiple Linear Regression to predict Transaction Revenue
+
+```{r}
+ga_lm <- ga %>%
+  distinct()
+
+fit1 <- lm(formula = totalTransactionRevenue ~ browser + country, data = ga_lm)
+fit2 <- lm(formula = totalTransactionRevenue ~ pageviews, data = ga_lm)
+
+summary(fit1)
+summary(fit2)
+anova(fit1, fit2)
+```
 
