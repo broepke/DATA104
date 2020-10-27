@@ -19,6 +19,9 @@ suppressPackageStartupMessages(library(tidyverse)) # suppress startup message
 
 # date/time libaray
 library(lubridate, warn.conflicts = FALSE)
+
+# don't use scientific notation (for the userID field)
+options(scipen=999)
 ```
 
 
