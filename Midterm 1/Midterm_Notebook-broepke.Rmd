@@ -421,7 +421,7 @@ Determine if there is a strong relationship between two or more variables in the
 names(ga)
 ```
 
-## Logistic Regression to Predict Converstion
+## Logistic Regression to Predict Conversions
 
 First, convert the `transaction` field into a binary value in a new Data Frame
 
@@ -442,32 +442,25 @@ model <- glm(formula = transactions ~ pageviews + deviceCategory, data = ga_glm,
 summary(model)
 ```
 
-Interpretation.  
-
-Our continuous variable `pageviews` tells us that for every increase in of 1 pageview we have a 0.131% 
-
-**Note**: I'm less familar admitedly how to interpret this. 
 
 https://stats.idre.ucla.edu/r/dae/logit-regression/
 
-**Examine the confidence intervals for the model**
+
 
 ```{r}
-confint.default(model)
+## odds ratios and 95% CI
+exp(cbind(OR = coef(model), confint(model)))
 ```
 
-**Wald Test of Significance**
+**Analysis**
 
-```{r}
-wald.test(b = coef(model), Sigma = vcov(model), Terms = 3:4)
-```
-
-The chi-squared test statistic of 176.9 and P-value of 0.0 tells us the test is statistically significant.
-
+ * For each adding page viewed during a session, the odds of a transaction go up by **`1.14`**
+ * For each user on a mobile device (versus desktop), the odds of a transaction go up **`0.22`**
+ * For each user on a tablet device (versus desktop), the odd of a transaction go up **`0.18`**
 
 ## Multiple Regression Model to Predict Transaction Revenue
 
-Using a multiple regression model to predict the independent variable revenue from other dependent variables.
+Using a multiple regression model to predict the independent continuous variable revenue from other dependent variables.
 
 ```{r}
 ga_lm <- ga %>%
