@@ -1,6 +1,8 @@
 ---
 title: "GGPLOT to SVG"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r}
@@ -11,8 +13,21 @@ require("svglite")
 
 ```{r}
 #to see actually what will be plotted and compare 
-image <- ggplot(diamonds, aes(x = price)) +
-  geom_density(alpha = .5, fill = "salmon", color = "red")
+image <- ggplot(diamonds, aes(x = price, color = color)) +
+  geom_histogram(aes(y=..density..), fill = "white", bins = 50)
+  #geom_density(alpha=.2, fill="red") 
+image
+```
+
+
+
+
+```{r}
+#to see actually what will be plotted and compare 
+image <- ggplot(mtcars, aes(x = hp, y = mpg, color = as.factor(cyl))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, formula = y ~ x) + 
+  theme_minimal()
 image
 ```
 
