@@ -1,0 +1,140 @@
+---
+title: "Assignment 10: Text Analysis in R"
+author: "Brian Roepke"
+date: "Nov 15, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+# Assignment 10
+
+ * Load the attached dataset. 
+   * Show the structure, shape, etc..
+   * Check for duplicated text. Show these, its size, and remove these from the data frame, as needed. Only want non-duplicated text, for subsequent analysis.
+ * Perform the following transformations in addition to any transformations desired for your analysis (create a column headline_len which stores the length of the headline text; eg: function str_count ()
+ * Perform basic EDA (summary statistics, visualizations of text length distributions, headlines by date, etc..)
+ * Perform Text Analysis. 
+ Include tokenization and preprocessing. 
+ * Perform analysis: 
+   * This is your choice; review the Lecture/Sample notebook for guidance. 
+   * Stay within the topics already covered so far. (Eg: Do not do sentiment analysis  or other ML modeling as we will cover those topics in subsequent sessions)
+
+```{r}
+# Text mining libs
+library(SnowballC)
+library(tidytext)
+library(spacyr)
+
+# plotting and pipes - tidyverse
+library(ggplot2)
+library(dplyr, warn.conflicts = FALSE)
+library(tidyverse)
+
+# date/time libaray
+library(lubridate, warn.conflicts = FALSE)
+library(TSstudio)
+```
+
+```{r}
+# Read in the Data from a CSV file.
+df <- read.csv('news_headlines.csv', colClasses=c("headline"="character"))
+```
+
+```{r}
+# Perform column cleanup as needed
+df$publish_date <- as.Date(df$publish_date, "%d/%m/%y")
+```
+
+# EDA
+Perform Exploratory Data Analysis to better understand what's in this set. 
+
+## Structure
+First Example the structure of the data
+
+```{r}
+str(df)
+```
+
+## Summary Statistics
+
+```{r}
+summary(df)
+```
+
+```{r}
+head(df)
+tail(df)
+```
+
+### Remove Duplicates from `Headline`
+
+```{r}
+df[duplicated(df$headline), ] %>%
+  head()
+```
+
+
+```{r}
+df2 <- df[!duplicated(df$headline), ]
+length(df$headline) - length(df2$headline)
+```
+
+There were `25,022` duplicates entries
+
+
+
+```{r}
+df3 <- df2 %>%
+  mutate(headline_len = str_count(df2$headline)) %>%
+  mutate(year = lubridate::year(df2$publish_date)) %>%
+  mutate(month = lubridate::month(df2$publish_date)) %>%
+  mutate(day = lubridate::day(df2$publish_date))
+```
+
+```{r}
+# Reorder the columsn to a more logical sequence
+df3 <- select(df3, publish_date, year, month, day, headline, headline_len)
+df3
+```
+
+
+```{r}
+summary(df3$headline_len)
+```
+
+```{r}
+df3 %>%
+  ggplot(aes(x = headline_len, y = ..density..)) +
+  geom_histogram(color = "black", fill = "lightgray", bins = 30) + 
+  geom_density(color = "red", fill = "salmon", alpha = 0.5) +
+  theme_minimal()
+```
+
+```{r}
+df_dates <- drop_na(df3)
+summary(df_dates)
+```
+
+
+
+```{r}
+df_dates %>%
+  ggplot(aes(x = year)) + 
+  geom_bar() + 
+  theme_minimal()
+```
+
+```{r}
+df_dates %>%
+  group_by(year) %>%
+  summarise(headlines = n(), .groups = "keep") 
+```
+
+
+
+
+
+
+
+
+
