@@ -4,7 +4,7 @@ author: "Brian Roepke"
 date: "October 30, 2020"
 output:
   html_document:
-    df_print: tibble
+    df_print: paged
 ---
 # Data 104 Midterm
 The sample dataset contains obfuscated Google Analytics 360 data from the Google Merchandise Store, a real ecommerce store that sells Google branded merchandise. The dataset was pulled using Google’s BigQuery.
@@ -40,19 +40,19 @@ library(dplyr, warn.conflicts = FALSE)
 options(dplyr.summarise.inform = FALSE) # Suppress summarise info
 suppressPackageStartupMessages(library(tidyverse)) # suppress startup message
 library(lubridate, warn.conflicts = FALSE)
-library(corrplot)
+library(scales)
+library(aod)
 
 # don't use scientific notation (for the userID field)
 options(scipen=999)
 ```
 
 
-
-
 ```{r}
 ga <- read.csv("bq-results.csv", colClasses=c("userID"="character"))
 ```
 
+# Data Load & Prep
 
 ```{r}
 ga$date <- as.character(ga$date)
@@ -61,7 +61,6 @@ ga$browser <- as.factor(ga$browser)
 ga$deviceCategory <- as.factor(ga$deviceCategory)
 ga$country <- as.factor(ga$country)
 ga$region <- as.factor(ga$region)
-# ga$userID <- as.character(ga$userID)
 
 # Rescale totalTransactionRevenue by dividing by 1 million
 ga$totalTransactionRevenue <- ga$totalTransactionRevenue / 1e+6
@@ -74,6 +73,7 @@ ga$pagePath <- NULL
 ga$region[ga$region == "not available in demo dataset"] <- NA
 ga$region[ga$region == "(not set)"] <- NA
 ga$transactions[is.na(ga$transactions)] <- 0
+# ga$totalTransactionRevenue[is.na(ga$totalTransactionRevenue)] <- 0
 
 str(ga)
 ```
@@ -93,19 +93,23 @@ ga %>%
   summary()
 ```
 
+These summary statistics aren't as useful given the data structure, which will be explained next.
+
 ## EDA for Single UserID and single SessionID
+
+The following explores the structure of this data.  Each row in this doesn't represent a different user or an extra session.  So quickly explore and explain that.  First, by looking at what a single user/session data looks like.
 
 ```{r}
 ga %>%
   filter(userID == "0014262055593378383" & sessionID == 1499123682) %>%
   head(n = 50)
 ```
-Here we can see that a single user's activity, with 30 pageviews, results in 30 rows in the data.  Each of these rows contain the same information with the exception of `hitNumber` and `pagePath` (which have been dropped from the dataset already, since they will not be used in the analysis,)
+We can see that a single user's activity, with 30 pageviews, results in 30 rows in the data.  Each row contains the same information except `hitNumber` and `pagePath` (which have been dropped from the dataset already since they will not be used in the analysis.)
 
 
 ### Distinct User Activity
 
-Remove all the duplicate rows, so there is a single entry for each user session
+Using that same user, showing all of their activity but with the duplicate rows removed.  This will then contain a single row for each different session of activity.
 
 ```{r}
 ga %>%
@@ -118,10 +122,10 @@ ga %>%
 
 ```
 
-For this `UserID`.  We can see thy have `5` visits today (both `session` count `4 - 8`, and the Factor `country` and `region` showing `5`).  we see that out of the `5` visions, they made `2` transactions, and have a mean transaction amount of `37.40`. 
+For this `UserID,` We can see they have `5` visits today (both `session` count `4 - 8`, the Factor `country` and `region` showing `5`). We see that out of the `5` visions, they made `2` transactions and have a average transaction amount of `37.40`. 
 
 
-## Activity by Location Information
+## Location Analysis
 
 ```{r}
 ga %>%
@@ -130,15 +134,16 @@ ga %>%
   mutate(country = reorder(country, n))  %>%
   slice_max(order_by=country, n = 10) %>% 
 
-  # Create a Colum chart of top 10
   ggplot(aes(x = country, y = n)) + 
   geom_col() + 
   coord_flip() + 
   theme_minimal() +
   labs(x = "Count",
        y = "Country",
-       title = "Top Locations of Users")
+       title = "Top Countries of Users")
 ```
+
+A majority of the users in the dataset come from the United states. This represents *all* users in the dataset regardless of whether or not they've made a transaction.
 
 ```{r}
 ga %>%
@@ -151,30 +156,35 @@ ga %>%
   # Create a Colum chart of top 10
   ggplot(aes(x = country, y = n)) + 
   geom_col() + 
-  coord_flip() + 
+  coord_flip() +
   theme_minimal() +
   labs(x = "Count",
        y = "Country",
        title = "Top Countries of Users Who Made a Transaction")
 ```
 
+When you filter out users who didn't make a purchase, you can see that many transactions come from the US, with Canada second. 
 
 ```{r}
 ga %>%
   distinct() %>%
-  count(region, sort = TRUE)  %>%
-  mutate(region = reorder(region, n))  %>%
-  slice_max(order_by=region, n = 10) %>% 
-
-  # Create a Colum chart of top 10
-  ggplot(aes(x = region, y = n)) + 
-  geom_col() + 
-  coord_flip() + 
-  theme_minimal() +
-  labs(x = "Count",
-       y = "Country",
-       title = "Top Regions of Users")
+  filter(transactions > 0 & totalTransactionRevenue < 2000) %>%
+    ggplot(aes(totalTransactionRevenue, color = country)) +
+    geom_boxplot() +
+    labs(title = "Transaction Distribution by Country",
+         x = "Revenue",
+         y = NULL) +
+    theme_minimal() +
+    theme(
+      legend.title = element_blank(),
+      legend.position = "bottom",
+      plot.title = element_text(face = "bold")) +
+  coord_flip()
 ```
+
+Examining a little bit more regarding the revenue generated by Countries, the low volume doesn't always equate to low revenue.  You can see that `Mexico`, `Germany`, and the `United Kingdom` stand out a little regarding transaction distribution. 
+
+**Note:** *The max transaction size here has been filtered to be less than 2,000, taking out a two the outliers.*
 
 
 ## EDA of Transactions
@@ -184,72 +194,90 @@ ga %>%
   distinct() %>%
   filter(transactions > 0) %>%
   ggplot(aes(x = totalTransactionRevenue)) + 
-  geom_histogram() + 
+  geom_density(color = "red",fill = "salmon", alpha=0.5) + 
   theme_minimal() +
   labs(x = "Revenue",
        y = "Count",
-       title = "Top Locations of Users")
+       title = "Transaction Revenue")
 ```
+
+Based on the density plot, there is a super high concentration of transactions that have a low amount of revenue, with very few outliers that have an extreme transaction size over `25,000`. Next, we'll take a different look at this. 
+
 
 ```{r}
 ga %>%
   distinct() %>%
   filter(transactions > 0) %>%
   ggplot(aes(x = pageviews, y = totalTransactionRevenue)) + 
-  geom_point(alpha = 0.5) + 
+  geom_point(alpha = 0.2) + 
   theme_minimal() +
-  labs(x = "Revenue",
-       y = "Pageviews",
+  labs(x = "Pageviews",
+       y = "Revenue",
        title = "Correlation of Pageviews vs. Revenue")
 ```
 
-
-
-```{r}
-ga_corr <- ga %>%
-    select(session, pageviews, transactions,
-         totalTransactionRevenue)
-
-corr <- round(cor(ga_corr), 2)
-corr
-```
-
-```{r}
-corrplot(corr, method="color")
-```
-
-
-
-
-
-
-## Aggregate a View for User Activity Per Session
+Two outlier transactions stick out in terms of revenue.  Without removing them, the scatter plot is hard to interpret.  First, let's look at what those transactions are, and second, we can pair down the data a little bit. 
 
 
 ```{r}
 ga %>%
-  filter(transactions > 0 & userID == "0014262055593378383") %>%
-  group_by(userID) %>%
+  filter(totalTransactionRevenue > 10000) %>%
   distinct() %>%
-  summarise(pg_views = sum(pageviews), revenue = sum(totalTransactionRevenue))
+  head()
 ```
 
+Interestingly these two transactions from the very same user. It's worth investigating how many visits they have done and additional transactions.
 
 
-### What days of the month produced the most revenue
+```{r}
+ga %>%
+  filter(userID == "9417857471295131045") %>%
+  distinct() %>%
+  arrange(desc(pageviews)) %>%
+  head(n = 20)
+
+ga %>%
+  filter(transactions > 0 & userID == "9417857471295131045") %>%
+  distinct() %>%
+  group_by(userID) %>%
+  summarise(total = sum(totalTransactionRevenue))
+
+```
+This user (`9417857471295131045`) had `9` transactions over the month. and a total of `41,810.85`.
+
+
+```{r}
+ga %>%
+  distinct() %>%
+  filter(transactions > 0 & totalTransactionRevenue < 2000) %>%
+  ggplot(aes(x = pageviews, y = totalTransactionRevenue)) + 
+  geom_point(alpha = 0.5) + 
+  geom_smooth(method = "lm", se = TRUE, formula = y ~ x) + 
+  theme_minimal() +
+  labs(x = "Pageviews",
+       y = "Revenue",
+       title = "Correlation of Pageviews vs. Revenue")
+```
+
+Filtering out those larger transactions, we can see a slightly positive correlation of the independent variable `Revenue` to the dependent variable, `Pageviews.`
+
+## What days of the month produced the most revenue?
 
 ```{r}
 ga %>%
   filter(transactions > 0) %>%
   distinct() %>%
   ggplot(aes(y = totalTransactionRevenue, x = date)) + 
-  geom_col()
+  geom_col() + 
+  scale_x_date(labels = date_format("%A-%m-%d"))
 ```
+
+Based on the dates, it looks like weekend activity is a little lower and early week activity is the strongest.
 
 
 ### How many Users had more at least one transaction.
 
-Determine how many users there are, and how many total 
+Determine how many users there are.
 
 ```{r}
 ga %>%
@@ -259,23 +287,13 @@ ga %>%
 
 ```
 
+There are `1,000` unique (distinct) users in this dataset that completed at least one transaction.  These users could have completed more than one transaction however. 
 
-### Filter by a single user
-
-Simple tool to check a user's data
-
-```{r}
-ga %>%
-  filter(userID == "0014262055593378383") %>%
-  head(n=100)
-```
-
-
-
-
+# Mid Term Questions
+Make sure to show intermediary data frames / aggregations / calculations that help answer the questions. Some hints have been included to assist you but you should apply the tools / knowledge gained up to this point.
 
 ## Question #1 
-What was the average number of product `pageviews` for users **who did** make a purchase?
+What was the average number of product pageviews for users who did make a purchase?
 
 **Note:** *General calculation: SUM(total_pagesviews_per_user) / COUNT(users)*
 
@@ -287,23 +305,11 @@ ga %>%
   summarise(avg_pageviews = (sum(pageviews) / n_distinct(userID)))
 ```
 
-What we find is that users have an average of `28` pageviews that make a transaction. 
+We find that users have an average of `28` page views that make a transaction. 
 
-**Note:** *This calculation represent distinct users, which takes into account users that have made more than one transaction.  for example, if there was a user that had 2 sessions which resulted in transactions, they are not counted as two users, they are counted as a single person.* 
+*BigQuery Answer: 27.999*
 
-#### Validation
-
-The following is a simple validation tool for checking two users's combined avg paige views.
-
-```{r}
-# Use the following to test for 1 or 2 users
-ga %>%
-  filter(transactions > 0 & (userID == "0006911334202687206" | userID == "0014262055593378383")) %>%
-  distinct() %>%
-  summarise(avg_pageviews = (sum(pageviews) / n_distinct(userID)))
-```
-
-
+**Note:** *This calculation represent distinct users, which takes into account users that have made more than one transaction.  for example, if there was a user that had 2 sessions which resulted in two transactions, they are not counted as two users, they are counted as a single person.* 
 
 ## Question #2
 
@@ -316,10 +322,13 @@ ga %>%
   summarise(avg_pageviews = (sum(pageviews) / n_distinct(userID)))
 ```
 
-The average number of pageviews for users that did not page a purchase is `4.22`.
+The average number of pageviews for users that did not purchase is `4.22`.
 
+**Conclusion for #1 & #2:** What we can conclude from this, users that make a purchase visit about `4x` as many pages on average than those that do not.
 
-**Note:** *This calculation represent distinct users, which takes into account users that have made more than one visit to the site that didn't result in a transaction.  This doesn't mean the user didn't eventually make a transaction in another session.*
+*Big Query Answer = 4.216817765948599*
+
+**Note:** *This calculation represents distinct users, which takes into account users who have made more than one visit to the site that didn't result in a transaction.  This doesn't mean the user didn't eventually complete a transaction in another session.*
 
 
 ## Question #3 
@@ -327,18 +336,70 @@ What was the average total transactions per user that made a purchase?
 
 **Note:** *General calculation: SUM (total_transactions_per_user) / COUNT(userID)*
 
+First, calculate how many transactions per user happened.  The transaction field is defined as *"Total number of ecommerce transactions within the session."* Therefore, we need to sum them to get the total per user.  We can see the largest user had `9` total transactions. This was the same user with the two large sales explored above. 
+
 ```{r}
 ga %>%
   filter(transactions > 0) %>%
   distinct() %>%
-  summarise(average_transaction = (sum(totalTransactionRevenue) / n_distinct(userID)))
+  group_by(userID) %>%
+  summarise(transactions = sum(transactions)) %>%
+  arrange(desc(transactions))
+```
+Finally, perform the calculation dividing by the total number of distinct users that made a purchase.
+
+```{r}
+ga %>%
+  filter(transactions > 0) %>%
+  distinct() %>%
+  summarise(avg_total_transactions_per_user = sum(transactions) / n_distinct(userID))
 ```
 
+The average of a transaction across all users was `1.117`.
+
+*Big Query Answer = 1.117*
 
 ## Question #4
 What is the average amount of money spent per session? Here per session is the total of ‘visits’ by user.
 
 **Note:** *General calculation: SUM(total_transactionrevenue_per_user) / SUM(total_visits_per_user)*
+
+```{r}
+ga %>%
+  filter(transactions > 0) %>%
+  distinct() %>%
+  summarise(rev_per_session = sum(totalTransactionRevenue) / sum(visits))
+```
+
+Average amount spent per visit is `157.94` for this month of data.
+
+**Google Big Query**
+**Note**: The following is the original query from Google.  It was found that the Revenue numbers didn't match the data in the CSV. However, the above calculation is the same as what's provided below. 
+
+```
+  #standardSQL
+  SELECT
+  ( SUM(total_transactionrevenue_per_user) / SUM(total_visits_per_user) ) AS
+  avg_revenue_by_user_per_visit
+  FROM (
+  SELECT
+  fullVisitorId,
+  SUM( totals.visits ) AS total_visits_per_user,
+  SUM( totals.transactionRevenue ) AS total_transactionrevenue_per_user
+  FROM
+  `bigquery-public-data.google_analytics_sample.ga_sessions_*`
+  WHERE
+  _TABLE_SUFFIX BETWEEN '20170701' AND '20170801'
+  AND
+  totals.visits > 0
+  AND totals.transactions >= 1
+  AND totals.transactionRevenue IS NOT NULL
+  GROUP BY
+  fullVisitorId )
+```
+
+*BigQuery Answer = 123.65383612662943*
+
 
 ## Question #5
 What is the total number of transactions generated per browser type ? Results should be in tabular form that shows the aggregated transactions by browser, including those that resulted in 0 transactions.
@@ -350,18 +411,19 @@ ga %>%
   dplyr::summarise(trans = sum(transactions)) %>%
   arrange(desc(trans))
 ```
+`Chome` is by far the largest browser being used, not suprising given its popularity and the fact this is a Google store.
 
+# Regression Analysis
 
-
-## Regression Analysis
+Determine if there is a strong relationship between two or more variables in the data.
 
 ```{r}
 names(ga)
 ```
 
-### Logistic Regression to Predict Converstion
+## Logistic Regression to Predict Conversions
 
-Convert the transaction field into a binary value in a new Data Frame
+First, convert the `transaction` field into a binary value in a new Data Frame
 
 ```{r}
 summary(ga$transactions)
@@ -375,22 +437,39 @@ summary(ga_log$transactions)
 ga_glm <- ga_log %>%
   distinct()
 
-model <- glm(formula = transactions ~ pageviews, data = ga_glm)
+model <- glm(formula = transactions ~ pageviews + deviceCategory, data = ga_glm, family = "binomial")
 
 summary(model)
 ```
 
-## Multiple Linear Regression to predict Transaction Revenue
+
+https://stats.idre.ucla.edu/r/dae/logit-regression/
+
+
+
+```{r}
+## odds ratios and 95% CI
+exp(cbind(OR = coef(model), confint(model)))
+```
+
+**Analysis**
+
+ * For each adding page viewed during a session, the odds of a transaction go up by **`1.14`**
+ * For each user on a mobile device (versus desktop), the odds of a transaction go up **`0.22`**
+ * For each user on a tablet device (versus desktop), the odd of a transaction go up **`0.18`**
+
+## Multiple Regression Model to Predict Transaction Revenue
+
+Using a multiple regression model to predict the independent continuous variable revenue from other dependent variables.
 
 ```{r}
 ga_lm <- ga %>%
   distinct()
 
-fit1 <- lm(formula = totalTransactionRevenue ~ browser + country, data = ga_lm)
-fit2 <- lm(formula = totalTransactionRevenue ~ pageviews, data = ga_lm)
+fit <- lm(formula = totalTransactionRevenue ~ pageviews + session + region, data = ga_lm)
 
-summary(fit1)
-summary(fit2)
-anova(fit1, fit2)
+summary(fit)
 ```
+
+Using a continuous variable `Pageviews,` along with categorical variables, `Sessions,` and `Region,` we have three significant values in our model with an `R^2`  of `0.1172`, telling us that `these three variables describe 11.7%` of the variance in Total Transaction Revenue. This was the strongest predictor found within the supplied data. 
 

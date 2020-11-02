@@ -1,0 +1,38 @@
+---
+title: "GGPLOT to SVG"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+require("ggplot2")
+require("svglite")
+```
+
+
+```{r}
+#to see actually what will be plotted and compare 
+image <- ggplot(diamonds, aes(x = price, color = color)) +
+  geom_histogram(aes(y=..density..), fill = "white", bins = 50)
+  #geom_density(alpha=.2, fill="red") 
+image
+```
+
+
+
+
+```{r}
+#to see actually what will be plotted and compare 
+image <- ggplot(mtcars, aes(x = hp, y = mpg, color = as.factor(cyl))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, formula = y ~ x) + 
+  theme_minimal()
+image
+```
+
+```{r}
+#This actually save the plot in a image
+ggsave(file="test.svg", plot=image, width=10, height=8)
+```
+
