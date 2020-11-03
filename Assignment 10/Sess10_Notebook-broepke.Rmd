@@ -6,18 +6,6 @@ output:
   html_document:
     df_print: tibble
 ---
-# Assignment 10
-
- * Load the attached dataset. 
-   * Show the structure, shape, etc..
-   * Check for duplicated text. Show these, its size, and remove these from the data frame, as needed. Only want non-duplicated text, for subsequent analysis.
- * Perform the following transformations in addition to any transformations desired for your analysis (create a column headline_len which stores the length of the headline text; eg: function str_count ()
- * Perform basic EDA (summary statistics, visualizations of text length distributions, headlines by date, etc..)
- * Perform Text Analysis. 
- Include tokenization and preprocessing. 
- * Perform analysis: 
-   * This is your choice; review the Lecture/Sample notebook for guidance. 
-   * Stay within the topics already covered so far. (Eg: Do not do sentiment analysis  or other ML modeling as we will cover those topics in subsequent sessions)
 
 ```{r}
 # Text mining libs
@@ -49,13 +37,6 @@ df$publish_date <- as.Date(df$publish_date, "%d/%m/%y")
 
 # EDA
 Perform Exploratory Data Analysis to better understand what's in this set. 
-
-## Structure
-First Example the structure of the data
-
-```{r}
-str(df)
-```
 
 ## Summary Statistics
 
@@ -159,6 +140,7 @@ df_ts %>%
   )
 ```
 
+
 Headlines in the dataset (with Dates) are fairly consistent between 2009-2015 with approximately 200-230 headlines per day but then it tapers off through 2020.  It's very possible that the missing posts here are not tagged with dates actually represent headlines for these later years. 
 
 # Text Analysis
@@ -176,7 +158,7 @@ inspect(headline_corpus[1:4])
 
 
 ## Preprocessing
-Using the tm package, perform transformations on the corpora to clean the text. There are generalized text cleaning activities such as normalization and stop word removal.
+Using the `tm` package, perform transformations on the corpora to clean the text. There are generalized text cleaning activities such as normalization and stop word removal.
 
 ```{r}
 # standard cleansing
@@ -333,7 +315,7 @@ tidy_df = tidy_df%>%
     head(30)   
   
   #ggplot(tidy_df, aes(word, n, fill= n)) + 
-  ggplot(tidy_df, aes(x = reorder(word, n), y = n, fill= n)) + 
+  ggplot(tidy_df, aes(x = reorder(word, n), y = n)) + 
     geom_bar(stat = "identity") + 
     scale_colour_gradientn(colors = terrain.colors(10)) + 
     xlab(NULL) + ylab(NULL) + coord_flip()
