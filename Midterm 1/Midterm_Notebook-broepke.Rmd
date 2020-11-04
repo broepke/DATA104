@@ -505,7 +505,7 @@ R2 vs Adjusted R2 : https://www.statisticshowto.com/adjusted-r2/
 ```{r}
 anova(fit1, fit2)
 anova(fit2, fit3)
-anova(fit2, fit3)
+anova(fit1, fit3)
 ```
 
 
