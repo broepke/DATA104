@@ -94,17 +94,25 @@ summary(df3$headline_len)
 
 The min length is `4.0`, max of `70` and a mean of `42.3`.
 
+
+
+```{r}
+# Sturges' formula for calculating Bin numbers
+# https://www.statisticshowto.com/choose-bin-sizes-statistics/
+hl_bins <- round(log2(length(df3$headline)) + 1)
+```
+
+
 ### Plot a Histogram of the Headline Length Statistics
 
 ```{r}
 df3 %>%
-  ggplot(aes(x = headline_len, y = ..density..)) +
-  geom_histogram(color = "black", fill = "lightgray", bins = 30) + 
-  geom_density(color = "red", fill = "salmon", alpha = 0.5) +
+  ggplot(aes(x = headline_len)) +
+  geom_histogram(color = "black", fill = "lightgray", bins = hl_bins) + 
   theme_minimal()
 ```
 
-From the plot we can see that the histogram that is `bimodal.`  There is one peak around `45` characters per headline and another slightly smaller one around `60`.
+The shape of our data tells us that it's approximately normally distributed. Given the number of observations this is to be expected given the the central limit theorem.  We do see a little 
 
 ## Date Analysis
 
