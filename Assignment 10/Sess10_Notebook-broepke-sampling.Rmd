@@ -4,10 +4,10 @@ author: "Brian Roepke"
 date: "Nov 15, 2020"
 output:
   html_document:
-    df_print: paged
+    df_print: tibble
 ---
 
-```{r message=FALSE, warning=FALSE}
+```{r}
 # Text mining libs
 library(SnowballC)
 library(tidytext)
@@ -15,7 +15,6 @@ library(spacyr)
 library(tm)
 library(wordcloud2)
 library(ggraph)
-library(textstem)
 
 # plotting and pipes - tidyverse
 library(ggplot2)
@@ -78,15 +77,14 @@ df3 <- df2 %>%
   mutate(headline_len = str_count(df2$headline)) %>%
   mutate(year = lubridate::year(df2$publish_date)) %>%
   mutate(month = lubridate::month(df2$publish_date)) %>%
-  mutate(day = lubridate::day(df2$publish_date)) %>%
-  mutate(dow = weekdays(df2$publish_date))
+  mutate(day = lubridate::day(df2$publish_date))
 ```
 
 Reorder the columns to a more logical sequence
 
 ```{r}
-df3 <- select(df3, publish_date, year, month, day, dow, headline, headline_len)
-head(df3)
+df3 <- select(df3, publish_date, year, month, day, headline, headline_len)
+df3
 ```
 ### Summary Statistics for Headline Length
 
@@ -97,15 +95,15 @@ summary(df3$headline_len)
 The min length is `4.0`, max of `70` and a mean of `42.3`.
 
 
-### Plot a Histogram of the Headline Length Statistics
-
-First determin the best bin size using Sturges' formula.
-https://www.statisticshowto.com/choose-bin-sizes-statistics/
 
 ```{r}
+# Sturges' formula for calculating Bin numbers
+# https://www.statisticshowto.com/choose-bin-sizes-statistics/
 hl_bins <- round(log2(length(df3$headline)) + 1)
 ```
 
+
+### Plot a Histogram of the Headline Length Statistics
 
 ```{r}
 df3 %>%
@@ -114,7 +112,7 @@ df3 %>%
   theme_minimal()
 ```
 
-The shape of our data tells us that it's approximately normally distributed.  there are slightly less headlines greater than the mean.
+The shape of our data tells us that it's approximately normally distributed. Given the number of observations this is to be expected given the the central limit theorem.  We do see a little 
 
 ## Date Analysis
 
@@ -140,10 +138,12 @@ df_ts %>%
   geom_smooth(method = 'gam', formula = y ~ s(x, bs = "cs"), color = "salmon") +
   theme_minimal() +
   theme(
+  legend.title = element_blank(),
+  legend.position = "right",
   plot.title = element_text(face = "bold")) +
   labs(
   x = NULL, y = NULL,
-  title = "Trend of number of Headlines per day over time.",
+  title = "Trend of number of posts per day over time.",
   subtitle = "with all NA dates removed"
   )
 ```
@@ -151,24 +151,13 @@ df_ts %>%
 
 Headlines in the dataset (with Dates) are fairly consistent between 2009-2015 with approximately 200-230 headlines per day but then it tapers off through 2020.  It's very possible that the missing posts here are not tagged with dates actually represent headlines for these later years. 
 
+# Text Analysis
+Start by building a document corpus
+
 ```{r}
-df_dates %>%
-  ggplot(aes(x = dow)) +
-  geom_bar(color = "black", fill = "lightgray") + 
-  theme_minimal() +
-  theme(
-  plot.title = element_text(face = "bold")) +
-  labs(
-  x = NULL, y = "Count",
-  title = "Number of Headlines Per Day of Week",
-  subtitle = "with all NA dates removed"
-  )
+df3 <- df3[sample(nrow(df3), 10000), ]
 ```
 
-Generally speaking, there isn't much variation in which day of week the headlines come from. A fairly consistent number for each day of the week. 
-
-# Text Analysis
-Next we'll perform an text analysis to look at frequencies of words, after the text has been preprocessed.  
 
 ```{r}
 # build a document corpus
@@ -182,7 +171,7 @@ inspect(headline_corpus[1:4])
 
 
 ## Preprocessing
-Using the `tm` package, perform transformations on the corpus to clean the text. There are generalized text cleaning activities such as normalization and stop word removal.
+Using the `tm` package, perform transformations on the corpora to clean the text. There are generalized text cleaning activities such as normalization and stop word removal.
 
 ```{r}
 # standard cleansing
@@ -218,37 +207,42 @@ dtm <- TermDocumentMatrix(headline_corpus)
 inspect(dtm)
 ```
 
-**Note:** Term-document matrices tend to get very big already for normal sized data sets. Therefore function removeSparseTerms() can be used to remove sparse terms (i.e., terms occurring only in very few documents). Normally, this reduces the matrix dramatically without losing significant relations inherent to the matrix. The sparse argument to removeSparseTerms(), is the threshold of relative document frequency for a term, above which the term will be removed. It is a value between 0 and 1. Closer to 0 means nearly all values will be retained while closer to 1 means nearly none of the documents will be retained.
+## Create a DocumentTermMatrix from the cleaned Corpus
 
-Because this 
+```{r}
+dtm2 <- DocumentTermMatrix(headline_corpus, control = list(minWordLength = 3))
+inspect(dtm2)
+```
+
+Note: Term-document matrices tend to get very big already for normal sized data sets. Therefore function removeSparseTerms() can be used to remove sparse terms (i.e., terms occurring only in very few documents). Normally, this reduces the matrix dramatically without losing significant relations inherent to the matrix. The sparse argument to removeSparseTerms(), is the threshold of relative document frequency for a term, above which the term will be removed. It is a value between 0 and 1. Closer to 0 means nearly all values will be retained while closer to 1 means nearly none of the documents will be retained.
 
 ```{r}
 dtm3 = removeSparseTerms(dtm, .999)
+inspect(dtm3)
 ```
 
 ## Perform Analysis
 
 ### Frequent Terms
  * Use freqwords(): find frequent terms in a document-term or term-document matrix.
- * Find terms that occur at least 5 times and show top 50
+ * Find terms that occur at least 5 times and show top 20
 
 ```{r}
 findFreqTerms(dtm3, 5) %>%
-  head(50)
+  head(100)
 ```
 
 ### Word associations
  * Use findAssocs() to words that correlate
- * Find associations with at least (.50, .40, .30) correlation for the terms specified
+ * Find associations with at least 10% correlation for the terms specified
 
 ```{r}
 # word associations
-findAssocs(dtm3, c('health', 'assault', 'donald'), c(0.10, 0.10, 0.10))
+findAssocs(dtm3, c('health', 'bank', 'court'), c(0.10, 0.10, 0.10))
 ```
 
-Even with the lower correlation value for matching terms, just a few results are returned. *Mental* with a `0.41` correlation to *Health*, *Assault* has two words, *Sexual* and *Charg* which correlate `0.28` and `0.11` respectivly.  While *Trump* correlates strongly to *Donald* and `0.65`.
 
-### Top 35 frequent words with a word frequency of at least 20
+### Top 50 frequent words with a word frequency of at least 20
 
 ```{r}
 termCount <- rowSums(as.matrix(dtm3))  # sums rows
@@ -273,11 +267,11 @@ df %>%
 ```{r}
 df %>% 
   head(200) %>% 
-  wordcloud2(color = "random-dark", backgroundColor = "white")
+  wordcloud2( color = "random-dark", backgroundColor = "white")
 ```
 
 
-## Perform a Similar Analysis Using Tidytext
+## using tidytext
 An advantage of tidytext format is that once the text has been tidy-ed, regular R functions can be used to analyze it instead of the specialized functions necessary to analyze a Corpus object. We can perform some of the same analyis as above the tidy way as follows.
 
 ### tidying data
@@ -312,12 +306,14 @@ tidy_df
 ```
 
 ### text cleaning
-remove stop words & then perform stemming
+stemming
 
 ```{r}
+# remove stop words
 tidy_df = tidy_df  %>%
-  anti_join(stop_words) # stop words
+  anti_join(stop_words)
 
+#perform stemming
 tidy_df = tidy_df %>%
   mutate(stem = wordStem(word))
 
@@ -335,7 +331,7 @@ tidy_df = tidy_df%>%
 
 ```{r}
 ggplot(tidy_df, aes(x = reorder(word, n), y = n, fill=n)) + 
-    geom_bar(stat = "identity") + 
+    geom_bar(stat = "identity") +
     scale_colour_gradientn(colors = terrain.colors(10)) + 
     xlab(NULL) + ylab(NULL) + coord_flip()
 ```
@@ -369,88 +365,6 @@ ggraph(bigrams, layout = "fr") +
   geom_edge_link() +
   geom_node_point() +
   geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
-  xlab(NULL) + ylab(NULL) + theme_minimal()
+  theme_minimal()
 ```
 
-## Lemmatization
-
-One thing not covered so far is the Lemmatization, or the process of breaking a word down into it's root form or "Lemma".  Overally the text of these headlines probably doesn't warrant Lemmatization, but it is interesting to try. 
-
-Here is a simple example of this on three forms of the word Run.
-
-```{r}
-vector <- c("run", "ran", "running")
-lemmatize_words(vector)
-```
-
-
-```{r}
-#corpus <- tm_map(corpus, lemmatize_strings)
-
-lemma_corpus <- Corpus(VectorSource(df3$headline))
-lemma_corpus
-```
-
-```{r}
-# standard cleansing
-lemma_corpus <- tm_map(lemma_corpus, tolower)            # normalize case
-lemma_corpus <- tm_map(lemma_corpus, removePunctuation)  # remove punctuation
-lemma_corpus <- tm_map(lemma_corpus, removeNumbers)      # remove numbers
-lemma_corpus <- tm_map(lemma_corpus, stripWhitespace)    # remove white space
-lemma_corpus <- tm_map(lemma_corpus, removeWords, stopwords("english")) # remove stopwords
-```
-
-```{r}
-inspect(lemma_corpus[1:5])
-```
-
-
-```{r}
-lemma_corpus <- tm_map(lemma_corpus, lemmatize_strings)
-```
-
-```{r}
-inspect(lemma_corpus[1:5])
-```
-
-### Create the same Document Term Matrix as Above
-
-```{r}
-# The term document matrix is where each word/term is a row with documents as columns
-lemma_dtm <- TermDocumentMatrix(lemma_corpus)
-
-# inspect
-inspect(lemma_dtm)
-```
-
-
-```{r}
-lemma_dtm = removeSparseTerms(lemma_dtm, .999)
-```
-
-## Perform Analysis
-
-### Frequent Terms
- * Use freqwords(): find frequent terms in a document-term or term-document matrix.
- * Find terms that occur at least 5 times and show top 50
-
-```{r}
-findFreqTerms(lemma_dtm, 5) %>%
-  head(50)
-```
-
-```{r}
-termCount2 <- rowSums(as.matrix(lemma_dtm))  # sums rows
-termCount2 <- subset(termCount, termCount2 >=20)
-
-df <- data.frame(term = names(termCount2), freq = termCount2) 
-```
-
-```{r}
-df %>%
-  head(35) %>%
-  ggplot( aes(x = reorder(term, freq), y = freq, fill= freq)) + 
-    geom_bar(stat = "identity") +
-    scale_colour_gradientn(colors = terrain.colors(10)) + 
-    xlab(NULL) + ylab(NULL) + coord_flip()
-```
