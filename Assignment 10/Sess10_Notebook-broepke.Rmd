@@ -45,7 +45,7 @@ Perform Exploratory Data Analysis to better understand what's in this set.
 summary(df)
 ```
 
- * **publish_date**: There are dates ranging from 1/1/2009 to 12/12/2019, however there are 455,200 missing dates.
+ * **publish_date**: Dates range from 1/1/2009 to 12/12/2019; however, there are 455,200 missing dates.
  * **headline**: There are a total of 752,157 headlines (records) in this dataset. 
 
 ```{r}
@@ -54,7 +54,7 @@ tail(df)
 ```
 
 
-### Remove Duplicates from `Headline`
+### Remove Duplicates
 
 ```{r}
 df[duplicated(df$headline), ] %>%
@@ -71,7 +71,7 @@ length(df$headline) - length(df2$headline)
 
 ### Add New Columns to Support Analysis
 
-There are a few things that will help with the anaysis.  A length value for the headline, as well as breaking up the dates into individual columns. 
+There are a few things that will help with the anaysis—a length value for the headline and breaking up the dates into individual columns as well as adding a daw of week variable. 
 
 ```{r}
 df3 <- df2 %>%
@@ -99,11 +99,12 @@ The min length is `4.0`, max of `70` and a mean of `42.3`.
 
 ### Plot a Histogram of the Headline Length Statistics
 
-First determin the best bin size using Sturges' formula.
+First determine the best bin size using Sturges' formula.
 https://www.statisticshowto.com/choose-bin-sizes-statistics/
 
 ```{r}
 hl_bins <- round(log2(length(df3$headline)) + 1)
+hl_bins
 ```
 
 
@@ -114,7 +115,7 @@ df3 %>%
   theme_minimal()
 ```
 
-The shape of our data tells us that it's approximately normally distributed.  there are slightly less headlines greater than the mean.
+The shape of our data tells us that it's approximately normally distributed.  There are slightly fewer headlines that occur at a length that is greater than the mean of 42.3.
 
 ## Date Analysis
 
@@ -148,8 +149,7 @@ df_ts %>%
   )
 ```
 
-
-Headlines in the dataset (with Dates) are fairly consistent between 2009-2015 with approximately 200-230 headlines per day but then it tapers off through 2020.  It's very possible that the missing posts here are not tagged with dates actually represent headlines for these later years. 
+Headlines in the dataset (with Dates) are relatively consistent between `2009`-`2015` with approximately `200`-`230` headlines per day. Still, then it tapers off through `2020.` The headlines without dates may represent headlines for these later years. 
 
 ```{r}
 df_dates %>%
@@ -165,10 +165,10 @@ df_dates %>%
   )
 ```
 
-Generally speaking, there isn't much variation in which day of week the headlines come from. A fairly consistent number for each day of the week. 
+Generally speaking, there isn't much variation in which day of the week the headlines come from; there is a fairly consistent number for each day of the week.
 
 # Text Analysis
-Next we'll perform an text analysis to look at frequencies of words, after the text has been preprocessed.  
+Next we'll perform an text analysis to look at frequencies of words, after the text has been pre-processed.  
 
 ```{r}
 # build a document corpus
@@ -208,7 +208,7 @@ inspect(headline_corpus[1:5])
 ```
 
 ## Document-Term Matrix
-Create a TermDocumentMatrix from the cleaned Corpus
+Create a `Term-Document Matrix` from the cleaned Corpus
 
 ```{r}
 # The term document matrix is where each word/term is a row with documents as columns
@@ -218,9 +218,9 @@ dtm <- TermDocumentMatrix(headline_corpus)
 inspect(dtm)
 ```
 
-**Note:** Term-document matrices tend to get very big already for normal sized data sets. Therefore function removeSparseTerms() can be used to remove sparse terms (i.e., terms occurring only in very few documents). Normally, this reduces the matrix dramatically without losing significant relations inherent to the matrix. The sparse argument to removeSparseTerms(), is the threshold of relative document frequency for a term, above which the term will be removed. It is a value between 0 and 1. Closer to 0 means nearly all values will be retained while closer to 1 means nearly none of the documents will be retained.
+**Note:** Term-document matrices tend to get very big already for normal sized data sets. Therefore function `removeSparseTerms()` can be used to remove sparse terms (i.e., terms occurring only in very few documents). Normally, this reduces the matrix dramatically without losing significant relations inherent to the matrix. The sparse argument to `removeSparseTerms()`, is the threshold of relative document frequency for a term, above which the term will be removed. It is a value between 0 and 1. Closer to 0 means nearly all values will be retained while closer to 1 means nearly none of the documents will be retained.
 
-Because this 
+Since this is a very large and sparse corpus, we will remove all but the top `0.001` words
 
 ```{r}
 dtm3 = removeSparseTerms(dtm, .999)
@@ -229,7 +229,7 @@ dtm3 = removeSparseTerms(dtm, .999)
 ## Perform Analysis
 
 ### Frequent Terms
- * Use freqwords(): find frequent terms in a document-term or term-document matrix.
+ * Use `freqwords()`: find frequent terms in a document-term or term-document matrix.
  * Find terms that occur at least 5 times and show top 50
 
 ```{r}
@@ -246,9 +246,9 @@ findFreqTerms(dtm3, 5) %>%
 findAssocs(dtm3, c('health', 'assault', 'donald'), c(0.10, 0.10, 0.10))
 ```
 
-Even with the lower correlation value for matching terms, just a few results are returned. *Mental* with a `0.41` correlation to *Health*, *Assault* has two words, *Sexual* and *Charg* which correlate `0.28` and `0.11` respectivly.  While *Trump* correlates strongly to *Donald* and `0.65`.
+Even with the lower correlation value for matching terms, just a few results are returned. *Mental* with a `0.41` correlation to *Health*, *Assault* has two words, *Sexual* and *Charg*, which correlate `0.28` and `0.11` respectively. In contrast, *Trump* correlates strongly to *Donald* at `0.65`.
 
-### Top 35 frequent words with a word frequency of at least 20
+### Top 35 frequent words
 
 ```{r}
 termCount <- rowSums(as.matrix(dtm3))  # sums rows
@@ -263,7 +263,13 @@ df %>%
   ggplot( aes(x = reorder(term, freq), y = freq, fill= freq)) + 
     geom_bar(stat = "identity") +
     scale_colour_gradientn(colors = terrain.colors(10)) + 
-    xlab(NULL) + ylab(NULL) + coord_flip()
+    coord_flip() +
+    theme(
+    plot.title = element_text(face = "bold")) +
+    labs(
+    x = NULL, y = "Count",
+    title = "Most Frequently Occuring Words"
+    )
 ```
 
 
@@ -337,7 +343,13 @@ tidy_df = tidy_df%>%
 ggplot(tidy_df, aes(x = reorder(word, n), y = n, fill=n)) + 
     geom_bar(stat = "identity") + 
     scale_colour_gradientn(colors = terrain.colors(10)) + 
-    xlab(NULL) + ylab(NULL) + coord_flip()
+    coord_flip() +
+    theme(
+    plot.title = element_text(face = "bold")) +
+    labs(
+    x = NULL, y = "Count",
+    title = "Most Frequently Occuring Words"
+    )
 ```
 
 
@@ -385,8 +397,6 @@ lemmatize_words(vector)
 
 
 ```{r}
-#corpus <- tm_map(corpus, lemmatize_strings)
-
 lemma_corpus <- Corpus(VectorSource(df3$headline))
 lemma_corpus
 ```
