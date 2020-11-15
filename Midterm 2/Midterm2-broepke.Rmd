@@ -1,0 +1,9 @@
+---
+title: "Midterm 2"
+author: "Brian Roepke"
+date: "November 22, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+# Project Description
