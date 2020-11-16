@@ -6,4 +6,103 @@ output:
   html_document:
     df_print: paged
 ---
-# Project Description
+# YouTube Video Data Analysis
+
+## EDA
+
+ * load the dataset and show its structure
+ * perform necessary transformations/cleansing
+   * remove unnecessary columns (eg: thumbnail_link, comments_disabled, video_error_or_removed, ratings_disabled)
+   * if you open the file in Excel, you will find a large # of #NAME? for video_id. This means the column has an invalid calculation so Excel returns #NAME?. Should this be treated as missing value? In this case, we can populate its value, as follows: stringi::stri_rand_strings(n, 11) which generates n strings of length 11 with random characters. In this case n should be equal to the number of #NAME? values
+   * add a category_name based on the category_id
+     * You can use: sort(unique(youtubeDf$category_id)) to display the category ids in sorted order. Then create the category_name based on the values in the attached JSON
+   * convert chr values representing date/time to date/times
+     * trending_date use format: %y.%d.%m
+     * publish_time use format: format= %Y-%m-%d
+ * show top/bottom observations and summary (only variables that make sense; eg: video_id and text fields do not make sense)
+
+## Analysis
+
+ * Analyze the number of views, likes, and dislikes with full data visualization (univariate and multivariate). Then comment on various trends.
+ * Identify the top 5 videos based on the number of views and number of likes
+ * What numeric values correlate to likes? (eg: create correlation matrix then plot)
+ * Text Analytics: perform the following at minimum, more if desired, but stay within the context of current learning
+   * Perform necessary preprocessing
+   * What words appear most in the titles and description in of trending videos (eg: most liked) ?
+
+```{r message=FALSE, warning=FALSE}
+# Text mining libs
+library(SnowballC)
+library(tidytext)
+library(spacyr)
+library(tm)
+library(wordcloud2)
+library(ggraph)
+library(textstem)
+library(jsonlite)
+
+# plotting and pipes - tidyverse
+library(ggplot2)
+library(dplyr, warn.conflicts = FALSE)
+library(tidyverse)
+
+# date/time libaray
+library(lubridate, warn.conflicts = FALSE)
+```
+
+
+```{r}
+# Read in the Data from a CSV file.
+df <- read.csv('YouTube-videos.csv') #colClasses=c("headline"="character")
+```
+
+```{r}
+# Remove unwanted columns
+df$thumbnail_link <- NULL
+df$comments_disabled <- NULL
+df$video_error_or_removed <- NULL
+df$ratings_disabled <- NULL
+
+# Convert Dates
+df$trending_date <- as.Date(df$trending_date, "%y.%d.%m")
+df$publish_time <- as.Date(df$publish_time, "%Y-%m-%d")
+
+# Change Others to Factors
+df$category_id <- as.factor(df$category_id)
+```
+
+```{r}
+# Import the YouTube Category Names
+cats <- fromJSON("youtubeVideoCatUS.json", flatten = TRUE)
+cats <- as.data.frame(cats)
+```
+
+
+```{r}
+# Create a new column that contains the English name of the category based on the Category ID
+df$category_name <- cats$items.snippet.title[match(df$category_id, cats$items.id)]
+df$category_name <- as.factor(df$category_name)
+```
+
+# EDA
+Perform Exploratory Data Analysis to better understand what's in this set. 
+
+## Summary Statistics
+
+```{r}
+str(df)
+```
+
+
+```{r}
+df %>%
+  select(trending_date, publish_time, views, likes, dislikes, comment_count, category_name) %>%
+  summary()
+```
+
+```{r}
+head(df, n=20)
+```
+
+
+
