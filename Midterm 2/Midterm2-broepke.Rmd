@@ -20,13 +20,6 @@ output:
      * publish_time use format: format= %Y-%m-%d
  * show top/bottom observations and summary (only variables that make sense; eg: video_id and text fields do not make sense)
 
-## Analysis
- * Analyze the number of views, likes, and dislikes with full data visualization (univariate and multivariate). Then comment on various trends.
- * Identify the top 5 videos based on the number of views and number of likes
- * What numeric values correlate to likes? (eg: create correlation matrix then plot)
- * Text Analytics: perform the following at minimum, more if desired, but stay within the context of current learning
-   * Perform necessary preprocessing
-   * What words appear most in the titles and description in of trending videos (eg: most liked) ?
 
 ```{r message=FALSE, warning=FALSE}
 # Basic libraries 
@@ -89,13 +82,15 @@ df$category_name <- as.factor(df$category_name)
 Cleaning up the NAME? in video_id
 
 ```{r}
-# This is still not correct
-# df$video_id <- ifelse(df$video_id == '#NAME?', stri_rand_strings(n, 11), df$video_id )
+df %>%
+  filter(video_id == '#NAME?') %>%
+  summarize(total_records = n())
 ```
 
-
+Replace each occurrence of #NAME? with a random generated string.
 
 ```{r}
+df$video_id[df$video_id == '#NAME?'] <- stri_rand_strings(1, 11)
 df$video_id <- as.factor(df$video_id)
 ```
 
@@ -116,6 +111,8 @@ df %>%
   summary()
 ```
 
+ * **NOTE**: Video_ID `JkGQog0zQKn` shows the same count of `525` as the prior "$NAME?" value.
+
 ```{r}
 head(df)
 tail(df)
@@ -123,6 +120,8 @@ tail(df)
 
 ## Views, Likes and Dislikes
  * Analyze the number of views, likes, and dislikes with full data visualization (univariate and multivariate). Then comment on various trends.
+ 
+### Views
  
 ```{r}
 df %>%
@@ -173,25 +172,80 @@ df %>%
       plot.title = element_text(face = "bold"))
 ```
  
+### Likes
+
+```{r warning=FALSE}
+df %>%
+  ggplot(aes(x = likes)) +
+  geom_histogram(color = "plum", fill = "plum2", bins = 30) + 
+  scale_x_continuous(trans='log10') +
+  theme_minimal() +
+  theme(
+  plot.title = element_text(face = "bold")) +
+  labs(
+  x = NULL, y = "Count (Log 10)",
+  title = "Distribution of Views",
+  subtitle = "Using a log10 transformation the x-axis"
+  )
+```
+
+ %>%
+  ggplot(aes(x = trending_date, y = likes)) +
+  geom_point() + 
+  theme_minimal()
+
+```{r}
+df %>%
+  group_by(year(trending_date), month(trending_date)) %>%
+  summarize(likes = sum(likes))
+```
 
 
 ## Top 5 Videos
  * Identify the top 5 videos based on the number of views and number of likes
  
+## Top 5 Videos based on Likes
+
+The following are the top five videos based on **Likes**.  We can see that the top 5 videos are all the same, but with different trending dates. 
  
+```{r}
+df %>%
+  arrange(desc(likes)) %>%
+  select(trending_date, title, likes) %>%
+  head(n=5)
+```
  
+The following are the top five unique videos based on **likes**.  
  
+```{r}
+df %>%
+  arrange(desc(likes)) %>%
+  distinct(video_id, .keep_all = TRUE) %>%
+  select(trending_date, title, likes) %>%
+  head(n=5) 
+```
  
+### Top 5 Videos based on Views
+
+The following are the top five unique videos based on **views**. 
+
+```{r}
+df %>%
+  arrange(desc(views)) %>%
+  distinct(video_id, .keep_all = TRUE) %>%
+  select(trending_date, title, views) %>%
+  head(n=5) 
+```
  
  
 ## Correlation to Likes
- * What numeric values correlate to likes? (eg: create correlation matrix then plot)
+ * What numeric values correlate to likes?
  
 ```{r}
 df_corr = df %>% 
   select_if(is.numeric) %>%
+  # reordering the numeric columns so likes is listed first. 
   select(likes, views, dislikes, comment_count)
-str (df_corr)
 ```
 
 ## Correlation Test
@@ -208,7 +262,7 @@ We can see that all of the other numeric values positively correlate to likes wi
 Next we can see a visualization of these values. 
 
 ```{r}
-ggcorrplot(corr, colors = c("#6D9EC1", "white", "#E46726"),lab = TRUE,  ggtheme = ggplot2::theme_gray,)
+ggcorrplot(corr, colors = c("#6D9EC1", "white", "#E46726"),lab = TRUE,  ggtheme = ggplot2::theme_gray)
 ```
 ### Scatterplot 
 
@@ -246,11 +300,16 @@ summary(fit2)
 anova(fit1, fit2)
 ```
 
+
 **Summary:** Both models are significant with very small P-values, and each independent variable in the multiple-regression model is also significant.  When we perform an Anova test for significance, we can see that the Multiple Linear model (Fit2) does still hold up and therefore is the better model increasing the Adjusted R-squared from `0.6322` to `0.7637`.  
 
 Therefore, with Model 2, we can say that for the dependent variable Like, *Views*, *Comment_Count*, and *Dislikes* contribute to `76.37%` of the variance. 
 
 # Text Analysis
+
+ * Text Analytics: perform the following at minimum, more if desired, but stay within the context of current learning
+   * Perform necessary preprocessing
+   * What words appear most in the titles and description in of trending videos (eg: most liked) ?
 
 ## Titles
 
@@ -347,18 +406,29 @@ inspect(description_corpus[1:2])
 ## Preprocessing
 Using the `tm` package, perform transformations on the corpus to clean the text. There are generalized text cleaning activities such as normalization and stop word removal.
 
-```{r}
-# remove patterns via regular expressions
-textCleaning <- function(txt){
-  gsub('http[[:alnum:][:punct:]]*','', txt)
-  gsub('►', '', txt)
-  gsub('\\n', ' ', txt)
-}
-description_corpus <- tm_map(description_corpus, textCleaning) 
-```
 
 ```{r}
-inspect(description_corpus[1:2])
+# Remove URLs
+description_corpus <- tm_map(description_corpus, 
+                             content_transformer(function(x) gsub("http[[:alnum:][:punct:]]*", "", x)))
+
+# Replace new line symbols with a space
+description_corpus <- tm_map(description_corpus, 
+                             content_transformer(function(x) gsub("[\\n]", "", x)))
+
+# Remove the odd "arrow" symbol
+description_corpus <- tm_map(description_corpus, 
+                             content_transformer(function(x) gsub("►", "", x)))
+
+# Remove the odd "arrow" symbol
+description_corpus <- tm_map(description_corpus, 
+                             content_transformer(function(x) gsub("▶", "", x)))
+
+```
+
+
+```{r}
+inspect(description_corpus[1:4])
 ```
 
 ```{r}
@@ -373,11 +443,11 @@ description_corpus <- tm_map(description_corpus, removeWords, stopwords("english
 
 
 ```{r}
-inspect(description_corpus[1:2])
+inspect(description_corpus[1:4])
 ```
 
 ```{r}
-# stem words using SnowBall stemmer
+# Use the Snowball Stemmer on the Corpus
 description_corpus <- tm_map(description_corpus, stemDocument)
 ```
 
@@ -429,19 +499,6 @@ description_df %>%
 ```
 
 
-
-
-
-```{r}
-a = "Eminem's new track Walk on Water ft. Beyoncé is available everywhere: http://shady.sr/WOWEminem \\nPlaylist Best of Eminem: https://goo.gl/AquNpo\\nSubscribe for more: https://goo.gl/DxCrDV\\n\\nFor more visit: \\nhttp://eminem.com\\nhttp://facebook.com/eminem\\nhttp://twitter.com/eminem\\nhttp://instagram.com/eminem\\nhttp://eminem.tumblr.com\\nhttp://shadyrecords.com\\nhttp://facebook.com/shadyrecords\\nhttp://twitter.com/shadyrecords\\nhttp://instagram.com/shadyrecords\\nhttp://trustshady.tumblr.com\\n\\nMusic video by Eminem performing Walk On Water. (C) 2017 Aftermath Records\\nhttp://vevo.ly/gA7xKt"
-```
-
-
-
-```{r}
-removeURL <- function(a) gsub("http[[:alnum:][:punct:]]*", "", a)
-a
-```
 
 
 
