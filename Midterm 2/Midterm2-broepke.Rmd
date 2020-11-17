@@ -9,7 +9,6 @@ output:
 # YouTube Video Data Analysis
 
 ## EDA
-
  * load the dataset and show its structure
  * perform necessary transformations/cleansing
    * remove unnecessary columns (eg: thumbnail_link, comments_disabled, video_error_or_removed, ratings_disabled)
@@ -22,7 +21,6 @@ output:
  * show top/bottom observations and summary (only variables that make sense; eg: video_id and text fields do not make sense)
 
 ## Analysis
-
  * Analyze the number of views, likes, and dislikes with full data visualization (univariate and multivariate). Then comment on various trends.
  * Identify the top 5 videos based on the number of views and number of likes
  * What numeric values correlate to likes? (eg: create correlation matrix then plot)
@@ -31,6 +29,16 @@ output:
    * What words appear most in the titles and description in of trending videos (eg: most liked) ?
 
 ```{r message=FALSE, warning=FALSE}
+# Basic libraries 
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(corrplot)
+library(ggcorrplot)
+library(lubridate)
+library(jsonlite)
+library(stringi)
+
 # Text mining libs
 library(SnowballC)
 library(tidytext)
@@ -39,15 +47,6 @@ library(tm)
 library(wordcloud2)
 library(ggraph)
 library(textstem)
-library(jsonlite)
-
-# plotting and pipes - tidyverse
-library(ggplot2)
-library(dplyr, warn.conflicts = FALSE)
-library(tidyverse)
-
-# date/time libaray
-library(lubridate, warn.conflicts = FALSE)
 ```
 
 
@@ -71,6 +70,7 @@ df$publish_time <- as.Date(df$publish_time, "%Y-%m-%d")
 df$category_id <- as.factor(df$category_id)
 ```
 
+
 ```{r}
 # Import the YouTube Category Names
 cats <- fromJSON("youtubeVideoCatUS.json", flatten = TRUE)
@@ -84,8 +84,24 @@ df$category_name <- cats$items.snippet.title[match(df$category_id, cats$items.id
 df$category_name <- as.factor(df$category_name)
 ```
 
+## Cleaning
+
+Cleaning up the NAME? in video_id
+
+```{r}
+# This is still not correct
+# df$video_id <- ifelse(df$video_id == '#NAME?', stri_rand_strings(n, 11), df$video_id )
+```
+
+
+
+```{r}
+df$video_id <- as.factor(df$video_id)
+```
+
+
 # EDA
-Perform Exploratory Data Analysis to better understand what's in this set. 
+Perform Exploratory Data Analysis to better understand the data. 
 
 ## Summary Statistics
 
@@ -96,13 +112,338 @@ str(df)
 
 ```{r}
 df %>%
-  select(trending_date, publish_time, views, likes, dislikes, comment_count, category_name) %>%
+  select(video_id, trending_date, publish_time, views, likes, dislikes, comment_count, category_name) %>%
   summary()
 ```
 
 ```{r}
-head(df, n=20)
+head(df)
+tail(df)
 ```
+
+## Views, Likes and Dislikes
+ * Analyze the number of views, likes, and dislikes with full data visualization (univariate and multivariate). Then comment on various trends.
+ 
+```{r}
+df %>%
+  ggplot(aes(x = views)) +
+  geom_histogram(color = "lightblue3", fill = "lightblue", bins = 30) + 
+  scale_x_continuous(trans='log10') +
+  theme_minimal() +
+  theme(
+  plot.title = element_text(face = "bold")) +
+  labs(
+  x = NULL, y = "Count (Log 10)",
+  title = "Distribution of Views",
+  subtitle = "Using a log10 transformation the x-axis"
+  )
+```
+
+
+```{r}
+df %>%
+  group_by(category_name) %>%
+  summarise(total_views = mean(views), .groups = "keep") %>%
+  arrange(desc(total_views)) %>%
+  ggplot(aes(x= category_name, y = total_views)) +
+  geom_col(color = "lightblue3", fill = "lightblue") + 
+  theme_minimal() +
+  theme(
+  plot.title = element_text(face = "bold")) +
+  labs(
+  x = NULL, y = "Count",
+  title = "Mean Number of Videos Views per Category"
+  ) +
+  coord_flip()
+```
+
+
+```{r}
+df %>%
+    ggplot(aes(views, color = category_name)) +
+    geom_boxplot() +
+    scale_x_continuous(trans='log10') +
+    labs(title = "Video Views Distribution by Category",
+         x = "Views (Log10 Transformation)",
+         y = NULL) +
+    theme_minimal() +
+    theme(
+      legend.title = element_blank(),
+      legend.position = "right",
+      plot.title = element_text(face = "bold"))
+```
+ 
+
+
+## Top 5 Videos
+ * Identify the top 5 videos based on the number of views and number of likes
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+## Correlation to Likes
+ * What numeric values correlate to likes? (eg: create correlation matrix then plot)
+ 
+```{r}
+df_corr = df %>% 
+  select_if(is.numeric) %>%
+  select(likes, views, dislikes, comment_count)
+str (df_corr)
+```
+
+## Correlation Test
+
+In order to find out which numeric values correlate to likes, we can create a correlation matrix and correlation plot. 
+
+```{r}
+corr <- round(cor(df_corr), 2)
+corr
+```
+
+We can see that all of the other numeric values positively correlate to likes with comment_count being the strongest at `0.84`, views being the next strongest at `0.83`, dislikes at `0.46`
+
+Next we can see a visualization of these values. 
+
+```{r}
+ggcorrplot(corr, colors = c("#6D9EC1", "white", "#E46726"),lab = TRUE,  ggtheme = ggplot2::theme_gray,)
+```
+### Scatterplot 
+
+```{r warning=FALSE}
+df %>%
+  ggplot(aes(x = likes, y = comment_count)) + 
+  geom_point(alpha = 0.1, color = "salmon") + 
+  theme_minimal() +
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10') +
+  geom_smooth(method = "lm", se = TRUE, formula = y ~ x, color = "black", linetype = 'dashed') + 
+  labs(x = "Views (Log 10 Scale)",
+       y = "Likes (Log 10 Scale)",
+       title = "Correlation of Likes vs. Views")
+```
+
+After transforming the data on both axes with a log 10 scale, we can see the very linear, positive relationship between the dependent variable Likes, and our strongest correlated independent variable, comment_count.
+
+Next we'll create a simple linear regression model and a multiple linear regression model and test which performs better. 
+
+```{r}
+fit1 <- lm(formula = log1p(likes) ~ log1p(comment_count), data = df)
+
+summary(fit1)
+```
+
+```{r}
+fit2 <- lm(formula = log1p(likes) ~ log1p(views) + log1p(comment_count) + log1p(dislikes), data = df)
+
+summary(fit2)
+```
+
+
+```{r}
+anova(fit1, fit2)
+```
+
+**Summary:** Both models are significant with very small P-values, and each independent variable in the multiple-regression model is also significant.  When we perform an Anova test for significance, we can see that the Multiple Linear model (Fit2) does still hold up and therefore is the better model increasing the Adjusted R-squared from `0.6322` to `0.7637`.  
+
+Therefore, with Model 2, we can say that for the dependent variable Like, *Views*, *Comment_Count*, and *Dislikes* contribute to `76.37%` of the variance. 
+
+# Text Analysis
+
+## Titles
+
+```{r}
+title_corpus <- Corpus(VectorSource(df$title))
+title_corpus
+```
+
+```{r}
+inspect(title_corpus[1:4])
+```
+
+## Preprocessing
+Using the `tm` package, perform transformations on the corpus to clean the text. There are generalized text cleaning activities such as normalization and stop word removal.
+
+```{r}
+# standard cleansing
+title_corpus <- tm_map(title_corpus, tolower)            # normalize case
+title_corpus <- tm_map(title_corpus, removePunctuation)  # remove punctuation
+title_corpus <- tm_map(title_corpus, removeNumbers)      # remove numbers
+title_corpus <- tm_map(title_corpus, stripWhitespace)    # remove white space
+title_corpus <- tm_map(title_corpus, removeWords, stopwords("english")) # remove stopwords
+```
+
+```{r}
+inspect(title_corpus[1:4])
+```
+
+```{r}
+# stem words using SnowBall stemmer
+title_corpus <- tm_map(title_corpus, stemDocument)
+```
+
+## Document-Term Matrix
+Create a `Term-Document Matrix` from the cleaned Corpus
+
+```{r}
+# The term document matrix is where each word/term is a row with documents as columns
+dtm <- TermDocumentMatrix(title_corpus)
+
+# inspect
+inspect(dtm)
+```
+
+```{r}
+dtm1 = removeSparseTerms(dtm, 0.99)
+```
+
+## Perform Analysis
+
+### Frequent Terms
+ * Use `freqwords()`: find frequent terms in a document-term or term-document matrix.
+ * Find terms that occur at least 5 times and show top 50
+
+```{r}
+findFreqTerms(dtm1, 5) %>%
+  head(50)
+```
+
+```{r}
+termCount <- rowSums(as.matrix(dtm1))  # sums rows
+termCount <- subset(termCount, termCount >=20)
+
+df2 <- data.frame(term = names(termCount), freq = termCount) 
+```
+
+```{r}
+df2 %>%
+  head(35) %>%
+  ggplot( aes(x = reorder(term, freq), y = freq, fill= freq)) + 
+    geom_bar(stat = "identity") +
+    scale_colour_gradientn(colors = terrain.colors(10)) + 
+    theme_minimal() +
+    coord_flip() +
+    theme(
+    plot.title = element_text(face = "bold")) +
+    labs(
+    x = NULL, y = "Count",
+    title = "Most Frequently Occuring Words in Titles"
+    )
+```
+
+## Descriptions
+
+```{r}
+description_corpus <- Corpus(VectorSource(df$description))
+description_corpus
+```
+
+```{r}
+inspect(description_corpus[1:2])
+```
+
+## Preprocessing
+Using the `tm` package, perform transformations on the corpus to clean the text. There are generalized text cleaning activities such as normalization and stop word removal.
+
+```{r}
+# remove patterns via regular expressions
+textCleaning <- function(txt){
+  gsub('http[[:alnum:][:punct:]]*','', txt)
+  gsub('►', '', txt)
+  gsub('\\n', ' ', txt)
+}
+description_corpus <- tm_map(description_corpus, textCleaning) 
+```
+
+```{r}
+inspect(description_corpus[1:2])
+```
+
+```{r}
+# standard cleansing
+description_corpus <- tm_map(description_corpus, tolower)            # normalize case
+description_corpus <- tm_map(description_corpus, removePunctuation)  # remove punctuation
+description_corpus <- tm_map(description_corpus, removeNumbers)      # remove numbers
+description_corpus <- tm_map(description_corpus, stripWhitespace)    # remove white space
+description_corpus <- tm_map(description_corpus, removeWords, stopwords("english")) # remove stopwords
+```
+
+
+
+```{r}
+inspect(description_corpus[1:2])
+```
+
+```{r}
+# stem words using SnowBall stemmer
+description_corpus <- tm_map(description_corpus, stemDocument)
+```
+
+## Document-Term Matrix
+Create a `Term-Document Matrix` from the cleaned Corpus
+
+```{r}
+# The term document matrix is where each word/term is a row with documents as columns
+description_dtm <- TermDocumentMatrix(description_corpus)
+
+# inspect
+inspect(description_dtm)
+```
+
+```{r}
+description_dtm1 = removeSparseTerms(description_dtm, 0.99)
+```
+
+### Frequent Terms
+ * Use `freqwords()`: find frequent terms in a document-term or term-document matrix.
+ * Find terms that occur at least 5 times and show top 50
+
+```{r}
+findFreqTerms(description_dtm1, 5) %>%
+  head(50)
+```
+
+```{r}
+termCount <- rowSums(as.matrix(description_dtm1))  # sums rows
+termCount <- subset(termCount, termCount >=20)
+
+description_df <- data.frame(term = names(termCount), freq = termCount) 
+```
+
+```{r}
+description_df %>%
+  head(35) %>%
+  ggplot( aes(x = reorder(term, freq), y = freq, fill= freq)) + 
+    geom_bar(stat = "identity") +
+    scale_colour_gradientn(colors = terrain.colors(10)) + 
+    theme_minimal() +
+    coord_flip() +
+    theme(
+    plot.title = element_text(face = "bold")) +
+    labs(
+    x = NULL, y = "Count",
+    title = "Most Frequently Occuring Words in Titles"
+    )
+```
+
+
+
+
+
+```{r}
+a = "Eminem's new track Walk on Water ft. Beyoncé is available everywhere: http://shady.sr/WOWEminem \\nPlaylist Best of Eminem: https://goo.gl/AquNpo\\nSubscribe for more: https://goo.gl/DxCrDV\\n\\nFor more visit: \\nhttp://eminem.com\\nhttp://facebook.com/eminem\\nhttp://twitter.com/eminem\\nhttp://instagram.com/eminem\\nhttp://eminem.tumblr.com\\nhttp://shadyrecords.com\\nhttp://facebook.com/shadyrecords\\nhttp://twitter.com/shadyrecords\\nhttp://instagram.com/shadyrecords\\nhttp://trustshady.tumblr.com\\n\\nMusic video by Eminem performing Walk On Water. (C) 2017 Aftermath Records\\nhttp://vevo.ly/gA7xKt"
+```
+
+
+
+```{r}
+removeURL <- function(a) gsub("http[[:alnum:][:punct:]]*", "", a)
+a
+```
+
+
 
 
 
