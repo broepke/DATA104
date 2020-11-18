@@ -8,19 +8,6 @@ output:
 ---
 # YouTube Video Data Analysis
 
-## EDA
- * load the dataset and show its structure
- * perform necessary transformations/cleansing
-   * remove unnecessary columns (eg: thumbnail_link, comments_disabled, video_error_or_removed, ratings_disabled)
-   * if you open the file in Excel, you will find a large # of #NAME? for video_id. This means the column has an invalid calculation so Excel returns #NAME?. Should this be treated as missing value? In this case, we can populate its value, as follows: stringi::stri_rand_strings(n, 11) which generates n strings of length 11 with random characters. In this case n should be equal to the number of #NAME? values
-   * add a category_name based on the category_id
-     * You can use: sort(unique(youtubeDf$category_id)) to display the category ids in sorted order. Then create the category_name based on the values in the attached JSON
-   * convert chr values representing date/time to date/times
-     * trending_date use format: %y.%d.%m
-     * publish_time use format: format= %Y-%m-%d
- * show top/bottom observations and summary (only variables that make sense; eg: video_id and text fields do not make sense)
-
-
 ```{r message=FALSE, warning=FALSE}
 # Basic libraries 
 library(ggplot2)
@@ -40,6 +27,7 @@ library(tm)
 library(wordcloud2)
 library(ggraph)
 library(textstem)
+library(ggridges)
 ```
 
 
@@ -47,6 +35,7 @@ library(textstem)
 # Read in the Data from a CSV file.
 df <- read.csv('YouTube-videos.csv') #colClasses=c("headline"="character")
 ```
+
 
 ```{r}
 # Remove unwanted columns
@@ -78,7 +67,6 @@ df$category_name <- as.factor(df$category_name)
 ```
 
 ## Cleaning
-
 Cleaning up the NAME? in video_id
 
 ```{r}
@@ -111,7 +99,7 @@ df %>%
   summary()
 ```
 
- * **NOTE**: Video_ID `JkGQog0zQKn` shows the same count of `525` as the prior "$NAME?" value.
+ * **NOTE**: Video_ID for the first user shows the same count of `525` as the prior "$NAME?" value.
 
 ```{r}
 head(df)
@@ -156,6 +144,21 @@ df %>%
   coord_flip()
 ```
 
+```{r warning=FALSE}
+df %>%
+  ggplot(aes(x=views, color=category_name, fill=category_name)) +
+    geom_histogram(alpha=0.6, bins = 30) +
+    scale_x_continuous(trans='log10') +
+    theme_minimal() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)
+    ) +
+    xlab("") +
+    ylab("") +
+    facet_wrap(~category_name)
+```
 
 ```{r}
 df %>%
@@ -171,33 +174,125 @@ df %>%
       legend.position = "right",
       plot.title = element_text(face = "bold"))
 ```
+
+
+```{r}
+df %>%
+  mutate(mon = floor_date(trending_date, 'month')) %>%
+  group_by(mon, category_name) %>%
+  summarize(total = mean(views), .groups = 'keep') %>%
+
+  ggplot(aes(x=mon, y=total, fill=category_name)) +
+  geom_col(color = "black") + 
+  scale_x_date(date_breaks = "1 month", expand = c(0,0), date_labels = "%b-%y") +
+  theme_classic() +
+  theme(
+  plot.title = element_text(face = "bold")) +
+  labs(
+  x = "Trending Date", y = "Views",
+  title = "Mean Number of Views per Category",
+  subtitle = "Grouped by Month for Trending Date"
+  )
+```
+
  
 ### Likes
 
 ```{r warning=FALSE}
 df %>%
   ggplot(aes(x = likes)) +
-  geom_histogram(color = "plum", fill = "plum2", bins = 30) + 
+  geom_histogram(color = "gray", fill = "lightgray", bins = 30) + 
   scale_x_continuous(trans='log10') +
   theme_minimal() +
   theme(
   plot.title = element_text(face = "bold")) +
   labs(
   x = NULL, y = "Count (Log 10)",
-  title = "Distribution of Views",
+  title = "Distribution of Likes",
   subtitle = "Using a log10 transformation the x-axis"
   )
 ```
 
- %>%
-  ggplot(aes(x = trending_date, y = likes)) +
-  geom_point() + 
-  theme_minimal()
+
+
+```{r warning=FALSE}
+df %>%
+  ggplot(aes(x=likes, color=category_name, fill=category_name)) +
+    geom_histogram(alpha=0.6, bins = 30) +
+    scale_x_continuous(trans='log10') +
+    theme_minimal() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)
+    ) +
+    xlab("") +
+    ylab("") +
+    facet_wrap(~category_name)
+```
+
 
 ```{r}
 df %>%
-  group_by(year(trending_date), month(trending_date)) %>%
-  summarize(likes = sum(likes))
+  mutate(mon = floor_date(trending_date, 'month')) %>%
+  group_by(mon, category_name) %>%
+  summarize(total = mean(likes), .groups = 'keep') %>%
+
+  ggplot(aes(x=mon, y=total, fill=category_name)) +
+  geom_col(color = "black") + 
+  scale_x_date(date_breaks = "1 month", expand = c(0,0), date_labels = "%b-%y") +
+  theme_classic() +
+  theme(
+  plot.title = element_text(face = "bold")) +
+  labs(
+  x = "Trending Date", y = "Likes",
+  title = "Number of Likes per Category",
+  subtitle = "Grouped by Month for Trending Date"
+  )
+```
+
+### Dislikes
+
+```{r warning=FALSE}
+df %>%
+  ggplot(aes(x = dislikes)) +
+  geom_histogram(color = "gray", fill = "lightgray", bins = 30) + 
+  scale_x_continuous(trans='log10') +
+  theme_minimal() +
+  theme(
+  plot.title = element_text(face = "bold")) +
+  labs(
+  x = NULL, y = "Count (Log 10)",
+  title = "Distribution of Dislikes",
+  subtitle = "Using a log10 transformation the x-axis"
+  )
+```
+
+
+
+```{r}
+df %>%
+  mutate(mon = floor_date(trending_date, 'month')) %>%
+  group_by(mon, category_name) %>%
+  summarize(total = mean(dislikes), .groups = 'keep') %>%
+
+  ggplot(aes(x=mon, y=total, fill=category_name)) +
+  geom_col(color = "black") + 
+  scale_x_date(date_breaks = "1 month", expand = c(0,0), date_labels = "%b-%y") +
+  theme_classic() +
+  theme(
+  plot.title = element_text(face = "bold")) +
+  labs(
+  x = "Trending Date", y = "Dislikes",
+  title = "Number of Dislikes per Category",
+  subtitle = "Grouped by Month for Trending Date"
+  )
+```
+
+```{r}
+df %>%
+  filter(trending_date >= "01-01-2018" & trending_date > "02-01-2018" & category_name == "People & Blogs") %>%
+  arrange(desc(dislikes))
 ```
 
 
@@ -269,7 +364,7 @@ ggcorrplot(corr, colors = c("#6D9EC1", "white", "#E46726"),lab = TRUE,  ggtheme 
 ```{r warning=FALSE}
 df %>%
   ggplot(aes(x = likes, y = comment_count)) + 
-  geom_point(alpha = 0.1, color = "salmon") + 
+  geom_point(alpha = 0.1, color = "#E46726") + 
   theme_minimal() +
   scale_x_continuous(trans='log10') +
   scale_y_continuous(trans='log10') +
@@ -382,7 +477,7 @@ df2 %>%
   ggplot( aes(x = reorder(term, freq), y = freq, fill= freq)) + 
     geom_bar(stat = "identity") +
     scale_colour_gradientn(colors = terrain.colors(10)) + 
-    theme_minimal() +
+    theme_classic() +
     coord_flip() +
     theme(
     plot.title = element_text(face = "bold")) +
@@ -414,7 +509,7 @@ description_corpus <- tm_map(description_corpus,
 
 # Replace new line symbols with a space
 description_corpus <- tm_map(description_corpus, 
-                             content_transformer(function(x) gsub("[\\n]", "", x)))
+                             content_transformer(function(x) gsub("\\\\n", "", x)))
 
 # Remove the odd "arrow" symbol
 description_corpus <- tm_map(description_corpus, 
@@ -488,7 +583,7 @@ description_df %>%
   ggplot( aes(x = reorder(term, freq), y = freq, fill= freq)) + 
     geom_bar(stat = "identity") +
     scale_colour_gradientn(colors = terrain.colors(10)) + 
-    theme_minimal() +
+    theme_classic() +
     coord_flip() +
     theme(
     plot.title = element_text(face = "bold")) +
