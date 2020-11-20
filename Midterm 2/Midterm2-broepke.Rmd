@@ -137,7 +137,7 @@ tail(df)
 Analyze the number of views, likes, and dislikes with full data visualization (univariate and multivariate). Then comment on various trends.
  
 ```{r warning=FALSE}
-colors <- c("Views" = "#F8766D", "Likes" = "#7CAE00", "Dislikes" = "#00BFC4")
+colors <- c("Views" = "#00BFC4", "Likes" = "#7CAE00", "Dislikes" = "#F8766D")
 
 df %>%
   # mutate(mon = floor_date(trending_date, 'month')) %>%
@@ -163,8 +163,8 @@ df %>%
   scale_color_manual(values = colors)
 ```
 
-Other than the various difference in quantities of the three, they tend to remain fairly consistent over time when transformed on a logarithmic scale. With dislikes, we see a large order of magnitude shift in the early part of December, which is noticeable.
-
+Other than the various difference in quantities of the three, they tend to remain fairly consistent over time when transformed on a logarithmic scale. With dislikes, we see a noticeable order of magnitude shift in the early part of December.
+  
 ### Views
 We'll start by examining Views.
  
@@ -201,7 +201,8 @@ df %>%
   ylab("") +
   facet_wrap(~category_name)
 ```
-When breaking out each category, we can see that generally, the distributions have the same shape. However, we can see the relative concentration of each category. Music is the standout leader in view volume, `comedy`, `shows`, `travel & events`, and `science & technology` also have significant numbers. 
+
+When breaking out each category, we can see that the distributions generally have the same shape as the population. However, the relative concentration of each category. *Entertainment* is the standout leader in view volume, *Comedy*, *News & Politics*, *People & Blogs*, and *Music* also have significant numbers. 
 
 ```{r}
 df %>%
@@ -221,7 +222,7 @@ df %>%
   coord_flip()
 ```
 
-When we look at the mean views versus the distribution of views, different categories after music end up higher on the list.  `Movies`, `Nonprofit & Activism`, `Film & Animation` all have a minimal overall share of views, but a very high mean number of views. 
+When we look at the mean views versus the distribution of views, different categories after *Music* end up higher on the list.  *Movies*, *Nonprofit & Activism*, *Film & Animation* all have a minimal overall share of views, but a very high mean number of views. 
 
 
 ```{r}
@@ -243,8 +244,18 @@ df %>%
   )
 ```
 
-Here we see how mean views trend over time, based on their **trending date**, not original publish date. We can see a slight directional increase in views in later dates.  For the most part, categories appear to remain fairly consistent over time relative to each other; we can see a stand-out in January where the `People & Blogs` category shows a one-month increase.
- 
+Here we see how mean views trend over time, based on their*trending date*, not original publish date. We can see a slight directional increase in views in later dates.  For the most part, categories appear to remain fairly consistent over time relative to each other; we can see a stand-out in January where the *Nonprofit & Activism* category shows a one-month increase. A similar increase in *Movies* in June 2018, potentially signaling the release of a new film or trailer.  We can examine that. 
+
+```{r message=FALSE, warning=FALSE}
+df %>%
+  filter(category_name == "Movies" & trending_date > 2018-06-01) %>%
+  group_by(video_id, title) %>%
+  summarise(total_views = sum(views)) %>%
+  arrange(desc(total_views))
+```
+
+Turns out that it is a single video *Golak Bugni Bank Te Batua Full Movie (HD) | Harish Verma | Simi Chahal | Superhit Punjabi Movies* that was trending and produced `17,120,490` views total 
+
 ### Likes
 Next we'll explore Likes.
 
@@ -270,6 +281,7 @@ df %>%
 sprintf("Skewness = %s", moments::skewness(df$likes))
 ```
 
+
 For likes, we can see a slightly right-skewed distribution with positive Skewness of `13.66`.  We can also see that the solid line's mean is greater than the median represented by the dotted line.
 
 
@@ -289,7 +301,7 @@ df %>%
   facet_wrap(~category_name)
 ```
 
-The *Entertainment* category contains the largest population of likes, with *Comedy*, *Travel & Events*, *Science & Technology*, and *Shows* showing the next most. Most of these also appear to follow the same shape with slight right-skewness generally.
+The *Entertainment* category contains the largest population of likes, with *Comedy*, *People & Blogs*, *Music*, and *News & Politics* showing the next most.  Each category's histogram deviats in shape a bit from the population.  Some left-skewed and some right-skewed.
 
 
 ```{r}
@@ -310,7 +322,7 @@ df %>%
   coord_flip()
 ```
 
-Similar to the results of the overall Views for the categories, different categories have a greater mean number of likes.  Music is the first, and *Nonprofits & Activism* a close second. This suggests that while the number of videos in these categories is smaller, the "like" activity is greater per video.
+Similar to the results of the overall Views for the categories, different categories have a greater mean number of Likes.  *Music* is the first, and *Nonprofits & Activism* a close second. This suggests that while the number of videos in these categories is smaller, the *likes* activity is greater per video.
 
 
 ```{r}
@@ -332,7 +344,7 @@ df %>%
   )
 ```
 
-Like Views, many categories are consistent with a massive spike in January 2018 in the People & Blogs category. 
+Like *Views*, many categories are consistent with a massive spike in January 2018 in the *Nonprofit & Activism* category. 
 
 ### Dislikes
 Finally, we can take a look at dislikes. 
@@ -372,9 +384,7 @@ df %>%
   facet_wrap(~category_name)
 ```
 
-The *Entertainment* category contains the largest population of dislikes, with *Comedy*, *Travel & Events*, *Science & Technology*, and *Shows* next most. This is a similar pattern between all three categories of Views, Likes, and Dislikes. 
-
-**Note:** This could suggest a **correlation** between these values.  We will explore that later.
+The *Entertainment* category contains the largest population of dislikes, with *Comedy*, *Music*, *News & Politics*, and *People & Blogs* next most. This is a similar pattern between all three categories of Views, Likes, and Dislikes. This could suggest a **correlation** between these values.  We will explore that later.
 
 ```{r}
 df %>%
@@ -394,7 +404,7 @@ df %>%
   coord_flip()
 ```
 
-With the view on Mean Dislikes, we can see that in this case, *Nonprofits & Activism* is the far and away leader.
+For mean *Dislikes*, we can see that in this case, *Nonprofits & Activism* is the far and away leader.
 
 Let's explore a few of the top selections in this category. 
 
@@ -404,7 +414,7 @@ df %>%
   group_by(video_id, title) %>%
   summarise(dislikes = mean(dislikes)) %>%
   arrange(desc(dislikes)) %>%
-  head(n = 20)
+  head()
 ```
 
 The first video is a suicide prevention video by a Popular YouTuber who received backlash over inappropriate comments he made regarding Suicide in a prior video.  Others are Russian news and finally some political videos. 
@@ -424,7 +434,7 @@ df %>%
   ) +
   labs(
     x = "Trending Date", y = "Dislikes",
-    title = "Number of Dislikes per Category",
+    title = "Mean Number of Dislikes per Category",
     subtitle = "Grouped by Month for Trending Date"
   )
 ```
@@ -436,7 +446,7 @@ There are two large spikes in December and January for *Nonprofits & Activism*. 
  
 ## Top 5 Videos based on Likes
 
-The following are the top five videos based on **Likes**.  We can see that the top 5 videos are all the same, but with different trending dates. 
+The following are the top five videos based on *Likes*.  We can see that the top 5 videos are all the same, but with different trending dates. 
  
 ```{r}
 df %>%
@@ -445,7 +455,7 @@ df %>%
   head(n = 5)
 ```
  
-The following are the top five unique videos based on summ of all **likes** received. 
+The following are the top five *unique* videos based on summ of all *likes* received. 
  
 ```{r}
 df %>%
@@ -457,7 +467,7 @@ df %>%
  
 ### Top 5 Videos based on Views
 
-The following are the top five unique videos based on **views**. 
+The following are the top five unique videos based on *views*. 
 
 ```{r}
 df %>%
@@ -469,7 +479,7 @@ df %>%
  
  
 ## Correlation to Likes
-Earlier we observed that the distributions between Views, Likes, and Dislikes were all quite similar.  Even after breaking them into categories, the shapes and sizes of the histograms per category were similar.  We can explore how correlated they are.  We'll use "Likes" as the dependent variable. 
+Earlier we observed that the distributions between *Views*, *Likes*, and *Dislikes* were all quite similar.  Even after breaking them into categories, the shapes and sizes of the histograms per category were similar.  We can explore how correlated they are.  We'll use "Likes" as the dependent variable. 
  
 ```{r}
 df_corr <- df %>%
@@ -487,7 +497,7 @@ corr <- round(cor(df_corr), 2)
 corr
 ```
 
-We can see that all of the other numeric values positively correlate to **likes** with **comment_count** being the strongest at `0.84`, views being the next strongest at `0.83`, dislikes at `0.46`
+We can see that all of the other numeric values positively correlate to *likes* with *comment_count* being the strongest at `0.84`, views being the next strongest at `0.83`, dislikes at `0.46`
 
 Next we can see a visualization of these values. 
 
@@ -511,7 +521,7 @@ df %>%
   )
 ```
 
-After transforming the data on both axes with a log 10 scale, we can see the very linear, positive relationship between Likes' dependent variable and our most robust correlated independent variable, comment_count.
+After transforming the data on both axes with a log 10 scale, we can see the very linear, positive relationship between *Likes*' dependent variable and our most robust correlated independent variable, *comment_count*.
 
 Next, we'll create a simple linear regression model and a multiple linear regression model and test which performs better. 
 
@@ -533,7 +543,7 @@ anova(fit1, fit2)
 ```
 
 
-**Summary:** Both models are significant with very small P-values, and each independent variable in the multiple-regression model is also significant.  When we perform an Anova test for significance, we can see that the Multiple Linear model (Fit2) still holds up and therefore is the better model increasing the Adjusted R-squared from `0.6322` to `0.7637`.  
+**Summary:** Both models are significant with very small P-values, and each independent variable in the multiple-regression model is also significant.  When we perform an ANOVA test for significance, we can see that the Multiple Linear model (Fit2) still holds up and therefore is the better model increasing the Adjusted R-squared from `0.6322` to `0.7637`.  
 
 Therefore, with Model 2, we can say that for the dependent variable, *Likes*, *Views*, *Comment_Count*, and *Dislikes* contribute to `76.37%` of the variance. 
 
