@@ -1,0 +1,94 @@
+---
+title: "Assignment 12: NER and Topic Modeling"
+author: "Your Name"
+date: "Sept 1, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+# Project Description
+
+1) load the provided dataset.  It is based on the usenet data discussed in this case study from your reading: https://www.tidytextmining.com/usenet.html provided as a reference.  However your assignment will be somewhat different  and the dataset is an unlabeled subset.
+
+2) transformations
+
+ add text_len to capture the length of each document (eg: text field)
+ add doc_id with values 'doc_id'<row id>. Example: row 1, 2 should have doc_id = doc1 , doc2, doc3 ....  docN.
+Refer to sample notebook which shows how to do this.
+
+3) output summary statics and discuss the shape of the dataset along with the text_len statistics and outliers.
+
+4) visualization: show histogram and boxplot to better visualize outliers.  
+
+Create an outliers data frame. Refer to: https://www.statsandr.com/blog/outliers-detection-in-r/#histogram
+Decide which outliers (if any) should be removed from your analysis, by inspecting some of the contents.  You can use the c() function to display the entire contents of the text.
+5) Sample 5 documents using sample_n() to get an idea of the contents of the documents.  Make sure to use a randomized seed in order to have consistent results between runs.
+
+6) Conduct Named entity recognition.  Do not perform pre-processing prior. Algorithms and tools such as spaCy often rely on semantic language structures in order to identify entities (eg: punctuation, capitalization for pronouns, etc.) Generally NER requires tokenization and pos tagging, however the spacyR library automatically performs this for you.
+
+Create a table of entity_type with counts.  
+Explain what these entities types are.  The list will be larger than the sample notebook.
+Show a sampling of each of the types. (eg: the words and corresponding NER tag)
+7)  Conduct Topic Modeling using LDA , referring to the reading and sample notebook for guidance.
+
+perform standard text preprocessing as well as some additions. Research regular expressions to help you.
+case normalization (eg: either lower-case or upper-case)
+ remove emails, stop words, punctuation, numbers,  new lines, single quotes
+lemmatization
+include visualizations of topics and word groupings
+Assess the model. 
+Do the topics and words make sense given visual inspection?
+
+```{r message=FALSE, warning=FALSE}
+library(reticulate)
+# Basic libraries
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(corrplot)
+library(ggcorrplot)
+library(lubridate)
+library(jsonlite)
+library(stringi)
+library(wesanderson)
+
+# Text mining libs
+library(SnowballC)
+library(tidytext)
+library(spacyr)
+library(tm)
+library(ggraph)
+library(textstem)
+library(ggridges)
+```
+
+
+
+```{r}
+use_python("/usr/bin/python3")
+```
+
+
+```{r}
+spacy_initialize(model = "en_core_web_sm")
+```
+
+
+```{r}
+df <- read.csv("news_groups.csv")
+```
+
+
+```{r}
+str(df)
+```
+
+```{r}
+summary(df)
+```
+
+
+```{r}
+head(df)
+```
+
