@@ -40,37 +40,19 @@ Assess the model.
 Do the topics and words make sense given visual inspection?
 
 ```{r message=FALSE, warning=FALSE}
-library(reticulate)
 # Basic libraries
 library(ggplot2)
 library(dplyr)
 library(tidyverse)
-library(corrplot)
-library(ggcorrplot)
-library(lubridate)
-library(jsonlite)
-library(stringi)
-library(wesanderson)
 
-# Text mining libs
-library(SnowballC)
-library(tidytext)
+
+# NLP Libraries
 library(spacyr)
-library(tm)
-library(ggraph)
-library(textstem)
-library(ggridges)
-```
-
-
-
-```{r}
-use_python("/usr/bin/python3")
 ```
 
 
 ```{r}
-spacy_initialize(model = "en_core_web_sm")
+spacy_initialize(model = "en_core_web_sm", condaenv="DATA104")
 ```
 
 

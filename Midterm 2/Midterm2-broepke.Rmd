@@ -740,6 +740,6 @@ description_df %>%
   ) +
   labs(
     x = NULL, y = "Count",
-    title = "Most Frequently Occuring Words in Titles"
+    title = "Most Frequently Occuring Words in Descriptions"
   )
 ```
