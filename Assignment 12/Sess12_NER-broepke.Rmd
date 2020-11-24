@@ -46,8 +46,17 @@ library(dplyr)
 library(tidyverse)
 
 
-# NLP Libraries
+# Text Mining and NLP Libraries
 library(spacyr)
+library(tm)
+library(tidytext)
+library(SnowballC)
+library(stringr)
+library(topicmodels)
+library(textstem)
+
+# date/time library
+library(lubridate)
 ```
 
 
@@ -73,4 +82,125 @@ summary(df)
 ```{r}
 head(df)
 ```
+
+
+
+```{r}
+df[1:5,1]
+```
+
+```{r}
+CleanText <- function(x) {
+  require(stringr)
+  str_replace_all(x,"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+", "")
+} 
+```
+
+
+
+
+```{r}
+# remove email addresses and hyperlinks
+df$content <- str_replace_all(df$content,"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+", "")
+df$content <- gsub("http[[:alnum:][:punct:]]*", "", df$content)
+```
+
+```{r}
+# flatten enverything to lowercase
+df$content <- tolower(df$content)
+```
+
+```{r}
+# remove new lines and tabs
+df$content <- gsub("\\n", " ", df$content)
+df$content <- gsub("\\t", " ", df$content)
+```
+
+```{r}
+# get rid of the useless newsgroup stuff
+df$content <- gsub("from:", " ", df$content)
+df$content <- gsub("subject:", " ", df$content)
+df$content <- gsub("re:", " ", df$content)
+```
+
+```{r}
+# Remove punctuation
+df$content <- removePunctuation(df$content)
+```
+
+```{r}
+# Remove numbers
+df$content <- removeNumbers(df$content)
+```
+
+```{r}
+#Strip Whitepace
+df$content <- stripWhitespace(df$content)
+```
+
+```{r}
+# Remove stopwords
+df$content <- removeWords(df$content, stopwords("english"))
+```
+
+
+```{r}
+df[1:5,1]
+```
+
+```{r}
+# convert dataframe to tibble
+tidy_df <- as_tibble(df$content)
+
+# the text is itself a dataframe? modify the text column to pull out the text value
+tidy_df <- tidy_df %>%
+  mutate(text =  tidy_df$value)  %>%
+  select(-value)
+```
+
+```{r}
+head(tidy_df)
+```
+
+```{r}
+# convert to TIF standard required by spacy
+tidy_df = tidy_df %>%
+  mutate(doc_id = paste0("doc", row_number())) %>%
+  select(doc_id, everything())
+head(tidy_df)
+```
+
+```{r}
+# parse name-entities
+parsedtxt <- spacy_parse(tidy_df, type = "all")
+
+ner = entity_extract(parsedtxt)  %>%
+  arrange(entity_type)
+ner 
+```
+
+Entities of type PERSON which are People, including fictional.
+Entities of type NORP which are Nationalities or religious or political groups.
+Entities of type ORG which are Companies, agencies, institutions, etc.
+Entities of type GPE which are geo-political entities such as city, state/province, and country
+Entities of type PRODUCT which are products
+
+```{r}
+entities<- c("PERSON", "NORP", "ORG", "GPE", "PRODUCT")
+
+for (e in entities){
+  ner %>%
+    mutate(type=e) %>%
+    filter(entity_type == e) %>%
+    group_by(entity, type) %>%
+    summarize(count = n()) %>%
+    arrange(desc(count)) %>%
+    print()
+  
+}
+```
+
+# Topic Modeling
+
+
 
