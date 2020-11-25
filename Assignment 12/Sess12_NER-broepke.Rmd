@@ -1,43 +1,13 @@
 ---
-title: "Assignment 12: NER and Topic Modeling"
+title: "Assignment 12"
 author: "Your Name"
 date: "Sept 1, 2020"
 output:
   html_document:
     df_print: paged
 ---
-# Project Description
+# NER and Topic Modeling
 
-1) load the provided dataset.  It is based on the usenet data discussed in this case study from your reading: https://www.tidytextmining.com/usenet.html provided as a reference.  However your assignment will be somewhat different  and the dataset is an unlabeled subset.
-
-2) transformations
-
- add text_len to capture the length of each document (eg: text field)
- add doc_id with values 'doc_id'<row id>. Example: row 1, 2 should have doc_id = doc1 , doc2, doc3 ....  docN.
-Refer to sample notebook which shows how to do this.
-
-3) output summary statics and discuss the shape of the dataset along with the text_len statistics and outliers.
-
-4) visualization: show histogram and boxplot to better visualize outliers.  
-
-Create an outliers data frame. Refer to: https://www.statsandr.com/blog/outliers-detection-in-r/#histogram
-Decide which outliers (if any) should be removed from your analysis, by inspecting some of the contents.  You can use the c() function to display the entire contents of the text.
-5) Sample 5 documents using sample_n() to get an idea of the contents of the documents.  Make sure to use a randomized seed in order to have consistent results between runs.
-
-6) Conduct Named entity recognition.  Do not perform pre-processing prior. Algorithms and tools such as spaCy often rely on semantic language structures in order to identify entities (eg: punctuation, capitalization for pronouns, etc.) Generally NER requires tokenization and pos tagging, however the spacyR library automatically performs this for you.
-
-Create a table of entity_type with counts.  
-Explain what these entities types are.  The list will be larger than the sample notebook.
-Show a sampling of each of the types. (eg: the words and corresponding NER tag)
-7)  Conduct Topic Modeling using LDA , referring to the reading and sample notebook for guidance.
-
-perform standard text preprocessing as well as some additions. Research regular expressions to help you.
-case normalization (eg: either lower-case or upper-case)
- remove emails, stop words, punctuation, numbers,  new lines, single quotes
-lemmatization
-include visualizations of topics and word groupings
-Assess the model. 
-Do the topics and words make sense given visual inspection?
 
 ```{r message=FALSE, warning=FALSE}
 # Basic libraries
@@ -64,89 +34,17 @@ library(lubridate)
 spacy_initialize(model = "en_core_web_sm", condaenv="DATA104")
 ```
 
+## Data Loading
 
 ```{r}
 df <- read.csv("news_groups.csv")
 ```
 
+## Transformations
 
-```{r}
-str(df)
-```
+ * Add text_len to capture the length of each document (eg: text field)
+ * Add doc_id with values 'doc_id'<row id>. Example: row 1, 2 should have doc_id = doc1 , doc2, doc3 ....  docN.
 
-```{r}
-summary(df)
-```
-
-
-```{r}
-head(df)
-```
-
-
-
-```{r}
-df[1:5,1]
-```
-
-```{r}
-CleanText <- function(x) {
-  require(stringr)
-  str_replace_all(x,"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+", "")
-} 
-```
-
-
-
-
-```{r}
-# remove email addresses and hyperlinks
-df$content <- str_replace_all(df$content,"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+", "")
-df$content <- gsub("http[[:alnum:][:punct:]]*", "", df$content)
-```
-
-```{r}
-# flatten enverything to lowercase
-df$content <- tolower(df$content)
-```
-
-```{r}
-# remove new lines and tabs
-df$content <- gsub("\\n", " ", df$content)
-df$content <- gsub("\\t", " ", df$content)
-```
-
-```{r}
-# get rid of the useless newsgroup stuff
-df$content <- gsub("from:", " ", df$content)
-df$content <- gsub("subject:", " ", df$content)
-df$content <- gsub("re:", " ", df$content)
-```
-
-```{r}
-# Remove punctuation
-df$content <- removePunctuation(df$content)
-```
-
-```{r}
-# Remove numbers
-df$content <- removeNumbers(df$content)
-```
-
-```{r}
-#Strip Whitepace
-df$content <- stripWhitespace(df$content)
-```
-
-```{r}
-# Remove stopwords
-df$content <- removeWords(df$content, stopwords("english"))
-```
-
-
-```{r}
-df[1:5,1]
-```
 
 ```{r}
 # convert dataframe to tibble
@@ -158,9 +56,14 @@ tidy_df <- tidy_df %>%
   select(-value)
 ```
 
+
 ```{r}
+tidy_df = tidy_df %>%
+  mutate(text_len = str_count(text))
+
 head(tidy_df)
 ```
+
 
 ```{r}
 # convert to TIF standard required by spacy
@@ -170,30 +73,118 @@ tidy_df = tidy_df %>%
 head(tidy_df)
 ```
 
+## Summary Stats and Structure
+
+Output summary statics and discuss the shape of the dataset along with the text_len statistics and outliers.
+
+```{r}
+str(tidy_df)
+```
+
+```{r}
+summary(tidy_df)
+```
+
+
+```{r}
+head(tidy_df)
+```
+
+## Outliers Visuzlization
+
+visualization: show histogram and boxplot to better visualize outliers.  
+
+Create an outliers data frame. Refer to: https://www.statsandr.com/blog/outliers-detection-in-r/#histogram
+Decide which outliers (if any) should be removed from your analysis, by inspecting some of the contents.  You can use the c() function to display the entire contents of the text.
+
+```{r}
+summary(tidy_df$text_len)
+```
+
+### Text Length Distribution
+Log 10 adjusted scale
+
+```{r}
+library(ggplot2)
+
+ggplot(tidy_df) +
+  aes(x = text_len) +
+  geom_histogram(bins = 30L, fill = "lightblue", color="lightblue4") +
+  scale_x_continuous(trans = "log10") +
+  theme_minimal()
+```
+After adjusting to a log10 scale, the data appears to be normally distributed.
+
+### Text Length Box Plot
+Log 10 adjusted scale
+
+```{r}
+ggplot(tidy_df) +
+  aes(x = "", y = text_len) +
+  geom_boxplot(fill = "lightgray") +
+  scale_y_continuous(trans = "log10") +
+  theme_minimal()
+```
+
+```{r}
+out <- boxplot.stats(tidy_df$text_len)$out
+out_ind <- which(tidy_df$text_len %in% c(out))
+out_ind
+```
+
+```{r}
+tidy_df[out_ind, ]
+```
+
+
+
+
+# NER
+
+Conduct Named entity recognition.  Do not perform pre-processing prior. Algorithms and tools such as spaCy often rely on semantic language structures in order to identify entities (eg: punctuation, capitalization for pronouns, etc.) Generally NER requires tokenization and pos tagging, however the spacyR library automatically performs this for you.
+
 ```{r}
 # parse name-entities
 parsedtxt <- spacy_parse(tidy_df, type = "all")
 
 ner = entity_extract(parsedtxt)  %>%
   arrange(entity_type)
-ner 
+head(ner)
 ```
 
-Entities of type PERSON which are People, including fictional.
-Entities of type NORP which are Nationalities or religious or political groups.
-Entities of type ORG which are Companies, agencies, institutions, etc.
-Entities of type GPE which are geo-political entities such as city, state/province, and country
-Entities of type PRODUCT which are products
+Create a table of entity_type with counts.
 
 ```{r}
-entities<- c("PERSON", "NORP", "ORG", "GPE", "PRODUCT")
+ner %>%
+  group_by(entity_type) %>%
+  summarise(count = n(), .groups = "keep") %>%
+  arrange(desc(count))
+```
+
+### Entity Types
+
+ * Entities of type PERSON which are People, including fictional.
+ * Entities of type NORP which are Nationalities or religious or political groups.
+ * Entities of type ORG which are Companies, agencies, institutions, etc.
+ * Entities of type GPE which are geo-political entities such as city, state/province, and country
+ * Entities of type PRODUCT which are products
+ * Entities of type WORK
+ * Entities of type LOC
+ * Entities of type FAC
+ * Entities of type EVENT
+ * Entities of type LAW
+ * Entities of type LANGUAGE
+
+```{r}
+entities<- c("PERSON", "NORP", "ORG", "GPE", "PRODUCT", "WORK",
+             "LOC", "FAC", "EVENT", "LAW", "LANGUAGE")
 
 for (e in entities){
   ner %>%
     mutate(type=e) %>%
     filter(entity_type == e) %>%
     group_by(entity, type) %>%
-    summarize(count = n()) %>%
+    summarize(count = n(), .groups = "keep") %>%
     arrange(desc(count)) %>%
     print()
   
@@ -201,6 +192,221 @@ for (e in entities){
 ```
 
 # Topic Modeling
+
+Conduct Topic Modeling using LDA , referring to the reading and sample notebook for guidance.
+
+perform standard text preprocessing as well as some additions. Research regular expressions to help you.
+case normalization (eg: either lower-case or upper-case)
+ remove emails, stop words, punctuation, numbers,  new lines, single quotes
+lemmatization
+include visualizations of topics and word groupings
+Assess the model. 
+Do the topics and words make sense given visual inspection? 
+
+## Preprocessing
+
+```{r}
+# sample smaller set of docs
+set.seed(1234)
+cdf = df %>%
+  sample_n(1000) 
+
+corpus <- Corpus(VectorSource(cdf$content))
+```
+
+
+```{r}
+corpus <- tm_map(
+  corpus,
+  content_transformer(
+    function(x) str_replace_all(x,"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+", "")
+    )
+)
+```
+
+```{r}
+corpus <- tm_map(
+  corpus,
+  content_transformer(
+    function(x) gsub("http[[:alnum:][:punct:]]*", "", x)
+    )
+)
+```
+
+```{r}
+# remove new lines and tabs
+corpus <- tm_map(
+  corpus,
+  content_transformer(
+    function(x) gsub("\\n", " ", x)
+    )
+)
+
+corpus <- tm_map(
+  corpus,
+  content_transformer(
+    function(x) gsub("\\t", " ", x)
+    )
+)
+```
+
+```{r}
+# force all to lowercase
+corpus <- tm_map(corpus, tolower)
+```
+
+
+```{r}
+# get rid of the useless newsgroup stuff
+corpus <- tm_map(
+  corpus,
+  content_transformer(
+    function(x) gsub("from:", " ", x)
+    )
+)
+
+corpus <- tm_map(
+  corpus,
+  content_transformer(
+    function(x) gsub("subject:", " ", x)
+    )
+)
+
+corpus <- tm_map(
+  corpus,
+  content_transformer(
+    function(x) gsub("re:", " ", x)
+    )
+)
+```
+
+
+```{r}
+corpus <- tm_map(corpus, removePunctuation)  # remove punctuation
+corpus <- tm_map(corpus, removeNumbers)      # remove numbers
+corpus <- tm_map(corpus, stripWhitespace)    # remove white space
+```
+
+
+```{r}
+# stop and custom stop 
+corpus <- tm_map(corpus, removeWords, c(stopwords('english')))
+```
+
+
+```{r}
+corpus <- tm_map(corpus, lemmatize_strings) # lemmatizaton
+```
+
+```{r}
+corpus <- tm_map(corpus, removeWords, c("line", "organization", "write", 
+                                        "article", "get", "good", "one", 
+                                        "year", "nntppostinghost", "can", 
+                                        "say", "will", "know", "may", 
+                                        "like", "see", "time", "just", 
+                                        "make", "think", "thing", "way"))
+```
+
+
+```{r}
+inspect(corpus[1:4])
+```
+
+### Lemmatization
+
+```{r}
+dtm <- DocumentTermMatrix(corpus, control = list(minWordLength = 5, 
+                removeNumbers=FALSE, removePunctuation=FALSE, 
+                removeStopwords=FALSE,  stemWords=FALSE, stripWhitespace=FALSE))
+```
+
+
+```{r}
+inspect(dtm)
+```
+
+```{r}
+# check for rows with all 0's
+zero_row <- cdf[rowSums(as.matrix(dtm)) == 0, ] 
+dim(zero_row)
+```
+
+```{r}
+sel_idx <- rowSums(as.matrix(dtm)) > 0
+dtm <- dtm[sel_idx, ]
+dim(dtm)
+```
+
+## Latent Dirichlet Allocation (LDA)
+Is an unsupervised classification method designed for text data. Rather than relying on labeled (eg: hand-coded data sets), it is a probabilistic topic model that uses statistical algorithms to analyze words in raw text documents, to uncover thematic structure of the both the corpus and individual documents. To use it requires: - A document-term matrix - The number of topics you would like the algorithm to pick up.
+
+### Find the best k
+Recall that LDA requires that we supply the number of topics (K). If you have prior knowledge on the topic structure, this can be used to inform your selection of a reasonable value for K. Too few could result in groupings of unrelated content while too large could risk being overly granular with the topic categories. There are several statistical measures that can help in finding an optimal value for K.
+Perplexity is one and is used to measure how well a probability model predicts a sample. As applied to LDA, for a given value of K, one can estimate the LDA model by comparing perplexity across different models with varying k’s. The model with the lowest perplexity is generally considered the best.
+
+https://en.wikipedia.org/wiki/Perplexity 
+
+```{r}
+#mod_log_lik = numeric(0)
+mod_perplexity = numeric(0)
+topics <- c(2:4)  
+
+for (i in topics){
+  mod <- LDA(dtm, k = i, method = "Gibbs", 
+             control = list(seed=1234) ) # random seed for consistent results between runs
+  #mod_log_lik[i] = logLik(mod)
+  mod_perplexity[i] = perplexity(mod, dtm)
+}
+mod_perplexity <- mod_perplexity[!is.na (mod_perplexity)] # remove NA at first position
+
+# plot
+plot(x=topics, y=mod_perplexity, type = "b", xlab = "Number of topics", ylab = "Perplexity")
+```
+
+
+
+### Per-term-per-topic matrix
+
+```{r}
+hl_lda <- LDA(dtm, k = 3, control = list(seed = 1234))
+hl_lda
+```
+
+
+```{r}
+# beta (per-term-per-topic) 
+hl_topics <- tidy(hl_lda, matrix = "beta")
+hl_topics %>%
+  arrange(term, -beta)  %>%
+  head()
+```
+
+
+### per-document-per-topic
+
+```{r}
+tidy(hl_lda, matrix = "gamma")  %>%
+  arrange(document, -gamma)  %>%
+  head()
+```
+
+### Show the 10 terms that are most common within each topic.
+
+```{r fig.height=3, fig.width=3}
+hl_top_terms <- hl_topics %>%
+  group_by(topic) %>%
+  top_n(20, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+hl_top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ topic, scales = "free", ncol=2) +
+    theme_classic(base_size = 11) + 
+    scale_y_reordered() 
+```
 
 
 

@@ -1,0 +1,96 @@
+---
+title: "Assignment 12"
+author: "Your Name"
+date: "Sept 1, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+# Text Cleaning
+
+```{r message=FALSE, warning=FALSE}
+# Basic libraries
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+
+
+# Text Mining and NLP Libraries
+library(spacyr)
+library(tm)
+library(tidytext)
+library(SnowballC)
+library(stringr)
+library(topicmodels)
+library(textstem)
+
+# date/time library
+library(lubridate)
+```
+
+
+```{r}
+spacy_initialize(model = "en_core_web_sm", condaenv="DATA104")
+```
+
+
+```{r}
+df <- read.csv("news_groups.csv")
+```
+
+
+```{r}
+df[1:5,1]
+```
+
+# Clean the Text
+
+```{r}
+# remove email addresses and hyperlinks
+df$content <- str_replace_all(df$content,"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+", "")
+df$content <- gsub("http[[:alnum:][:punct:]]*", "", df$content)
+```
+
+```{r}
+# flatten enverything to lowercase
+df$content <- tolower(df$content)
+```
+
+```{r}
+# remove new lines and tabs
+df$content <- gsub("\\n", " ", df$content)
+df$content <- gsub("\\t", " ", df$content)
+```
+
+```{r}
+# get rid of the useless newsgroup stuff
+df$content <- gsub("from:", " ", df$content)
+df$content <- gsub("subject:", " ", df$content)
+df$content <- gsub("re:", " ", df$content)
+```
+
+```{r}
+# Remove punctuation
+df$content <- removePunctuation(df$content)
+```
+
+```{r}
+# Remove numbers
+df$content <- removeNumbers(df$content)
+```
+
+```{r}
+#Strip Whitepace
+df$content <- stripWhitespace(df$content)
+```
+
+```{r}
+# Remove stopwords
+df$content <- removeWords(df$content, stopwords("english"))
+```
+
+
+```{r}
+df[1:5,1]
+```
+
