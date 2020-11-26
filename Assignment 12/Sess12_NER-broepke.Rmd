@@ -110,7 +110,6 @@ library(ggplot2)
 ggplot(tidy_df) +
   aes(x = text_len) +
   geom_histogram(bins = 30L, fill = "lightblue", color="lightblue4") +
-  scale_x_continuous(trans = "log10") +
   theme_minimal()
 ```
 After adjusting to a log10 scale, the data appears to be normally distributed.
@@ -162,18 +161,20 @@ ner %>%
 ```
 
 ### Entity Types
+https://spacy.io/api/annotation
 
  * Entities of type PERSON which are People, including fictional.
  * Entities of type NORP which are Nationalities or religious or political groups.
  * Entities of type ORG which are Companies, agencies, institutions, etc.
  * Entities of type GPE which are geo-political entities such as city, state/province, and country
  * Entities of type PRODUCT which are products
- * Entities of type WORK
- * Entities of type LOC
- * Entities of type FAC
- * Entities of type EVENT
- * Entities of type LAW
- * Entities of type LANGUAGE
+ * Entities of type WORK OF ART which are Titles of books, songs, etc.
+ * Entities of type LOC which are Non-GPE locations, mountain ranges, bodies of water.
+ * Entities of type FAC which are Buildings, airports, highways, bridges, etc.
+ * Entities of type EVENT which are Named hurricanes, battles, wars, sports events, etc.
+ * Entities of type LAW which are Named documents made into laws.
+ * Entities of type LANGUAGE which are Any named language.
+ 
 
 ```{r}
 entities<- c("PERSON", "NORP", "ORG", "GPE", "PRODUCT", "WORK",
@@ -212,6 +213,11 @@ cdf = df %>%
   sample_n(1000) 
 
 corpus <- Corpus(VectorSource(cdf$content))
+```
+
+
+```{r}
+inspect(corpus[1:5])
 ```
 
 
@@ -299,17 +305,19 @@ corpus <- tm_map(corpus, lemmatize_strings) # lemmatizaton
 ```
 
 ```{r}
-corpus <- tm_map(corpus, removeWords, c("line", "organization", "write", 
+corpus <- tm_map(corpus, removeWords, c("line", "write", 
                                         "article", "get", "good", "one", 
                                         "year", "nntppostinghost", "can", 
                                         "say", "will", "know", "may", 
                                         "like", "see", "time", "just", 
-                                        "make", "think", "thing", "way"))
+                                        "make", "think", "thing", "way", 
+                                        "come", "much", "want", "take",
+                                        "ive", "day", "first", "xnewsreader"))
 ```
 
 
 ```{r}
-inspect(corpus[1:4])
+inspect(corpus[1:5])
 ```
 
 ### Lemmatization
@@ -349,7 +357,7 @@ https://en.wikipedia.org/wiki/Perplexity
 ```{r}
 #mod_log_lik = numeric(0)
 mod_perplexity = numeric(0)
-topics <- c(2:4)  
+topics <- c(41:45)  
 
 for (i in topics){
   mod <- LDA(dtm, k = i, method = "Gibbs", 
@@ -363,12 +371,12 @@ mod_perplexity <- mod_perplexity[!is.na (mod_perplexity)] # remove NA at first p
 plot(x=topics, y=mod_perplexity, type = "b", xlab = "Number of topics", ylab = "Perplexity")
 ```
 
-
+After calculating Perplexity for the range of topics from 2-45, we can see that 43/44 returns the lowest numbers.  However, this would most likley be at a level of granularity greater than we need. 
 
 ### Per-term-per-topic matrix
 
 ```{r}
-hl_lda <- LDA(dtm, k = 3, control = list(seed = 1234))
+hl_lda <- LDA(dtm, k = 12, control = list(seed = 1234))
 hl_lda
 ```
 
@@ -381,7 +389,6 @@ hl_topics %>%
   head()
 ```
 
-
 ### per-document-per-topic
 
 ```{r}
@@ -392,10 +399,10 @@ tidy(hl_lda, matrix = "gamma")  %>%
 
 ### Show the 10 terms that are most common within each topic.
 
-```{r fig.height=3, fig.width=3}
+```{r fig.height=6, fig.width=3}
 hl_top_terms <- hl_topics %>%
   group_by(topic) %>%
-  top_n(20, beta) %>%
+  top_n(15, beta) %>%
   ungroup() %>%
   arrange(topic, -beta)
 
@@ -404,9 +411,41 @@ hl_top_terms %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
     geom_col(show.legend = FALSE) +
     facet_wrap(~ topic, scales = "free", ncol=2) +
-    theme_classic(base_size = 11) + 
+    theme_classic(base_size = 8) + 
     scale_y_reordered() 
 ```
 
+### High Level Groupings
 
+
+```{r}
+hl_lda2 <- LDA(dtm, k = 3, control = list(seed = 1234))
+hl_lda2
+```
+
+
+```{r}
+# beta (per-term-per-topic) 
+hl_topics2 <- tidy(hl_lda2, matrix = "beta")
+hl_topics2 %>%
+  arrange(term, -beta)  %>%
+  head()
+```
+
+
+```{r fig.height=1.2, fig.width=3}
+hl_top_terms2 <- hl_topics2 %>%
+  group_by(topic) %>%
+  top_n(20, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+hl_top_terms2 %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ topic, scales = "free", ncol=3) +
+    theme_classic(base_size = 8) + 
+    scale_y_reordered() 
+```
 
