@@ -172,7 +172,7 @@ We'll start by examining Views.
 df %>%
   ggplot(aes(x = views)) +
   geom_histogram(color = "lightblue3", fill = "lightblue", bins = 30) +
-  scale_x_continuous(trans = "log10") +
+  scale_y_continuous(trans = "log10") +
   theme_minimal() +
   theme(
     plot.title = element_text(face = "bold")
@@ -190,7 +190,7 @@ We can see that the number of views is normally distributed.
 df %>%
   ggplot(aes(x = views, color = category_name, fill = category_name)) +
   geom_histogram(alpha = 0.6, bins = 30) +
-  scale_x_continuous(trans = "log10") +
+  scale_y_continuous(trans = "log10") +
   theme_minimal() +
   theme(
     legend.position = "none",
@@ -265,7 +265,7 @@ df %>%
   geom_histogram(color = "green4", fill = "palegreen2", bins = 30) +
   geom_vline(xintercept = median(df$likes), lwd = 0.5, linetype = "dashed") +
   geom_vline(xintercept = mean(df$likes), lwd = 0.5) +
-  scale_x_continuous(trans = "log10") +
+  scale_y_continuous(trans = "log10") +
   theme_minimal() +
   theme(
     plot.title = element_text(face = "bold")
@@ -289,7 +289,7 @@ For likes, we can see a slightly right-skewed distribution with positive Skewnes
 df %>%
   ggplot(aes(x = likes, color = category_name, fill = category_name)) +
   geom_histogram(alpha = 0.6, bins = 30) +
-  scale_x_continuous(trans = "log10") +
+  scale_y_continuous(trans = "log10") +
   theme_minimal() +
   theme(
     legend.position = "none",
@@ -353,7 +353,7 @@ Finally, we can take a look at dislikes.
 df %>%
   ggplot(aes(x = dislikes)) +
   geom_histogram(color = "gray", fill = "lightgray", bins = 30) +
-  scale_x_continuous(trans = "log10") +
+  scale_y_continuous(trans = "log10") +
   theme_minimal() +
   theme(
     plot.title = element_text(face = "bold")
@@ -372,7 +372,7 @@ Dislikes follow an approximatley normal distribution as well.
 df %>%
   ggplot(aes(x = dislikes, color = category_name, fill = category_name)) +
   geom_histogram(alpha = 0.6, bins = 30) +
-  scale_x_continuous(trans = "log10") +
+  scale_y_continuous(trans = "log10") +
   theme_minimal() +
   theme(
     legend.position = "none",
