@@ -1,7 +1,7 @@
 ---
 title: "Assignment 12"
 author: "Your Name"
-date: "Sept 1, 2020"
+date: "Nov 30, 2020"
 output:
   html_document:
     df_print: paged
@@ -82,15 +82,19 @@ str(tidy_df)
 ```
 
 ```{r}
-summary(tidy_df)
+tidy_df %>%
+  select(text, text_len) %>%
+  summary()
 ```
 
+ * **text**: Length represents the number of observations, `1,794` in this dataset. 
+ * **text_len**: The character count of the entries for each observation.  A min of 171 with a max of 36,272.  Using the 3rd Quartile, most of the values in this fall under 2,000 characters.
 
 ```{r}
 head(tidy_df)
 ```
 
-## Outliers Visuzlization
+## Outliers Analysis and Removal
 
 visualization: show histogram and boxplot to better visualize outliers.  
 
@@ -105,25 +109,38 @@ summary(tidy_df$text_len)
 Log 10 adjusted scale
 
 ```{r}
-library(ggplot2)
-
 ggplot(tidy_df) +
   aes(x = text_len) +
-  geom_histogram(bins = 30L, fill = "lightblue", color="lightblue4") +
-  theme_minimal()
+  geom_histogram(bins = 30L, fill = "lightblue", color = "lightblue4") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold")) +
+  labs(
+    x = "Text Length", y = "Count",
+    title = "Distribution of Text Length",
+    subtitle = "Without any Modifications to the Datset"
+  )
 ```
-After adjusting to a log10 scale, the data appears to be normally distributed.
+The data is highly right-skewed, with most of the values around the median of `1,201` or so words.  We can see that the long tail towards the larger values with a max of `36,272`.
 
 ### Text Length Box Plot
-Log 10 adjusted scale
 
 ```{r}
 ggplot(tidy_df) +
   aes(x = "", y = text_len) +
-  geom_boxplot(fill = "lightgray") +
-  scale_y_continuous(trans = "log10") +
-  theme_minimal()
+  geom_boxplot(fill = "lightblue") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold")) +
+  labs(
+    x = NULL, y = "Text Length",
+    title = "Distribution of Text Length",
+    subtitle = "Without any Modifications to the Datset"
+  )
 ```
+
+The box plot shows us a similar view, with a number of outliers beyond the inner-quartile. and a high concentraion around `~1,500`.  
+
+#### Determine Outliers
+We can determine which rows represent outliers and remove those from our dataset. 
 
 ```{r}
 out <- boxplot.stats(tidy_df$text_len)$out
@@ -131,27 +148,78 @@ out_ind <- which(tidy_df$text_len %in% c(out))
 out_ind
 ```
 
+### Remove all outliers 
+
 ```{r}
-tidy_df[out_ind, ]
+sprintf("Original Rows = %s", nrow(tidy_df))
+sprintf("Number of Outliers = %s", length(out_ind))
+tidy_df <- tidy_df[-out_ind, ]
+sprintf("New Number of Rows = %s", nrow(tidy_df))
 ```
 
+After removing the outliers from the dataset, we're left with 1,662 total observations.  We can examine the summary stats and box plot again.
 
+```{r}
+summary(tidy_df$text_len)
+```
 
+```{r}
+ggplot(tidy_df) +
+  aes(x = text_len) +
+  geom_histogram(bins = 30L, fill = "lightblue", color="lightblue4") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold")) +
+  labs(
+    x = "Text Length", y = "Count",
+    title = "Distribution of Text Length",
+    subtitle = "After Outliers Removed"
+  )
+```
+
+After removing outliers, the shape of the histogram is still right-skewed, but not as dramatic as before.
+
+```{r}
+ggplot(tidy_df) +
+  aes(x = "", y = text_len) +
+  geom_boxplot(fill = "lightblue") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold")) +
+  labs(
+    x = NULL, y = "Text Length",
+    title = "Box Plot of Text Length",
+    subtitle = "After Outliers Removed"
+  )
+```
+
+The boxplot also shows a much less compressed view of the inner-quartile range of data.  There are still some outliers plotted but extreme values have been removed. 
 
 # NER
 
 Conduct Named entity recognition.  Do not perform pre-processing prior. Algorithms and tools such as spaCy often rely on semantic language structures in order to identify entities (eg: punctuation, capitalization for pronouns, etc.) Generally NER requires tokenization and pos tagging, however the spacyR library automatically performs this for you.
 
+## Sample the Data to a Smaller Subset.
+Using a random see (1234), to provide consistent results between runs.
+
+```{r}
+# sample smaller set of docs
+set.seed(1234)
+sample_df = tidy_df %>%
+  sample_n(1000) 
+```
+
+## Add Named Entity Types
+Using the spacyR library.
+
 ```{r}
 # parse name-entities
-parsedtxt <- spacy_parse(tidy_df, type = "all")
+parsedtxt <- spacy_parse(sample_df, type = "all")
 
 ner = entity_extract(parsedtxt)  %>%
   arrange(entity_type)
 head(ner)
 ```
 
-Create a table of entity_type with counts.
+### Entity_type with counts.
 
 ```{r}
 ner %>%
@@ -207,12 +275,7 @@ Do the topics and words make sense given visual inspection?
 ## Preprocessing
 
 ```{r}
-# sample smaller set of docs
-set.seed(1234)
-cdf = df %>%
-  sample_n(1000) 
-
-corpus <- Corpus(VectorSource(cdf$content))
+corpus <- Corpus(VectorSource(sample_df$text))
 ```
 
 
@@ -312,7 +375,9 @@ corpus <- tm_map(corpus, removeWords, c("line", "write",
                                         "like", "see", "time", "just", 
                                         "make", "think", "thing", "way", 
                                         "come", "much", "want", "take",
-                                        "ive", "day", "first", "xnewsreader"))
+                                        "ive", "day", "first", "xnewsreader",
+                                        "university", "also", "people", "use",
+                                        "organization", "dod", "distribution"))
 ```
 
 
@@ -335,7 +400,7 @@ inspect(dtm)
 
 ```{r}
 # check for rows with all 0's
-zero_row <- cdf[rowSums(as.matrix(dtm)) == 0, ] 
+zero_row <- sample_df[rowSums(as.matrix(dtm)) == 0, ] 
 dim(zero_row)
 ```
 
@@ -357,7 +422,7 @@ https://en.wikipedia.org/wiki/Perplexity
 ```{r}
 #mod_log_lik = numeric(0)
 mod_perplexity = numeric(0)
-topics <- c(41:45)  
+topics <- c(36:45)  
 
 for (i in topics){
   mod <- LDA(dtm, k = i, method = "Gibbs", 
@@ -371,7 +436,7 @@ mod_perplexity <- mod_perplexity[!is.na (mod_perplexity)] # remove NA at first p
 plot(x=topics, y=mod_perplexity, type = "b", xlab = "Number of topics", ylab = "Perplexity")
 ```
 
-After calculating Perplexity for the range of topics from 2-45, we can see that 43/44 returns the lowest numbers.  However, this would most likley be at a level of granularity greater than we need. 
+After calculating Perplexity for the range of topics from 2-45, the topic value of `43` returned the lowest numbers.  However, this would most likely be at a level of granularity greater than we need. 
 
 ### Per-term-per-topic matrix
 
@@ -399,7 +464,7 @@ tidy(hl_lda, matrix = "gamma")  %>%
 
 ### Show the 10 terms that are most common within each topic.
 
-```{r fig.height=6, fig.width=3}
+```{r fig.height=24, fig.width=12}
 hl_top_terms <- hl_topics %>%
   group_by(topic) %>%
   top_n(15, beta) %>%
@@ -411,7 +476,7 @@ hl_top_terms %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
     geom_col(show.legend = FALSE) +
     facet_wrap(~ topic, scales = "free", ncol=2) +
-    theme_classic(base_size = 8) + 
+    theme_classic(base_size = 28) + 
     scale_y_reordered() 
 ```
 
@@ -431,12 +496,12 @@ hl_topics2 %>%
   arrange(term, -beta)  %>%
   head()
 ```
+### Top-Level Topics
 
-
-```{r fig.height=1.2, fig.width=3}
+```{r fig.height=6, fig.width=12}
 hl_top_terms2 <- hl_topics2 %>%
   group_by(topic) %>%
-  top_n(20, beta) %>%
+  top_n(15, beta) %>%
   ungroup() %>%
   arrange(topic, -beta)
 
@@ -445,7 +510,13 @@ hl_top_terms2 %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
     geom_col(show.legend = FALSE) +
     facet_wrap(~ topic, scales = "free", ncol=3) +
-    theme_classic(base_size = 8) + 
+    theme_classic(base_size = 28) + 
     scale_y_reordered() 
 ```
+
+After reviewing the text from the 12 topics above, it appears that this data comes from three distinct discussion groups.
+
+ 1. **Baseball** - game, run, score, team, hit, base, pitch, win, and ball are all solid indications that this is true.
+ 2. **Religion** - god, christian, believe, jesus, church, bible, faith, sin are all words directed tied to religion and possible Christianity.
+ 3. **Motorcycles** - bike, ride, motorcycle are all potentenial for the third grouping.  But it's possible that there are only two main groupings, and this is a sub grouping. 
 
