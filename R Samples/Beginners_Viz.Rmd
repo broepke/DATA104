@@ -1,0 +1,113 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+https://towardsdatascience.com/beginners-guide-to-enhancing-visualizations-in-r-9fa5a00927c9
+
+```{r}
+# install libraries
+library(ggplot2)
+library(scales)
+library(ggthemes)
+```
+
+```{r}
+# import data
+data <- read.csv('IBM.csv', stringsAsFactors = TRUE)
+```
+
+```{r}
+str(data)
+```
+
+# Visualization #1
+
+```{r}
+# essential layers
+ggplot(data, aes(x = JobRole, y = MonthlyIncome, fill=Attrition)) +
+  geom_bar(stat = 'summary', fun = mean) #Gives mean monthly income
+```
+
+```{r}
+# unstack bars and flipping axis
+ggplot(data, aes(x = JobRole, y = MonthlyIncome, fill=Attrition)) +
+  geom_bar(stat = 'summary', fun = mean, position = 'dodge') +
+  coord_flip()
+```
+
+```{r}
+# reordering job role
+ggplot(data, aes(x = reorder(JobRole, MonthlyIncome), y = MonthlyIncome, fill = Attrition)) +
+  geom_bar(stat = 'summary', fun = mean, position = 'dodge') +
+  coord_flip()
+```
+
+```{r}
+ggplot(data, aes(x = reorder(JobRole, MonthlyIncome), y = MonthlyIncome, fill = Attrition)) +
+  geom_bar(stat='summary', fun=mean, width=.8, position='dodge') +
+  coord_flip() +
+  scale_fill_manual(values = c('#96adbd', '#425e72'))
+```
+
+```{r}
+ggplot(data, aes(x = reorder(JobRole, MonthlyIncome), y = MonthlyIncome, fill = Attrition)) +
+  geom_bar(stat='summary', fun=mean, width=.8, position='dodge') +
+  coord_flip() +
+  scale_fill_manual(values = c('#96adbd', '#425e72')) +
+  xlab(' ') +  #Removing x label
+  ylab('Monthly Income in USD') +
+  ggtitle('Employee Attrition by Job Role & Income') + 
+  theme_clean()
+```
+
+```{r}
+ggplot(data, aes(x = reorder(JobRole, MonthlyIncome), y = MonthlyIncome, fill = Attrition)) +
+  geom_bar(stat='summary', fun=mean, width=.8, position='dodge') +
+  coord_flip() +
+  scale_fill_manual(values = c('#96adbd', '#425e72')) +
+  xlab(' ') +
+  ylab('Monthly Income in USD') +
+  ggtitle('Employee Attrition by Job Role & Income') +
+  theme_clean() +
+  theme(aspect.ratio = .65,
+    plot.background = element_rect(color = 'white'),
+    legend.background = element_rect(color = 'white'))
+```
+
+# Visualization #2
+
+```{r}
+ggplot(data, aes(x=MonthlyIncome, y=YearsSinceLastPromotion, color=Attrition)) +
+  geom_smooth(se = FALSE) #se = False removes confidence shading
+```
+
+```{r}
+ggplot(data, aes(x = MonthlyIncome, y = YearsSinceLastPromotion, color=Attrition)) +
+  geom_smooth(se = FALSE) +
+  facet_wrap(WorkLifeBalance~.)
+```
+
+```{r message=FALSE, warning=FALSE}
+
+wlb.labs <- c('1' = 'Bad Balance', '2' = 'Good Balance', '3' = 'Better Balance', '4' = 'Best Balance')
+
+ggplot(data, aes(x = MonthlyIncome, y = YearsSinceLastPromotion, color=Attrition)) +
+  geom_smooth(se = FALSE) +
+  facet_wrap(WorkLifeBalance~., 
+    labeller = labeller(WorkLifeBalance = wlb.labs)) +
+  xlab('\nMonthly Income') +  
+  ylab('Years Since Last Promotion\n') +
+  ggtitle('Employee Attrition by Workplace Factors') +
+  theme_economist() +
+  theme(axis.title = element_text(),
+    legend.position = 'top',
+    legend.justification = 'left',
+    panel.spacing = unit(1.5, 'lines')) + 
+    scale_color_economist()
+```
+
+
+
