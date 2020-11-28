@@ -219,7 +219,17 @@ ner = entity_extract(parsedtxt)  %>%
 head(ner)
 ```
 
-### Entity_type with counts.
+### Part of Speech Tagging Counts
+
+```{r}
+# Parts of Speech Tagging Coutns
+parsedtxt %>%
+  group_by(pos) %>%
+  summarise(count = n(), .groups = "keep") %>%
+  arrange(desc(count))
+```
+
+### Entity Type Counts
 
 ```{r}
 ner %>%
@@ -368,6 +378,8 @@ corpus <- tm_map(corpus, lemmatize_strings) # lemmatizaton
 ```
 
 ```{r}
+# remove words from the corpus that aren't providing extra clarity, but are
+# appearing frequently. These are updated after multiple LDA analyses.
 corpus <- tm_map(corpus, removeWords, c("line", "write", 
                                         "article", "get", "good", "one", 
                                         "year", "nntppostinghost", "can", 
@@ -420,14 +432,12 @@ Perplexity is one and is used to measure how well a probability model predicts a
 https://en.wikipedia.org/wiki/Perplexity 
 
 ```{r}
-#mod_log_lik = numeric(0)
 mod_perplexity = numeric(0)
 topics <- c(36:45)  
 
 for (i in topics){
   mod <- LDA(dtm, k = i, method = "Gibbs", 
-             control = list(seed=1234) ) # random seed for consistent results between runs
-  #mod_log_lik[i] = logLik(mod)
+             control = list(seed=1234) )
   mod_perplexity[i] = perplexity(mod, dtm)
 }
 mod_perplexity <- mod_perplexity[!is.na (mod_perplexity)] # remove NA at first position
@@ -436,7 +446,7 @@ mod_perplexity <- mod_perplexity[!is.na (mod_perplexity)] # remove NA at first p
 plot(x=topics, y=mod_perplexity, type = "b", xlab = "Number of topics", ylab = "Perplexity")
 ```
 
-After calculating Perplexity for the range of topics from 2-45, the topic value of `43` returned the lowest numbers.  However, this would most likely be at a level of granularity greater than we need. 
+After calculating Perplexity for the range of topics from 2-45 and continued to find generally decreasing values (depending on the run).  However, this would most likely be at a level of granularity greater than we need, so we can pick a smaller number to start and test the results.
 
 ### Per-term-per-topic matrix
 
@@ -476,9 +486,11 @@ hl_top_terms %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
     geom_col(show.legend = FALSE) +
     facet_wrap(~ topic, scales = "free", ncol=2) +
-    theme_classic(base_size = 28) + 
+    theme_classic(base_size = 20) + 
     scale_y_reordered() 
 ```
+
+Based on 12 topics, we can see there is a lot of overlap with the top words used in various topics. 
 
 ### High Level Groupings
 
@@ -498,7 +510,7 @@ hl_topics2 %>%
 ```
 ### Top-Level Topics
 
-```{r fig.height=6, fig.width=12}
+```{r fig.height=5, fig.width=12}
 hl_top_terms2 <- hl_topics2 %>%
   group_by(topic) %>%
   top_n(15, beta) %>%
@@ -510,7 +522,7 @@ hl_top_terms2 %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
     geom_col(show.legend = FALSE) +
     facet_wrap(~ topic, scales = "free", ncol=3) +
-    theme_classic(base_size = 28) + 
+    theme_classic(base_size = 20) + 
     scale_y_reordered() 
 ```
 
