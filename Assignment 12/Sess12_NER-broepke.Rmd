@@ -1,20 +1,19 @@
 ---
 title: "Assignment 12"
-author: "Your Name"
-date: "Nov 30, 2020"
+author: "Brian Roepke"
+date: "Nov 29, 2020"
 output:
   html_document:
     df_print: paged
 ---
-# NER and Topic Modeling
 
+# NER and Topic Modeling
 
 ```{r message=FALSE, warning=FALSE}
 # Basic libraries
 library(ggplot2)
 library(dplyr)
 library(tidyverse)
-
 
 # Text Mining and NLP Libraries
 library(spacyr)
@@ -60,8 +59,6 @@ tidy_df <- tidy_df %>%
 ```{r}
 tidy_df = tidy_df %>%
   mutate(text_len = str_count(text))
-
-head(tidy_df)
 ```
 
 
@@ -120,6 +117,7 @@ ggplot(tidy_df) +
     subtitle = "Without any Modifications to the Datset"
   )
 ```
+
 The data is highly right-skewed, with most of the values around the median of `1,201` or so words.  We can see that the long tail towards the larger values with a max of `36,272`.
 
 ### Text Length Box Plot
@@ -216,13 +214,14 @@ parsedtxt <- spacy_parse(sample_df, type = "all")
 
 ner = entity_extract(parsedtxt)  %>%
   arrange(entity_type)
-head(ner)
 ```
 
 ### Part of Speech Tagging Counts
 
+Display the different parts of speech identified as well as the counts of each.
+
 ```{r}
-# Parts of Speech Tagging Coutns
+# Parts of Speech Tagging Counts
 parsedtxt %>%
   group_by(pos) %>%
   summarise(count = n(), .groups = "keep") %>%
@@ -230,6 +229,8 @@ parsedtxt %>%
 ```
 
 ### Entity Type Counts
+
+Display the counts of each of the Entity Types extracted from the corpus.
 
 ```{r}
 ner %>%
@@ -239,6 +240,9 @@ ner %>%
 ```
 
 ### Entity Types
+
+The following 11 types of Entities were extracted, the following are their definitions as well as examples of each.
+
 https://spacy.io/api/annotation
 
  * Entities of type PERSON which are People, including fictional.
@@ -272,14 +276,15 @@ for (e in entities){
 
 # Topic Modeling
 
-Conduct Topic Modeling using LDA , referring to the reading and sample notebook for guidance.
+Topic Modeling performed using LDA.
 
-perform standard text preprocessing as well as some additions. Research regular expressions to help you.
-case normalization (eg: either lower-case or upper-case)
- remove emails, stop words, punctuation, numbers,  new lines, single quotes
-lemmatization
-include visualizations of topics and word groupings
-Assess the model. 
+ * Text pre-processing
+ * Case normalization (lower-case)
+ * Remove emails, stop words, punctuation, numbers, new lines, single quotes
+ * Lemmatization
+ * Include visualizations of topics and word groupings
+ * Assess the model. 
+
 Do the topics and words make sense given visual inspection? 
 
 ## Preprocessing
@@ -288,11 +293,13 @@ Do the topics and words make sense given visual inspection?
 corpus <- Corpus(VectorSource(sample_df$text))
 ```
 
+### Before cleaning
 
 ```{r}
 inspect(corpus[1:5])
 ```
 
+### Remove E-mails
 
 ```{r}
 corpus <- tm_map(
@@ -303,6 +310,8 @@ corpus <- tm_map(
 )
 ```
 
+### Remove URLs
+
 ```{r}
 corpus <- tm_map(
   corpus,
@@ -311,6 +320,8 @@ corpus <- tm_map(
     )
 )
 ```
+
+### Remove New Line and Tab Escape Sequences
 
 ```{r}
 # remove new lines and tabs
@@ -329,11 +340,14 @@ corpus <- tm_map(
 )
 ```
 
+### Transform all Text to Lowercase 
+
 ```{r}
 # force all to lowercase
 corpus <- tm_map(corpus, tolower)
 ```
 
+### Remove Common Header Information from the Discussion Posts 
 
 ```{r}
 # get rid of the useless newsgroup stuff
@@ -359,6 +373,7 @@ corpus <- tm_map(
 )
 ```
 
+### Remove Punctuation, White Space and Numbers
 
 ```{r}
 corpus <- tm_map(corpus, removePunctuation)  # remove punctuation
@@ -366,20 +381,24 @@ corpus <- tm_map(corpus, removeNumbers)      # remove numbers
 corpus <- tm_map(corpus, stripWhitespace)    # remove white space
 ```
 
+### Remove Stop Words
 
 ```{r}
 # stop and custom stop 
 corpus <- tm_map(corpus, removeWords, c(stopwords('english')))
 ```
 
+### Perform Lemmatization
 
 ```{r}
 corpus <- tm_map(corpus, lemmatize_strings) # lemmatizaton
 ```
 
+### Remove Words that Aren't Helpful for Topic Modeling
+
+Custom list of words generated upon performing the topic modeling.  These were frequently appeared but do not add a lot of context to topic identification, or appear so frequently, such as `University`, that they are in every topic. 
+
 ```{r}
-# remove words from the corpus that aren't providing extra clarity, but are
-# appearing frequently. These are updated after multiple LDA analyses.
 corpus <- tm_map(corpus, removeWords, c("line", "write", 
                                         "article", "get", "good", "one", 
                                         "year", "nntppostinghost", "can", 
@@ -392,12 +411,13 @@ corpus <- tm_map(corpus, removeWords, c("line", "write",
                                         "organization", "dod", "distribution"))
 ```
 
+### Corpus After Cleaning
 
 ```{r}
 inspect(corpus[1:5])
 ```
 
-### Lemmatization
+### Document Term Matrix Creation
 
 ```{r}
 dtm <- DocumentTermMatrix(corpus, control = list(minWordLength = 5, 
@@ -423,65 +443,69 @@ dim(dtm)
 ```
 
 ## Latent Dirichlet Allocation (LDA)
-Is an unsupervised classification method designed for text data. Rather than relying on labeled (eg: hand-coded data sets), it is a probabilistic topic model that uses statistical algorithms to analyze words in raw text documents, to uncover thematic structure of the both the corpus and individual documents. To use it requires: - A document-term matrix - The number of topics you would like the algorithm to pick up.
+Is an unsupervised classification method designed for text data. Rather than relying on labeled (eg: hand-coded data sets), it is a probabilistic topic model that uses statistical algorithms to analyze words in raw text documents, to uncover thematic structure of the both the corpus and individual documents.
 
-### Find the best k
-Recall that LDA requires that we supply the number of topics (K). If you have prior knowledge on the topic structure, this can be used to inform your selection of a reasonable value for K. Too few could result in groupings of unrelated content while too large could risk being overly granular with the topic categories. There are several statistical measures that can help in finding an optimal value for K.
-Perplexity is one and is used to measure how well a probability model predicts a sample. As applied to LDA, for a given value of K, one can estimate the LDA model by comparing perplexity across different models with varying k’s. The model with the lowest perplexity is generally considered the best.
+### Find the best k - the Elbow Method
+The basic idea behind partitioning methods, such as k-means clustering, is to define clusters such that the total intra-cluster variation [or total within-cluster sum of square (WSS)] is minimized. The total WSS measures the compactness of the clustering and we want it to be as small as possible.
 
-https://en.wikipedia.org/wiki/Perplexity 
+The Elbow method looks at the total WSS as a function of the number of clusters: One should choose a number of clusters so that adding another cluster doesn’t improve much better the total WSS.
 
-```{r}
-mod_perplexity = numeric(0)
-topics <- c(36:45)  
-
-for (i in topics){
-  mod <- LDA(dtm, k = i, method = "Gibbs", 
-             control = list(seed=1234) )
-  mod_perplexity[i] = perplexity(mod, dtm)
-}
-mod_perplexity <- mod_perplexity[!is.na (mod_perplexity)] # remove NA at first position
-
-# plot
-plot(x=topics, y=mod_perplexity, type = "b", xlab = "Number of topics", ylab = "Perplexity")
-```
-
-After calculating Perplexity for the range of topics from 2-45 and continued to find generally decreasing values (depending on the run).  However, this would most likely be at a level of granularity greater than we need, so we can pick a smaller number to start and test the results.
-
-### Per-term-per-topic matrix
+https://www.datanovia.com/en/lessons/determining-the-optimal-number-of-clusters-3-must-know-methods/ 
 
 ```{r}
-hl_lda <- LDA(dtm, k = 12, control = list(seed = 1234))
-hl_lda
+mat <- as.matrix (weightTfIdf(dtm) )
+
+# normalize the TfIdf scores by euclidean distance. 
+scaled_data  <- dist(mat, method = "euclidean")
+
+k.max <- 20
+data <- scaled_data
+wss <- sapply(1:k.max, 
+  function(k){kmeans(data, k, nstart=50,iter.max = 15)$tot.withinss})
+
+plot(1:k.max, wss,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
 ```
 
+Looking at the plot it looks like either **3** or **5 clusters** is our optimal value. We can plot both to see which one give us the best results. 
+
+## LDA
+
+```{r}
+lda <- LDA(dtm, k = 5, control = list(seed = 1234))
+lda
+```
+
+### Per-Topic-Per-Word Probabilities (Beta)
 
 ```{r}
 # beta (per-term-per-topic) 
-hl_topics <- tidy(hl_lda, matrix = "beta")
-hl_topics %>%
+topics <- tidy(lda, matrix = "beta")
+topics %>%
   arrange(term, -beta)  %>%
   head()
 ```
 
-### per-document-per-topic
+### Per-Document-Per-Topic Probabilities (Gamma)
 
 ```{r}
-tidy(hl_lda, matrix = "gamma")  %>%
+tidy(lda, matrix = "gamma")  %>%
   arrange(document, -gamma)  %>%
   head()
 ```
 
 ### Show the 10 terms that are most common within each topic.
 
-```{r fig.height=24, fig.width=12}
-hl_top_terms <- hl_topics %>%
+```{r fig.height=12, fig.width=12}
+top_terms <- topics %>%
   group_by(topic) %>%
   top_n(15, beta) %>%
   ungroup() %>%
   arrange(topic, -beta)
 
-hl_top_terms %>%
+top_terms %>%
   mutate(term = reorder_within(term, beta, topic)) %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
     geom_col(show.legend = FALSE) +
@@ -490,34 +514,35 @@ hl_top_terms %>%
     scale_y_reordered() 
 ```
 
-Based on 12 topics, we can see there is a lot of overlap with the top words used in various topics. 
+Starting with the slightly higher number of **5**, it does appear that there is heavy overlap with a couple of the topics.  We can re-run this with the other setting from the elbow plot, **3**.
 
 ### High Level Groupings
 
 
 ```{r}
-hl_lda2 <- LDA(dtm, k = 3, control = list(seed = 1234))
-hl_lda2
+lda2 <- LDA(dtm, k = 3, control = list(seed = 1234))
+lda2
 ```
 
 
 ```{r}
 # beta (per-term-per-topic) 
-hl_topics2 <- tidy(hl_lda2, matrix = "beta")
-hl_topics2 %>%
+topics2 <- tidy(lda2, matrix = "beta")
+topics2 %>%
   arrange(term, -beta)  %>%
   head()
 ```
+
 ### Top-Level Topics
 
 ```{r fig.height=5, fig.width=12}
-hl_top_terms2 <- hl_topics2 %>%
+top_terms2 <- topics2 %>%
   group_by(topic) %>%
   top_n(15, beta) %>%
   ungroup() %>%
   arrange(topic, -beta)
 
-hl_top_terms2 %>%
+top_terms2 %>%
   mutate(term = reorder_within(term, beta, topic)) %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
     geom_col(show.legend = FALSE) +
@@ -526,9 +551,9 @@ hl_top_terms2 %>%
     scale_y_reordered() 
 ```
 
-After reviewing the text from the 12 topics above, it appears that this data comes from three distinct discussion groups.
+After reviewing the text from the **5** topics above, it appears that this data comes from **3** distinct discussion groups.
 
  1. **Baseball** - game, run, score, team, hit, base, pitch, win, and ball are all solid indications that this is true.
  2. **Religion** - god, christian, believe, jesus, church, bible, faith, sin are all words directed tied to religion and possible Christianity.
- 3. **Motorcycles** - bike, ride, motorcycle are all potentenial for the third grouping.  But it's possible that there are only two main groupings, and this is a sub grouping. 
+ 3. **Motorcycles** - bike, ride, motorcycle are all potential for the third grouping.  But it's possible that there are only two main groupings, and this is a sub grouping since we see terms from baseball falling into this as well. 
 
