@@ -1,0 +1,135 @@
+---
+title: "Assignment 13"
+author: "Your Name"
+date: "Dec 6, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+# Sentiment Analysis
+
+1) Read Ch 2 on sentiment analysis as well as sentiment analysis section of Ch 9 to understand how to approach lexicon-based sentiment analysis using tidytext
+
+2) Using the twitter data from your previous assignment with Biden and Trump tweets , perform sentiment analysis using the 'bing' lexicon.  The tweets dataset has been attached.  
+
+3) Compare sentiment between each candidate with full analysis and visualizations.  Show most positive /negative words between each candidate. You can use bar blots and/or comparison.cloud() to group words by positive/negative sentiment.  
+
+
+```{r message=FALSE, warning=FALSE}
+# twitter library 
+library(rtweet)
+
+# plotting and pipes
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(stringr)
+
+# text mining library
+library(tidytext)
+library(wordcloud)
+
+# date/time library
+library(lubridate)
+```
+
+```{r}
+df <- read.csv("candidates.csv")
+```
+
+```{r}
+# Convert the date field to a datetime
+df$created_at <- as_datetime(df$created_at)
+
+#Changed some fields to factors for easier manipulation later
+df$user_id <- as.factor(df$user_id)
+df$status_id <- as.factor(df$status_id)
+df$screen_name <- as.factor(df$screen_name)
+
+# Fix up the reply count field.  It should be a int and NAs set to 0
+df$reply_count[is.na(df$reply_count)] <- 0
+df$reply_count <- as.integer(df$reply_count)
+```
+
+
+```{r}
+head(df)
+```
+```{r}
+nrow(df)
+```
+
+
+# Sentiment Analysis
+
+```{r}
+get_sentiments("bing")
+```
+
+## Tidy the Text
+
+```{r}
+df_subset <- df %>%
+  select(user_id, status_id, screen_name, created_at, text)
+```
+
+## Unnest Tokens
+Create a new column with each word on it's own row. 
+
+```{r}
+tidy_df <- df_subset %>%
+  unnest_tokens(word, text)
+```
+
+### Validate the New number of Rows
+This should be dramatically larger now that each word from text is in it's own row.
+
+```{r}
+nrow(tidy_df)
+```
+
+```{r}
+head(tidy_df, n=28)
+```
+
+
+```{r}
+bing_joy <- get_sentiments("bing") %>% 
+  filter(sentiment == "positive")
+
+bing_joy
+```
+
+```{r}
+tidy_df %>%
+  inner_join(bing_joy) %>%
+  filter(screen_name == "JoeBiden") %>%
+  count(word, sort = TRUE)
+```
+
+```{r}
+tidy_df %>%
+  inner_join(bing_joy) %>%
+  filter(screen_name == "realDonaldTrump") %>%
+  count(word, sort = TRUE)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
