@@ -55,40 +55,87 @@ df$reply_count[is.na(df$reply_count)] <- 0
 df$reply_count <- as.integer(df$reply_count)
 ```
 
-### Clean Text
-Get rid of various useless text like URLS and shorened URLs
-
-```{r}
-df$text <- gsub("http\\S+\\s*","", df$text)
-df$text <- gsub("t.co","", df$text)
-df$text <- gsub("amp","", df$text)
-df$text <- gsub("\\n","", df$text)
-```
-
 
 ```{r}
 head(df)
 ```
+```{r}
+tail(df)
+```
+
 Show the total number of rows in this dataset.
 
 ```{r}
 nrow(df)
 ```
 
-#EDA
+# EDA
 
+Simplify the Dataframe and add a column for text length
 
+```{r}
+df$text_len <- str_count(df$text)
+```
 
-
-# Sentiment Analysis
 
 ```{r}
 df_select <- df %>%
-  select(user_id, status_id, screen_name, created_at, text)
+  select(user_id, status_id, screen_name, created_at, text, text_len)
 ```
 
-## Unnest Tokens
-Create a new column with each word on it's own row. 
+## Tweet Length
+Number of tweets by each candidate
+
+```{r}
+summary(df_select$text_len)
+```
+
+Tweets for the dataset range from `7` characters to `330` with a mean of `172`
+
+
+```{r}
+df_select %>%
+  ggplot(aes(x = text_len, fill = screen_name)) +
+  geom_histogram(alpha = .5, color = "darkgray", bins = 33) +
+  theme_minimal()
+```
+
+Plotting a histogram of Tweet lengths It appears that Biden typically has longer tweets than Trump on average
+
+### Tweets Over Time
+
+```{r}
+df_select %>%
+  dplyr::group_by(screen_name) %>%
+  ts_plot("days", trim = 0L) +
+  ggplot2::geom_line() +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(
+    legend.title = ggplot2::element_blank(),
+    legend.position = "right",
+    plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL, y = NULL,
+    title = "Frequency of Tweets by Candidate by Day"
+  )
+```
+
+Based on the way this dataset was collected (last 3200 tweets per candidate), the data from Trump is compressed to dates starting around August.  This is due to the fact that he tweets more regularly than Biden, hitting the 3,200 tweet limit sooner.
+
+# Sentiment Analysis
+
+## Clean and Prepare the Text for Analysis
+
+Get rid of various useless text like URLS and shortened URLs.  These appear frequently in the text and skew results.
+
+```{r}
+df_select$text <- gsub("http\\S+\\s*","", df_select$text)
+df_select$text <- gsub("t.co","", df_select$text)
+df_select$text <- gsub("amp","", df_select$text)
+df_select$text <- gsub("\\n","", df_select$text)
+```
+
+Create a new column with each word on it's own row (Unnesting Tokens)
 
 ```{r}
 tidy_df <- df_select %>%
@@ -96,7 +143,7 @@ tidy_df <- df_select %>%
 ```
 
 ### Validate the New number of Rows
-This should be dramatically larger now that each word from text is in it's own row.
+Dramatically larger now that each word from text is in it's own row.
 
 ```{r}
 nrow(tidy_df)
@@ -113,7 +160,7 @@ tidy_df %>%
 ### Stop Word Removal
 remove stop words and custom stop words from the results.
 
-Note: Removing Trump because it's a proper name but also an verb which was marked as postive and overly  
+Note: Removing Trump because it's a proper name but also an verb which was marked as postive and appeared in the top results for both candidates. 
 
 ```{r}
 custom_stop_words <- bind_rows(tibble(word = c("trump"), lexicon = c("custom")), stop_words)
@@ -123,6 +170,9 @@ tidy_df <-tidy_df %>%
 ```
 
 ### Add "Bing" Sentiment
+Using the Bing Lexicon from Bing Liu and collaborators, adds the column "Sentiment" and mark each word as positive or negative. 
+
+https://www.cs.uic.edu/~liub/FBS/sentiment-analysis.html
 
 ```{r}
 tidy_df <- tidy_df %>%
@@ -131,20 +181,41 @@ tidy_df <- tidy_df %>%
 head(tidy_df)
 ```
 
-### Inspect Top Words Per Candidate
+### Add the AFINN scoring
+AFINN from Finn Årup Nielsen, adds the `value` column, with a numeric representation of how postive, or negative the word is.  The AFINN lexicon measures sentiment with a numeric score between -5 and 5
 
-```{r message=FALSE, warning=FALSE}
+http://www2.imm.dtu.dk/pubdb/pubs/6010-full.html 
+
+```{r}
+tidy_df <- tidy_df %>%
+  inner_join(get_sentiments("afinn"), by = "word")
+
 tidy_df %>%
-  filter(screen_name == "JoeBiden") %>%
-  count(word, sort = TRUE, sentiment)
+  arrange(desc(value)) %>%
+  head
+```
+
+### Add NRC Sentiment
+NRC from Saif Mohammad and Peter Turney. The NRC Emotion Lexicon is a list of English words and their associations with eight basic emotions
+
+```{r}
+tidy_df <- tidy_df %>%
+  inner_join(get_sentiments("nrc"), by = "word")
+
+head(tidy_df)
+```
+
+Fix the column names due to duplicate sentiment names from the various lexicons
+
+```{r}
+tidy_df <- rename(tidy_df, "sentiment" = "sentiment.x")
+tidy_df <- rename(tidy_df, "emotion" = "sentiment.y")
+head(tidy_df)
 ```
 
 
-```{r message=FALSE, warning=FALSE}
-tidy_df %>%
-  filter(screen_name == "realDonaldTrump") %>%
-  count(word, sort = TRUE, sentiment)
-```
+## Inspect Top Words Per Candidate
+Using various methods, inspect what words are most frequently used, per candidate, proportions of negative and positive words, and trend over time. 
 
 ### Top Word Counts
 
@@ -165,6 +236,8 @@ tidy_df %>%
        y = NULL)
 ```
 
+When looking at data as a whole, we can see the top negative word is `crisis` and positive is `win`.  Next, we'll split these out by candidate. 
+
 ### Top Word Count Per Candidate
 
 ```{r message=FALSE, warning=FALSE}
@@ -180,11 +253,89 @@ tidy_df %>%
   geom_col(show.legend = FALSE) +
   facet_wrap(vars(screen_name, sentiment), scales = "free_y") +
   theme_minimal() +
-  labs(x = "Contribution to sentiment",
-       y = NULL)
+  labs(x = "Contribution to sentiment",y = NULL)
 ```
 
-# Sentiment of Tweets over Time
+**Negative**: Biden has the top word crisis in his list, where Trump doesn't.  Biden uses threat, hate, worst, fear, in his negative list where Trump has fake, crime, fraud, hoax, crazy, destroy.  Different negative words speaking to different topics. 
+
+**Positive**: Both candidates show win, support, honor, and protect in their top 10. Biden uses promise, safe, fair, grateful.  Trump uses endorsement, peace, strong, congratulations, and wow.  
+
+### Overall Top Words
+
+```{r message=FALSE, warning=FALSE}
+# Get totals of pos/neg wordcounts
+tidy_df %>%
+  count(word, sort = TRUE, sentiment, screen_name) %>%
+
+  group_by(screen_name) %>%
+  top_n(30) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = TRUE) +
+  facet_wrap(~screen_name, scales = "free_y") +
+  theme_minimal() +
+  labs(x = "Contribution to sentiment", y = NULL)
+```
+
+Looking at the mix of top 30 words and whether they're positive or negative.  Both candidates are about the same. The number one word for each is a negative word.  There is a mix of positive and negative words throughout. 
+
+### Top Words Sorted by AFINN Score
+
+```{r message=FALSE, warning=FALSE}
+tidy_df %>%
+  count(word, sort = TRUE, sentiment, screen_name, value) %>%
+
+  group_by(screen_name) %>%
+  top_n(30) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, value)) %>%
+  ggplot(aes(value, word, fill = sentiment)) +
+  geom_col(show.legend = TRUE) +
+  facet_wrap(~screen_name, scales = "free_y") +
+  theme_minimal() +
+  labs(x = "AFINN Sentiment Score", y = NULL)
+```
+Top 30 words, sorted by their AFINN score, a scale of -5 to 5.  Trump uses slightly more polarizing terms, on the negative side he has 3 that are +4 to Biden's 1, and on the negative side, he has one that is -4 (fraud).  Biden used slightly more postive words in his top 30. 
+
+### Top Emotions Per Candidate
+Using the NRC Emotion, we can see how each candidates core emptions stack up.
+
+
+```{r}
+tidy_df %>%
+  count(emotion, sort = TRUE, screen_name) %>%
+
+  group_by(screen_name, emotion) %>%
+  ungroup() %>%
+  mutate(emo = reorder(emotion, n)) %>%
+  ggplot(aes(n, emo, fill = emo)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~screen_name, scales = "free_y") +
+  theme_minimal() +
+  labs(x = "Count",y = "NRC Emotions")
+```
+
+
+### Overall Average Sentiment per Candidate
+
+```{r}
+tidy_df %>%
+  count(word, sort = TRUE, sentiment, screen_name, value) %>%
+  group_by(screen_name) %>%
+  summarize(value = sum(value * n), .groups = "keep") %>%
+  
+  mutate(screen_name = reorder(screen_name, value)) %>%
+  ggplot(aes(value, screen_name, fill = value > 0)) +
+  geom_col(show.legend = FALSE) +
+  labs(x = "Average sentiment value", y = NULL) +
+  theme_minimal() +
+  geom_text(aes(label = value), position = position_stack(vjust = 0.5))
+```
+
+Computing the average total sentiment, both candidates are in the negative range.  Trump's overall score is greater than Biden's.
+
+### Sentiment of Tweets over Time
 
 ```{r}
 plot_df <- tidy_df %>%
@@ -200,10 +351,11 @@ plot_df$color <- ifelse(plot_df$sentiment < 0, "negative","positive")
 ggplot(plot_df, aes(mon, sentiment, fill = color)) +
   geom_col(show.legend = FALSE) +
   facet_wrap(~screen_name, ncol = 1, scales = "free_x") +
+  labs(x = NULL, y = "Frequency of Sentiment") +
   theme_minimal()
 ```
 
-
+Since August, showing the frequency of sentiment for each candidate.  Trump tweets more than Biden on average, therefore the peaks are larger. Trump appears to tweet negative tweets more frequently than Trump.
 
 # Word Clouds
 
@@ -212,7 +364,7 @@ ggplot(plot_df, aes(mon, sentiment, fill = color)) +
 ```{r message=FALSE, warning=FALSE}
 tidy_df %>%
   count(word) %>%
-  with(wordcloud(word, n, max.words = 100))
+  with(wordcloud(word, n, max.words = 200))
 ```
 
 ## Word Clouds for Each Candidate
@@ -223,7 +375,7 @@ tidy_df %>%
 tidy_df %>%
   filter(screen_name == "JoeBiden") %>%
   count(word) %>%
-  with(wordcloud(word, n, max.words = 100))
+  with(wordcloud(word, n, max.words = 200))
 ```
 
 ### Trump
@@ -232,23 +384,17 @@ tidy_df %>%
 tidy_df %>%
   filter(screen_name == "realDonaldTrump") %>%
   count(word) %>%
-  with(wordcloud(word, n, max.words = 100))
+  with(wordcloud(word, n, max.words = 200))
 ```
 
 ```{r message=FALSE, warning=FALSE}
 tidy_df %>%
   count(word, sentiment, sort = TRUE) %>%
   acast(word ~ sentiment, value.var = "n", fill = 0) %>%
-  comparison.cloud(colors = c("#F8766D", "#00BFC4"),
-                   max.words = 100)
+  comparison.cloud(colors = c("#F8766D", "#00BFC4"), max.words = 200)
 ```
 
-```{r}
-ggplot(plot_df, aes(x = screen_name, y = sentiment, color = screen_name)) + 
-  geom_boxplot() + 
-  geom_point() + 
-  theme_minimal()
-```
+
 
 
 
