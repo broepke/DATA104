@@ -1,6 +1,6 @@
 ---
 title: "Assignment 13"
-author: "Your Name"
+author: "Brian Roepkee"
 date: "Dec 6, 2020"
 output:
   html_document:
@@ -14,6 +14,7 @@ output:
 
 3) Compare sentiment between each candidate with full analysis and visualizations.  Show most positive /negative words between each candidate. You can use bar blots and/or comparison.cloud() to group words by positive/negative sentiment.  
 
+## Load Libraries and Data
 
 ```{r message=FALSE, warning=FALSE}
 # twitter library 
@@ -24,10 +25,13 @@ library(tidyverse)
 library(ggplot2)
 library(dplyr)
 library(stringr)
+library(tidyr)
 
 # text mining library
 library(tidytext)
 library(wordcloud)
+library(reshape2)
+library(RColorBrewer)
 
 # date/time library
 library(lubridate)
@@ -51,25 +55,35 @@ df$reply_count[is.na(df$reply_count)] <- 0
 df$reply_count <- as.integer(df$reply_count)
 ```
 
+### Clean Text
+Get rid of various useless text like URLS and shorened URLs
+
+```{r}
+df$text <- gsub("http\\S+\\s*","", df$text)
+df$text <- gsub("t.co","", df$text)
+df$text <- gsub("amp","", df$text)
+df$text <- gsub("\\n","", df$text)
+```
+
 
 ```{r}
 head(df)
 ```
+Show the total number of rows in this dataset.
+
 ```{r}
 nrow(df)
 ```
+
+#EDA
+
+
 
 
 # Sentiment Analysis
 
 ```{r}
-get_sentiments("bing")
-```
-
-## Tidy the Text
-
-```{r}
-df_subset <- df %>%
+df_select <- df %>%
   select(user_id, status_id, screen_name, created_at, text)
 ```
 
@@ -77,7 +91,7 @@ df_subset <- df %>%
 Create a new column with each word on it's own row. 
 
 ```{r}
-tidy_df <- df_subset %>%
+tidy_df <- df_select %>%
   unnest_tokens(word, text)
 ```
 
@@ -88,46 +102,153 @@ This should be dramatically larger now that each word from text is in it's own r
 nrow(tidy_df)
 ```
 
-```{r}
-head(tidy_df, n=28)
-```
-
-
-```{r}
-bing_joy <- get_sentiments("bing") %>% 
-  filter(sentiment == "positive")
-
-bing_joy
-```
+After unnesting the words, each word of the tweet is on a separate line. The following is an example. 
 
 ```{r}
 tidy_df %>%
-  inner_join(bing_joy) %>%
+  filter(status_id == "x1319032499456987136") %>%
+  head(n=25)
+```
+
+### Stop Word Removal
+remove stop words and custom stop words from the results.
+
+Note: Removing Trump because it's a proper name but also an verb which was marked as postive and overly  
+
+```{r}
+custom_stop_words <- bind_rows(tibble(word = c("trump"), lexicon = c("custom")), stop_words)
+
+tidy_df <-tidy_df %>%
+  anti_join(custom_stop_words, by = "word")
+```
+
+### Add "Bing" Sentiment
+
+```{r}
+tidy_df <- tidy_df %>%
+  inner_join(get_sentiments("bing"), by = "word")
+
+head(tidy_df)
+```
+
+### Inspect Top Words Per Candidate
+
+```{r message=FALSE, warning=FALSE}
+tidy_df %>%
   filter(screen_name == "JoeBiden") %>%
-  count(word, sort = TRUE)
+  count(word, sort = TRUE, sentiment)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+tidy_df %>%
+  filter(screen_name == "realDonaldTrump") %>%
+  count(word, sort = TRUE, sentiment)
+```
+
+### Top Word Counts
+
+```{r message=FALSE, warning=FALSE}
+# Get totals of pos/neg wordcounts
+tidy_df %>%
+  count(word, sort = TRUE, sentiment) %>%
+
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  theme_minimal() +
+  labs(x = "Contribution to sentiment",
+       y = NULL)
+```
+
+### Top Word Count Per Candidate
+
+```{r message=FALSE, warning=FALSE}
+# Get totals of pos/neg wordcounts
+tidy_df %>%
+  count(word, sort = TRUE, screen_name, sentiment) %>%
+
+  group_by(screen_name, sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(vars(screen_name, sentiment), scales = "free_y") +
+  theme_minimal() +
+  labs(x = "Contribution to sentiment",
+       y = NULL)
+```
+
+# Sentiment of Tweets over Time
+
+```{r}
+plot_df <- tidy_df %>%
+  filter(created_at > "2020-08-01") %>%
+  mutate(mon = floor_date(created_at, "day")) %>%
+  count(screen_name, mon, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative)
+
+
+plot_df$color <- ifelse(plot_df$sentiment < 0, "negative","positive")
+
+ggplot(plot_df, aes(mon, sentiment, fill = color)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~screen_name, ncol = 1, scales = "free_x") +
+  theme_minimal()
+```
+
+
+
+# Word Clouds
+
+## Overall Word Cloud
+
+```{r message=FALSE, warning=FALSE}
+tidy_df %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+```
+
+## Word Clouds for Each Candidate
+
+### Biden
+
+```{r message=FALSE, warning=FALSE}
+tidy_df %>%
+  filter(screen_name == "JoeBiden") %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+```
+
+### Trump
+
+```{r message=FALSE, warning=FALSE}
+tidy_df %>%
+  filter(screen_name == "realDonaldTrump") %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+```
+
+```{r message=FALSE, warning=FALSE}
+tidy_df %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("#F8766D", "#00BFC4"),
+                   max.words = 100)
 ```
 
 ```{r}
-tidy_df %>%
-  inner_join(bing_joy) %>%
-  filter(screen_name == "realDonaldTrump") %>%
-  count(word, sort = TRUE)
+ggplot(plot_df, aes(x = screen_name, y = sentiment, color = screen_name)) + 
+  geom_boxplot() + 
+  geom_point() + 
+  theme_minimal()
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
