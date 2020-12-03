@@ -1,0 +1,96 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+https://cran.r-project.org/web/packages/rtweet/vignettes/intro.html
+
+```{r}
+# twitter library 
+library(rtweet)
+
+# plotting and pipes - tidyverse
+library(ggplot2)
+library(dplyr, warn.conflicts = FALSE)
+options(dplyr.summarise.inform = FALSE) # Suppress summarise info
+
+# text mining library
+suppressPackageStartupMessages(library(tidyverse)) # suppress startup message
+
+# date/time libaray
+library(lubridate, warn.conflicts = FALSE)
+```
+
+```{r}
+get_token()
+```
+
+## Retrieve most recent 3200 timelines of Trump and Biden
+ * use: ‘JoeBiden’ and ‘realDonaldTrump’
+ * don’t exclude anything
+ * save to csv file, so you don’t have to call the api subsequently, in case of long delays
+ * read the csv file into a dataframe and use that df for subsequent analysis.
+     * You will notice using the View (df) function that the the object structure of the original dataframe after the AP call is different from the one you read in. The original has embedded list objects, whereas the one read in is flattened. Also the date/time fields such as ‘create_at’ is char rather than Twitter’s POSIX time format. Use lubridate datetime functions (eg: as_datetime) to convert.
+Show the column names
+
+```{r}
+tmls <- get_timelines(c("JoeBiden", "realDonaldTrump"), n = 3200, check = FALSE)
+write_as_csv(tmls, "test.csv")
+```
+
+
+
+```{r}
+timelinesdf <- read_twitter_csv("test.csv")
+```
+
+
+```{r}
+table(timelinesdf$screen_name)
+```
+
+# Download Data from a Hastag
+
+```{r}
+rt <- search_tweets(
+  "Revit", n = 18000, include_rts = FALSE
+)
+
+## preview tweets data
+rt
+
+## preview users data
+users_data(rt)
+
+## plot time series (if ggplot2 is installed)
+ts_plot(rt)
+```
+
+```{r}
+write_as_csv(rt, "revit.csv")
+```
+
+
+```{r}
+df <- read_twitter_csv("revit.csv")
+```
+
+
+```{r}
+df
+```
+
+```{r}
+## plot time series of tweets
+ts_plot(rt, "3 hours") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL, y = NULL,
+    title = "Frequency of #rstats Twitter statuses from past 9 days",
+    subtitle = "Twitter status (tweet) counts aggregated using three-hour intervals",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet"
+  )
+```
+
+
