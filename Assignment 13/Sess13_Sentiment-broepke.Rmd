@@ -146,7 +146,7 @@ df_select %>%
   geom_text(aes(label = total), position = position_stack(vjust = 0.5))
 ```
 
-After removing Retweets, Trumps total dropped to only `1,733`, while Binden's fell much less to `3,032`.  Trump Retweets more often than Biden.
+After removing Retweets, Trumps total dropped to only `1,733`, while Biden's fell much less to `3,032`.  Trump Retweets more often than Biden.
 
 ### Tweets Over Time
 
@@ -204,7 +204,7 @@ tidy_df <- df_select %>%
 ### Stop Word Removal
 remove stop words and custom stop words from the results.
 
-Note: Removing Trump because it's a proper name but also an verb which was marked as postive and appeared in the top results for both candidates. 
+Note: Removing Trump because it's a proper name but also an verb which was marked as positive and appeared in the top results for both candidates. 
 
 ```{r}
 custom_stop_words <- bind_rows(tibble(word = c("trump"), lexicon = c("custom")), stop_words)
@@ -518,9 +518,50 @@ bing_df %>%
   comparison.cloud(colors = c("#F8766D", "#00BFC4"), max.words = 200)
 ```
 
+# Checking for Top-Negation Word Pairs
+The method used here doesn't take into account negation of words like no, and never preceding words.  We can quckly check the top word pairs to see how they occur in our text.
 
 
+```{r}
+bigrams <- df_select %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2)
+```
 
 
+```{r}
+bigram_counts <- bigrams %>%
+  count(bigram, sort = TRUE) %>%
+  separate(bigram, c("word1", "word2"), sep = " ")
+
+bigram_counts
+```
+
+
+```{r}
+negate_words <- c("not", "without", "no", "can't", "don't", "won't")
+
+bigram_counts %>%
+  filter(word1 %in% negate_words) %>%
+  count(word1, word2, wt = n, sort = TRUE) %>%
+  inner_join(get_sentiments("afinn"), by = c(word2 = "word")) %>%
+  mutate(contribution = value * n) %>%
+  group_by(word1) %>%
+  slice_max(abs(contribution), n = 8) %>%
+  ungroup() %>%
+  mutate(word2 = reorder_within(word2, contribution, word1)) %>%
+  ggplot(aes(contribution, word2, fill = contribution > 0)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ word1, scales = "free", nrow = 3) +
+  scale_y_reordered() +
+  labs(x = "Sentiment value * # of occurrences",
+       y = "Words preceded by a negation")
+```
+
+
+```{r}
+df_select %>%
+  select(screen_name, text_len) %>%
+  summary()
+```
 
 
