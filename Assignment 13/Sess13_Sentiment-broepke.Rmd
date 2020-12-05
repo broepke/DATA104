@@ -8,13 +8,7 @@ output:
 ---
 # Sentiment Analysis
 
-1) Read Ch 2 on sentiment analysis as well as sentiment analysis section of Ch 9 to understand how to approach lexicon-based sentiment analysis using tidytext
-
-2) Using the twitter data from your previous assignment with Biden and Trump tweets , perform sentiment analysis using the afinn lexicon.  The tweets dataset has been attached..
-
-3) Compare sentiment between each candidate with full analysis and visualizations.  Show most positive /negative words between each candidate. You can use bar blots and/or comparison.cloud() to group words by positive/negative sentiment.  See ch 2 of your reading and sample notebook The sample notebook has specific instructions for transformations.
-
-4) Extra Credit: (+ 5) points.  If you do this, add an extra credit section as a header. Perform sentiment analysis using bing lexicon.
+Sentiment analysis of Twitter Data from Joe Biden's and Donal Trump's timelines.
 
 ## Load Libraries and Data
 
@@ -128,7 +122,7 @@ Tweets for the dataset range from `7` characters to `316` with a mean of `172`
 ```{r}
 df_select %>%
   ggplot(aes(x = text_len, fill = screen_name)) +
-  geom_histogram(alpha = .5, color = "darkgray", bins = 33) +
+  geom_histogram(alpha = .5, color = "darkgray", bins = 32) +
   theme_minimal()
 ```
 
@@ -270,7 +264,9 @@ afinn_df %>%
   theme_minimal()
 ```
 
-For the dataset overall, there is a slight left-skew showing there is a greater concentration of words with positive values.  There are very few in the high and low values (-4,-5, 4, 5).
+For the dataset overall, there is a slight left-skew showing there is a greater concentration of words with positive values.  There are very few in the high and low values (`-4`,`-5`, `+5`). 
+
+*Note: `0` is not a valid value in this scoring system, therefore the bin is empty*
 
 ### NRC Sentiment Lexicon
 NRC from Saif Mohammad and Peter Turney. The NRC Emotion Lexicon is a list of English words and their associations with eight basic emotions as well as positive and negative sentiment.
@@ -352,7 +348,7 @@ bing_df %>%
   labs(x = "Contribution to sentiment", y = NULL)
 ```
 
-Looking at the mix of top 30 words and whether they're positive or negative.  Both candidates are about the same.  There is a mix of positive and negative words throughout.   Biden tends to have a little more postive words clustered at the top where Trump is more mixed.
+Looking at the mix of top `30` words and whether they're positive or negative.  Both candidates are about the same.  There is a mix of positive and negative words throughout.   Biden tends to have a little more positive words clustered at the top where Trump is more mixed.
 
 ### Top Words Sorted by AFINN Score
 
@@ -372,7 +368,7 @@ afinn_df %>%
   theme_minimal() +
   labs(x = "AFINN Sentiment Score", y = NULL)
 ```
-Top 30 words, sorted by their AFINN score, a scale of -5 to 5. Biden used slightly more positive words in his top 30. Both seem generally balanced when sorted this way.
+Top 30 words, sorted by their AFINN score, a scale of `-5` to` 5`. Biden used slightly more positive words in his top `30`. Both seem generally balanced when sorted this way.
 
 ### Overall Sentiment per Candidate (AFINN)
 
@@ -392,7 +388,7 @@ afinn_df %>%
 ```
 
 
-The MEAN sentiment score is a mean calculation using the AFINN lexicon.  As a remember this scale can go from -5 to +5.  The calculation takes into account the AFINN sentiment score multiplied by the number of times that work occurs and then calculates the MEAN.  We see that Biden's is approximately +1 while Trumps is just over 0. 
+The MEAN sentiment score is a mean calculation using the AFINN lexicon.  As a remember this scale can go from `-5` to `+5`.  The calculation takes into account the AFINN sentiment score multiplied by the number of times that work occurs and then calculates the MEAN.  We see that Biden's is approximately `+1` while Trumps is just over `0`. 
 
 ### Sentiment of Tweets over Time (AFINN)
 
@@ -434,20 +430,21 @@ nrc_trump <- nrc_df %>%
   group_by(sentiment) %>%
   summarise(mean = sum(avg), .groups = "keep") %>%
   arrange(desc(mean))
-```
 
-```{r}
+# Put them back into a single dataframe for graphics 
 nrc_biden$screen_name <- "JoeBiden"
 nrc_trump$screen_name <- "realDonaldTrump"
 nrc_final <- rbind(nrc_trump, nrc_biden)
 ```
+
 
 ```{r}
 ggplot(nrc_final, aes(x = mean, y = sentiment, fill = screen_name)) + 
   geom_col(position = "dodge") + 
   theme_minimal() +
   labs(
-    x = "Count", y = "NRC Sentiment/Emotion",
+    x = "Mean",
+    y = "NRC Sentiment/Emotion",
     title = "Mean NRC Sentiment",
     subtitle = "Mean Count of Words in Each Category"
   ) +
@@ -457,7 +454,8 @@ ggplot(nrc_final, aes(x = mean, y = sentiment, fill = screen_name)) +
     plot.title = element_text(face = "bold"))
 ```
 
-
+ * **Biden** has a greater mean across: `trust`, `positive`, `joy`, and `anticipation`.
+ * **Trump** has a greater mean across: `surprise`, `sadness`, `negative`, `fear`, `disgust`, and `anger`. 
 
 ### Find most positive and negative individual messages by user (AFINN)
 
@@ -468,7 +466,8 @@ afinn_df %>%
   filter(screen_name == "JoeBiden") %>%
   group_by(doc_id) %>%
   summarize(total_value = sum(value), word_count = n(), .groups = "keep") %>%
-  arrange(desc(total_value))
+  arrange(desc(total_value)) %>%
+  head()
 ```
 
 ```{r}
@@ -484,7 +483,9 @@ afinn_df %>%
   filter(screen_name == "JoeBiden") %>%
   group_by(doc_id) %>%
   summarize(total_value = sum(value), word_count = n(), .groups = "keep") %>%
-  arrange(total_value)
+  arrange(total_value) %>%
+  head()
+
 ```
 
 
@@ -502,7 +503,8 @@ afinn_df %>%
   filter(screen_name == "realDonaldTrump") %>%
   group_by(doc_id) %>%
   summarize(total_value = sum(value), word_count = n(), .groups = "keep") %>%
-  arrange(desc(total_value))
+  arrange(desc(total_value)) %>%
+  head()
 ```
 
 ```{r}
@@ -518,7 +520,8 @@ afinn_df %>%
   filter(screen_name == "realDonaldTrump") %>%
   group_by(doc_id) %>%
   summarize(total_value = sum(value), word_count = n(), .groups = "keep") %>%
-  arrange(total_value)
+  arrange(total_value) %>%
+  head()
 ```
 
 ```{r}
@@ -528,6 +531,7 @@ df %>%
 ```
 
 # Word Clouds
+Visualize the most prominent words overall, and for each candidate.
 
 ## Overall Word Cloud
 
@@ -536,8 +540,6 @@ bing_df %>%
   count(word) %>%
   with(wordcloud(word, n, max.words = 150))
 ```
-
-## Word Clouds for Each Candidate
 
 ### Biden
 
@@ -557,6 +559,8 @@ bing_df %>%
   with(wordcloud(word, n, max.words = 150))
 ```
 
+## By Sentiment
+Word cloud of the top 200 words grouped by sentiment, positive or negative.
 
 ```{r message=FALSE, warning=FALSE}
 bing_df %>%
@@ -580,7 +584,7 @@ bigram_counts <- bigrams %>%
   count(bigram, sort = TRUE) %>%
   separate(bigram, c("word1", "word2"), sep = " ")
 
-bigram_counts
+head(bigram_counts, n=10)
 ```
 
 
@@ -602,10 +606,11 @@ bigram_counts %>%
   geom_col(show.legend = FALSE) +
   facet_wrap(~word1, scales = "free", nrow = 2) +
   scale_y_reordered() +
+  theme_minimal() +
   labs(x = "Sentiment value * # of occurrences",
        y = "Words preceded by a negation")
 ```
 
-Both `not` and `no` have a high proportion of positive sentiment scored wored associated with them.  Further techniques could take these into account such as removing them via the custom stop words or potentially other methods. However, for this exercise, they will remain in the model. 
+Both `not` and `no` have a high proportion of positive sentiment scored words associated with them.  Further techniques could take these into account such as removing them via the custom stop words or potentially other methods. However, for this exercise, they will remain in the model. 
 
 
