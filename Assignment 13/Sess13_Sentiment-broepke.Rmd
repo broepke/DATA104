@@ -385,11 +385,12 @@ afinn_df %>%
   mutate(screen_name = reorder(screen_name, avg)) %>%
   ggplot(aes(avg, screen_name, fill = screen_name, label = avg)) +
   geom_col() +
-  labs(x = "Average sentiment Score", y = NULL) +
+  labs(x = "Mean sentiment Score", y = NULL) +
   theme_minimal() +
   geom_text(position = position_dodge(width = 0.9), vjust = -0.5) +
   coord_flip()
 ```
+
 
 The MEAN sentiment score is a mean calculation using the AFINN lexicon.  As a remember this scale can go from -5 to +5.  The calculation takes into account the AFINN sentiment score multiplied by the number of times that work occurs and then calculates the MEAN.  We see that Biden's is approximately +1 while Trumps is just over 0. 
 
@@ -407,11 +408,56 @@ plot_df2$color <- ifelse(plot_df2$value < 0, "negative","positive")
 ggplot(plot_df2, aes(mon, value, fill = color)) +
   geom_col(show.legend = FALSE) +
   facet_wrap(~screen_name, ncol = 1, scales = "free_x") +
-  labs(x = NULL, y = "Frequency of Sentiment") +
+  labs(x = NULL, y = "Mean AFINN Sentiment Score") +
   theme_minimal()
 ```
 
-Since August, showing the frequency of sentiment for each candidate.  Using the mean sentiment score we can see how each candidate tweeted on a daily basis.  Trumps earlier timeline tended to be more negative, while both candidates were more postive starting mid September. 
+Since August, showing the frequency of sentiment for each candidate.  Using the mean sentiment score we can see how each candidate tweeted on a daily basis.  Trumps earlier timeline tended to be more negative, while both candidates were more positive starting mid September. 
+
+### Top Emotions Per Candidate
+
+```{r}
+nrc_biden <- nrc_df %>%
+  filter(screen_name == "JoeBiden") %>%
+  mutate(sum = n()) %>%
+  group_by(sentiment, word, sum) %>%
+  summarise(avg = mean(n() / sum), .groups = "keep") %>%
+  group_by(sentiment) %>%
+  summarise(mean = sum(avg), .groups = "keep") %>%
+  arrange(desc(mean))
+
+nrc_trump <- nrc_df %>%
+  filter(screen_name == "realDonaldTrump") %>%
+  mutate(sum = n()) %>%
+  group_by(sentiment, word, sum) %>%
+  summarise(avg = mean(n() / sum), .groups = "keep") %>%
+  group_by(sentiment) %>%
+  summarise(mean = sum(avg), .groups = "keep") %>%
+  arrange(desc(mean))
+```
+
+```{r}
+nrc_biden$screen_name <- "JoeBiden"
+nrc_trump$screen_name <- "realDonaldTrump"
+nrc_final <- rbind(nrc_trump, nrc_biden)
+```
+
+```{r}
+ggplot(nrc_final, aes(x = mean, y = sentiment, fill = screen_name)) + 
+  geom_col(position = "dodge") + 
+  theme_minimal() +
+  labs(
+    x = "Count", y = "NRC Sentiment/Emotion",
+    title = "Mean NRC Sentiment",
+    subtitle = "Mean Count of Words in Each Category"
+  ) +
+  theme(
+    legend.title = element_blank(),
+    legend.position = "right",
+    plot.title = element_text(face = "bold"))
+```
+
+
 
 ### Find most positive and negative individual messages by user (AFINN)
 
@@ -427,7 +473,8 @@ afinn_df %>%
 
 ```{r}
 df %>%
-  filter(doc_id == "doc2737" | doc_id == "doc2894")
+  filter(doc_id == "doc2737" | doc_id == "doc2894") %>%
+  select(text)
 ```
 
 #### Most Negative Biden Messages
@@ -540,28 +587,25 @@ bigram_counts
 ```{r}
 negate_words <- c("not", "without", "no", "can't", "don't", "won't")
 
+
 bigram_counts %>%
   filter(word1 %in% negate_words) %>%
   count(word1, word2, wt = n, sort = TRUE) %>%
   inner_join(get_sentiments("afinn"), by = c(word2 = "word")) %>%
   mutate(contribution = value * n) %>%
   group_by(word1) %>%
-  slice_max(abs(contribution), n = 8) %>%
+  slice_max(abs(contribution), n = 10) %>%
   ungroup() %>%
   mutate(word2 = reorder_within(word2, contribution, word1)) %>%
+
   ggplot(aes(contribution, word2, fill = contribution > 0)) +
   geom_col(show.legend = FALSE) +
-  facet_wrap(~ word1, scales = "free", nrow = 3) +
+  facet_wrap(~word1, scales = "free", nrow = 2) +
   scale_y_reordered() +
   labs(x = "Sentiment value * # of occurrences",
        y = "Words preceded by a negation")
 ```
 
-
-```{r}
-df_select %>%
-  select(screen_name, text_len) %>%
-  summary()
-```
+Both `not` and `no` have a high proportion of positive sentiment scored wored associated with them.  Further techniques could take these into account such as removing them via the custom stop words or potentially other methods. However, for this exercise, they will remain in the model. 
 
 
