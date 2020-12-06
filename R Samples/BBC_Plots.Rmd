@@ -9,6 +9,10 @@ https://medium.com/bbc-visual-and-data-journalism/how-the-bbc-visual-and-data-jo
 
 https://bbc.github.io/rcookbook/
 
+```{r}
+# install.packages('devtools')
+devtools::install_github('bbc/bbplot')
+```
 
 
 ```{r}
@@ -20,6 +24,9 @@ pacman::p_load('dplyr', 'tidyr', 'gapminder',
                'grid', 'ggpubr', 'scales',
                'bbplot')
 ```
+
+
+
 
 ```{r}
 #Data for chart from gapminder package
