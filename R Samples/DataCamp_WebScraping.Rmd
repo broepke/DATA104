@@ -83,15 +83,7 @@ link_df <- tibble(
 link_df
 ```
 
-```{r}
-mountains_html <- ""
-# Extract the "dirty" table into a data frame
-mountains <- mountains_html %>% 
-  html_node("table#dirty") %>% 
-  html_table(header = TRUE, fill = TRUE)
 
-mountains
-```
 
 # Intro to CSS
 
@@ -278,5 +270,107 @@ weather_html %>%
 # Select all divs with p descendants having the "third" class
 weather_html %>% 
   html_nodes(xpath = '//div[p[@class = "third"]]')
+```
+
+# Advanced XPATH with Predicates
+
+```{r}
+rules_html <- read_html("<div>
+  <h2>Today's rules</h2>
+  <p>Wear a mask</p>
+  <p>Wash your hands</p>
+</div>
+<div>
+  <h2>Tomorrow's rules</h2>
+  <p>Wear a mask</p>
+  <p>Wash your hands</p>
+  <p>Bring hand sanitizer with you</p>
+</div>")
+
+# Select the text of the second p in every div
+rules_html %>% 
+  html_nodes(xpath = "//div/p[position() = 2]") %>%
+  html_text
+
+# Select every p except the second from every div
+rules_html %>% 
+  html_nodes(xpath = "//div/p[position() != 2]") %>%
+  html_text
+
+# Select the text of the last three nodes of the second div
+rules_html %>% 
+  html_nodes(xpath = '//div[position() = 2]/*[position() >= 2]') %>%
+  html_text()
+```
+
+```{r}
+forecast_html <- read_html("<div>
+  <h1>Tomorrow</h1>
+</div>
+<div>
+  <h2>Berlin</h2>
+  <p>Temperature: 20°C</p>
+  <p>Humidity: 50%</p>
+</div>
+<div>
+  <h2>London</h2>
+  <p>Temperature: 15°C</p>
+</div>
+<div>
+  <h2>Zurich</h2>
+  <p>Temperature: 22°C</p>
+  <p>Humidity: 60%</p>
+</div>")
+
+# Select only divs with one header and at least one paragraph
+forecast_html %>%
+	html_nodes(xpath = '//div[count(h2) = 1 and count(p) > 1]')
+```
+
+```{r}
+roles_html <- read_html('<table>
+ <tr>
+  <th>Actor</th>
+  <th>Role</th>
+ </tr>
+ <tr>
+  <td class = "actor">Jayden Carpenter</td>
+  <td class = "role"><em>Mickey Mouse</em> (Voice)</td>
+ </tr>
+ ...
+</table>')
+
+# Extract the data frame from the table using a known function from rvest
+roles <- roles_html %>% 
+  html_node(xpath = "//table") %>% 
+  html_table()
+# Print the contents of the role data frame
+print(roles)
+
+# Extract the actors in the cells having class "actor"
+actors <- roles_html %>% 
+  html_nodes(xpath = '//table//td[@class = "actor"]') %>%
+  html_text()
+actors
+
+# Extract the roles in the cells having class "role"
+roles <- roles_html %>% 
+  html_nodes(xpath = '//table//td[@class = "role"]/em') %>% 
+  html_text()
+roles
+
+# Extract the functions using the appropriate XPATH function
+functions <- roles_html %>% 
+  html_nodes(xpath = '//table//td[@class = "role"]/text()') %>%
+  html_text(trim = TRUE)
+functions
+
+# Create a new data frame from the extracted vectors
+cast <- tibble(
+  Actor = actors, 
+  Role = roles, 
+  Function = functions)
+
+cast
 ```
 
