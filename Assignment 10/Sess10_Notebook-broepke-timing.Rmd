@@ -1,0 +1,91 @@
+---
+title: "Assignment 10: Text Analysis in R"
+author: "Brian Roepke"
+date: "Nov 15, 2020"
+output:
+  html_document:
+    df_print: tibble
+---
+
+```{r message=FALSE, warning=FALSE}
+# Text mining libs
+library(SnowballC)
+library(tidytext)
+library(spacyr)
+library(tm)
+library(textstem)
+
+# plotting and pipes - tidyverse
+library(ggplot2)
+library(dplyr, warn.conflicts = FALSE)
+library(tidyverse)
+
+# date/time libaray
+library(lubridate, warn.conflicts = FALSE)
+```
+
+```{r}
+# Read in the Data from a CSV file.
+df <- read.csv('news_headlines.csv', colClasses=c("headline"="character"))
+```
+
+```{r}
+# Perform column cleanup as needed
+df$publish_date <- as.Date(df$publish_date, "%d/%m/%y")
+```
+
+
+```{r}
+df <- df[!duplicated(df$headline), ]
+```
+
+## Adjust How Large of a Sample Size is Desired
+
+```{r}
+# df <- df[sample(nrow(df), 500000), ]
+```
+
+```{r}
+length(df$headline)
+```
+
+
+# Text Analysis
+Start by building a document corpus
+
+```{r}
+# build a document corpus
+headline_corpus <- Corpus(VectorSource(df$headline))
+headline_corpus
+```
+
+
+## Preprocessing
+Using the `tm` package, perform transformations on the corpora to clean the text. There are generalized text cleaning activities such as normalization and stop word removal.
+
+```{r}
+# standard cleansing
+headline_corpus <- tm_map(headline_corpus, tolower)            # normalize case
+headline_corpus <- tm_map(headline_corpus, removePunctuation)  # remove punctuation
+headline_corpus <- tm_map(headline_corpus, removeNumbers)      # remove numbers
+headline_corpus <- tm_map(headline_corpus, stripWhitespace)    # remove white space
+headline_corpus <- tm_map(headline_corpus, removeWords, stopwords("english")) # remove stopwords
+```
+
+## Stemming Timing
+
+```{r}
+ptm1 <- proc.time()
+# stem words using SnowBall stemmer
+stemmed_corpus <- tm_map(headline_corpus, stemDocument)
+proc.time() - ptm1
+```
+
+### Lemmatization Timing
+
+```{r}
+ptm2 <- proc.time()
+# Lemmatize the Corpus
+lemma_corpus <- tm_map(headline_corpus, lemmatize_strings)
+proc.time() - ptm2
+```

@@ -1,0 +1,282 @@
+---
+title: "Data Camp WebScraping"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(rvest)
+library(tidyverse)
+```
+
+# Intro to HTML
+
+```{r}
+html_excerpt_raw <- '
+<html> 
+  <body> 
+    <h1>Web scraping is cool</h1>
+    <p>It involves writing code – be it R or Python.</p>
+    <p><a href="https://datacamp.com">DataCamp</a> 
+		has courses on it.</p>
+  </body> 
+</html>'
+# Turn the raw excerpt into an HTML document R understands
+html_excerpt <- read_html(html_excerpt_raw)
+html_excerpt
+# Print the HTML excerpt with the xml_structure() function
+xml_structure(html_excerpt)
+```
+
+
+
+```{r}
+list_html_raw <- "\n<html>\n
+<body>\n
+<ol>\n
+<li>Learn HTML</li>\n
+<li>Learn CSS</li>\n
+<li>Learn R</li>\n
+<li>Scrape everything!*</li>\n
+</ol>\n
+<small>*Do it responsibly!</small>\n
+</body>\n
+</html>"
+
+# Read in the corresponding HTML string
+list_html <- read_html(list_html_raw)
+# Extract the ol node
+ol_node <- list_html %>% html_node('ol')
+# Extract and print the nodeset of all the children of ol_node
+html_children(ol_node)
+```
+
+
+```{r}
+hyperlink_html <-  "
+\n<html>\n  
+<body>\n    
+<h3>Helpful links</h3>\n    
+<ul>\n      
+<li><a href=\"https://wikipedia.org\">Wikipedia</a></li>\n
+<li><a href=\"https://dictionary.com\">Dictionary</a></li>\n 
+<li><a href=\"https://duckduckgo.com\">Search Engine</a></li>\n
+</ul>\n    
+<small>\n 
+Compiled with help from <a href=\"https://google.com\">Google</a>.\n
+</small>\n  
+</body>\n
+</html>"
+
+# Extract all the a nodes from the bulleted list
+links <- hyperlink_html %>% 
+  read_html() %>%
+  html_nodes('li a')
+
+# Parse the nodes into a data frame
+link_df <- tibble(
+  domain = links %>% html_attr('href'),
+  name = links %>% html_text()
+)
+
+link_df
+```
+
+```{r}
+mountains_html <- ""
+# Extract the "dirty" table into a data frame
+mountains <- mountains_html %>% 
+  html_node("table#dirty") %>% 
+  html_table(header = TRUE, fill = TRUE)
+
+mountains
+```
+
+# Intro to CSS
+
+```{r}
+languages_raw_html <- "\n<html> \n  <body> \n    <div>Python is perfect for programming.</div>\n    <p>Still, R might be better suited for data analysis.</p>\n    <small>(And has prettier charts, too.)</small>\n  </body> \n</html>"
+# Read in the HTML
+languages_html <- read_html(languages_raw_html)
+# Select the div and p tags and print their text
+languages_html %>%
+	html_nodes('div, p') %>%
+	html_text()
+```
+
+```{r}
+structured_raw_html <- "<html>
+  <body>
+    <div id = 'first'>
+      <h1 class = 'big'>Joe Biden</h1>
+      <p class = 'first blue'>Democrat</p>
+      <p class = 'second blue'>Male</p>
+    </div>
+    <div id = 'second'>...</div>
+    <div id = 'third'>
+      <h1 class = 'big'>Donald Trump</h1>
+      <p class = 'first red'>Republican</p>
+      <p class = 'second red'>Male</p>
+    </div>
+  </body>
+</html>"
+structured_html <- read_html(structured_raw_html)
+structured_html %>%
+  html_nodes('#first')
+```
+
+```{r}
+nested_html <- read_html("<html>
+  <body>
+    <div>
+      <p class = 'text'>A sophisticated text [...]</p>
+      <p class = 'text'>Another paragraph following [...]</p>
+      <p class = 'text'>Author: T.G.</p>
+    </div>
+    <p>Copyright: DC</p>
+  </body>
+</html>")
+
+nested_html  %>% 
+	html_nodes('p.text:last-child')
+```
+
+
+```{r}
+languages_html <- read_html("  <ul id = 'languages'>
+    <li>SQL</li>
+    <ul>    
+      <li>Databases</li>
+      <li>Query Language</li>
+    </ul>
+    <li>R</li>
+    <ul>
+      <li>Collection</li>
+      <li>Analysis</li>
+      <li>Visualization</li>
+    </ul>
+    <li>Python</li>
+  </ul>")
+
+# Extract only the text of the computer languages (without the sub lists)
+languages_html %>% 
+	html_nodes('ul#languages > li') %>% 
+	html_text
+```
+
+
+```{r}
+complicated_html <- read_html('<html>
+  <body>
+    <div class="first section">
+      A text with a <a href="#">link</a>.
+    </div>
+    <div class="second section">
+      Some text with <a href="#">another link</a>.
+      <div class="first paragraph">Some text.</div>
+      <div class="second paragraph">Some more text.
+      <div>...</div>
+    </div>
+  </div>
+</body>
+</html>')
+
+# Select the three divs with a simple selector
+complicated_html %>%
+	html_nodes('div div')
+```
+
+
+```{r}
+code_html <- read_html("<html> 
+<body> 
+  <h2 class = 'first'>First example:</h2>
+  <code>some = code(2)</code>
+  <span>will compile to...</span>
+  <code>some = more_code()</code>
+  <h2 class = 'second'>Second example:</h2>
+  <code>another = code(3)</code>
+  <span>will compile to...</span>
+  <code>another = more_code()</code>
+</body> 
+</html>")
+
+# Select the first code elements in the second example
+code_html %>% 
+	html_nodes('h2.second + code')
+
+# Select all code elements in the second example
+code_html %>% 
+	html_nodes('h2.second ~ code')
+  
+```
+
+
+# Intro to XPATH
+
+```{r}
+weather_html <- read_html("<html>
+  <body>
+    <div id = 'first'>
+      <h1 class = 'big'>Berlin Weather Station</h1>
+      <p class = 'first'>Temperature: 20°C</p>
+      <p class = 'second'>Humidity: 45%</p>
+    </div>
+    <div id = 'second'>...</div>
+    <div id = 'third'>
+      <p class = 'first'>Sunshine: 5hrs</p>
+      <p class = 'second'>Precipitation: 0mm</p>
+    </div>
+  </body>
+</html>")
+
+print("Select all p elements")
+weather_html %>%
+	html_nodes(xpath = '//p')
+
+
+print("Select p elements with the second class")
+weather_html %>%
+	html_nodes(xpath = '//p[@class = "second"]')
+
+print("Select p elements that are children of #third")
+weather_html %>%
+	html_nodes(xpath = "//div[@id = 'third']/p")
+
+print("Select p elements with class second that are children of #third")
+weather_html %>%
+	html_nodes(xpath = "//div[@id = 'third']/p[@class = 'second']")
+```
+
+
+```{r}
+weather_html <- read_html("<html>
+  <body>
+    <div id = 'first'>
+      <h1 class = 'big'>Berlin Weather Station</h1>
+      <p class = 'first'>Temperature: 20°C</p>
+      <p class = 'second'>Humidity: 45%</p>
+    </div>
+    <div id = 'second'>...</div>
+    <div id = 'third'>
+      <p class = 'first'>Sunshine: 5hrs</p>
+      <p class = 'second'>Precipitation: 0mm</p>
+      <p class = 'third'>Snowfall: 0mm</p>
+    </div>
+  </body>
+</html>")
+
+# Select all divs
+weather_html %>% 
+  html_nodes(xpath = '//div')
+
+# Select all divs with p descendants
+weather_html %>% 
+  html_nodes(xpath = '//div[p]')
+
+# Select all divs with p descendants having the "third" class
+weather_html %>% 
+  html_nodes(xpath = '//div[p[@class = "third"]]')
+```
+

@@ -195,7 +195,8 @@ ga %>%
   filter(transactions > 0) %>%
   ggplot(aes(x = totalTransactionRevenue)) + 
   geom_density(color = "red",fill = "salmon", alpha=0.5) + 
-  theme_minimal() +
+  theme_minimal() + 
+  scale_x_continuous(trans='log10') +
   labs(x = "Revenue",
        y = "Count",
        title = "Transaction Revenue")
@@ -211,12 +212,28 @@ ga %>%
   ggplot(aes(x = pageviews, y = totalTransactionRevenue)) + 
   geom_point(alpha = 0.2) + 
   theme_minimal() +
+  geom_smooth(method = "lm", se = TRUE, formula = y ~ x) + 
   labs(x = "Pageviews",
-       y = "Revenue",
+       y = "Revenue (Log 10 Scale)",
        title = "Correlation of Pageviews vs. Revenue")
 ```
 
-Two outlier transactions stick out in terms of revenue.  Without removing them, the scatter plot is hard to interpret.  First, let's look at what those transactions are, and second, we can pair down the data a little bit. 
+Two outlier transactions stick out in terms of revenue.  Without removing them, the scatter plot is hard to interpret.  First, let's look at what those transactions are, and second, we can pair down the data a little bit. Tranforming the revenue to a log scal will help with this:
+
+
+```{r}
+ga %>%
+  distinct() %>%
+  filter(transactions > 0) %>%
+  ggplot(aes(x = pageviews, y = totalTransactionRevenue)) + 
+  geom_point(alpha = 0.2) + 
+  theme_minimal() +
+  scale_y_continuous(trans='log10') +
+  geom_smooth(method = "lm", se = TRUE, formula = y ~ x) + 
+  labs(x = "Pageviews",
+       y = "Revenue (Log 10 Scale)",
+       title = "Correlation of Pageviews vs. Revenue")
+```
 
 
 ```{r}
@@ -244,22 +261,6 @@ ga %>%
 
 ```
 This user (`9417857471295131045`) had `9` transactions over the month. and a total of `41,810.85`.
-
-
-```{r}
-ga %>%
-  distinct() %>%
-  filter(transactions > 0 & totalTransactionRevenue < 2000) %>%
-  ggplot(aes(x = pageviews, y = totalTransactionRevenue)) + 
-  geom_point(alpha = 0.5) + 
-  geom_smooth(method = "lm", se = TRUE, formula = y ~ x) + 
-  theme_minimal() +
-  labs(x = "Pageviews",
-       y = "Revenue",
-       title = "Correlation of Pageviews vs. Revenue")
-```
-
-Filtering out those larger transactions, we can see a slightly positive correlation of the independent variable `Revenue` to the dependent variable, `Pageviews.`
 
 ## What days of the month produced the most revenue?
 
@@ -466,10 +467,45 @@ Using a multiple regression model to predict the independent continuous variable
 ga_lm <- ga %>%
   distinct()
 
-fit <- lm(formula = totalTransactionRevenue ~ pageviews + session + region, data = ga_lm)
+fit1 <- lm(formula = log1p(totalTransactionRevenue) ~ pageviews, data = ga_lm)
 
-summary(fit)
+summary(fit1)
 ```
 
 Using a continuous variable `Pageviews,` along with categorical variables, `Sessions,` and `Region,` we have three significant values in our model with an `R^2`  of `0.1172`, telling us that `these three variables describe 11.7%` of the variance in Total Transaction Revenue. This was the strongest predictor found within the supplied data. 
+
+```{r}
+ga_lm <- ga %>%
+  distinct()
+
+fit2 <- lm(formula = log1p(totalTransactionRevenue) ~ 
+            pageviews + session, 
+          data = ga_lm)
+
+summary(fit2)
+```
+
+```{r}
+ga_lm <- ga %>%
+  distinct()
+
+fit3 <- lm(formula = log1p(totalTransactionRevenue) ~ 
+            pageviews + session + deviceCategory, 
+          data = ga_lm)
+
+summary(fit3)
+```
+
+## Anova Test for Fitness
+
+anova model comparison https://bookdown.org/ndphillips/YaRrr/comparing-regression-models-with-anova.html
+
+R2 vs Adjusted R2 : https://www.statisticshowto.com/adjusted-r2/
+
+```{r}
+anova(fit1, fit2)
+anova(fit2, fit3)
+anova(fit1, fit3)
+```
+
 

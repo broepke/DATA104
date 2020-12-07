@@ -1,0 +1,559 @@
+---
+title: "Assignment 12"
+author: "Brian Roepke"
+date: "Nov 29, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+
+# NER and Topic Modeling
+
+```{r message=FALSE, warning=FALSE}
+# Basic libraries
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+
+# Text Mining and NLP Libraries
+library(spacyr)
+library(tm)
+library(tidytext)
+library(SnowballC)
+library(stringr)
+library(topicmodels)
+library(textstem)
+
+# date/time library
+library(lubridate)
+```
+
+
+```{r}
+spacy_initialize(model = "en_core_web_sm", condaenv="DATA104")
+```
+
+## Data Loading
+
+```{r}
+df <- read.csv("news_groups.csv")
+```
+
+## Transformations
+
+ * Add text_len to capture the length of each document (eg: text field)
+ * Add doc_id with values 'doc_id'<row id>. Example: row 1, 2 should have doc_id = doc1 , doc2, doc3 ....  docN.
+
+
+```{r}
+# convert dataframe to tibble
+tidy_df <- as_tibble(df$content)
+
+# the text is itself a dataframe? modify the text column to pull out the text value
+tidy_df <- tidy_df %>%
+  mutate(text =  tidy_df$value)  %>%
+  select(-value)
+```
+
+
+```{r}
+tidy_df = tidy_df %>%
+  mutate(text_len = str_count(text))
+```
+
+
+```{r}
+# convert to TIF standard required by spacy
+tidy_df = tidy_df %>%
+  mutate(doc_id = paste0("doc", row_number())) %>%
+  select(doc_id, everything())
+head(tidy_df)
+```
+
+## Summary Stats and Structure
+
+Output summary statics and discuss the shape of the dataset along with the text_len statistics and outliers.
+
+```{r}
+str(tidy_df)
+```
+
+```{r}
+tidy_df %>%
+  select(text, text_len) %>%
+  summary()
+```
+
+ * **text**: Length represents the number of observations, `1,794` in this dataset. 
+ * **text_len**: The character count of the entries for each observation.  A min of 171 with a max of 36,272.  Using the 3rd Quartile, most of the values in this fall under 2,000 characters.
+
+```{r}
+head(tidy_df)
+```
+
+## Outliers Analysis and Removal
+
+visualization: show histogram and boxplot to better visualize outliers.  
+
+Create an outliers data frame. Refer to: https://www.statsandr.com/blog/outliers-detection-in-r/#histogram
+Decide which outliers (if any) should be removed from your analysis, by inspecting some of the contents.  You can use the c() function to display the entire contents of the text.
+
+```{r}
+summary(tidy_df$text_len)
+```
+
+### Text Length Distribution
+Log 10 adjusted scale
+
+```{r}
+ggplot(tidy_df) +
+  aes(x = text_len) +
+  geom_histogram(bins = 30L, fill = "lightblue", color = "lightblue4") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold")) +
+  labs(
+    x = "Text Length", y = "Count",
+    title = "Distribution of Text Length",
+    subtitle = "Without any Modifications to the Datset"
+  )
+```
+
+The data is highly right-skewed, with most of the values around the median of `1,201` or so words.  We can see that the long tail towards the larger values with a max of `36,272`.
+
+### Text Length Box Plot
+
+```{r}
+ggplot(tidy_df) +
+  aes(x = "", y = text_len) +
+  geom_boxplot(fill = "lightblue") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold")) +
+  labs(
+    x = NULL, y = "Text Length",
+    title = "Distribution of Text Length",
+    subtitle = "Without any Modifications to the Datset"
+  )
+```
+
+The box plot shows us a similar view, with a number of outliers beyond the inner-quartile. and a high concentraion around `~1,500`.  
+
+#### Determine Outliers
+We can determine which rows represent outliers and remove those from our dataset. 
+
+```{r}
+out <- boxplot.stats(tidy_df$text_len)$out
+out_ind <- which(tidy_df$text_len %in% c(out))
+out_ind
+```
+
+### Remove all outliers 
+
+```{r}
+sprintf("Original Rows = %s", nrow(tidy_df))
+sprintf("Number of Outliers = %s", length(out_ind))
+tidy_df <- tidy_df[-out_ind, ]
+sprintf("New Number of Rows = %s", nrow(tidy_df))
+```
+
+After removing the outliers from the dataset, we're left with 1,662 total observations.  We can examine the summary stats and box plot again.
+
+```{r}
+summary(tidy_df$text_len)
+```
+
+```{r}
+ggplot(tidy_df) +
+  aes(x = text_len) +
+  geom_histogram(bins = 30L, fill = "lightblue", color="lightblue4") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold")) +
+  labs(
+    x = "Text Length", y = "Count",
+    title = "Distribution of Text Length",
+    subtitle = "After Outliers Removed"
+  )
+```
+
+After removing outliers, the shape of the histogram is still right-skewed, but not as dramatic as before.
+
+```{r}
+ggplot(tidy_df) +
+  aes(x = "", y = text_len) +
+  geom_boxplot(fill = "lightblue") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold")) +
+  labs(
+    x = NULL, y = "Text Length",
+    title = "Box Plot of Text Length",
+    subtitle = "After Outliers Removed"
+  )
+```
+
+The boxplot also shows a much less compressed view of the inner-quartile range of data.  There are still some outliers plotted but extreme values have been removed. 
+
+# NER
+
+Conduct Named entity recognition.  Do not perform pre-processing prior. Algorithms and tools such as spaCy often rely on semantic language structures in order to identify entities (eg: punctuation, capitalization for pronouns, etc.) Generally NER requires tokenization and pos tagging, however the spacyR library automatically performs this for you.
+
+## Sample the Data to a Smaller Subset.
+Using a random see (1234), to provide consistent results between runs.
+
+```{r}
+# sample smaller set of docs
+set.seed(1234)
+sample_df = tidy_df %>%
+  sample_n(1000) 
+```
+
+## Add Named Entity Types
+Using the spacyR library.
+
+```{r}
+# parse name-entities
+parsedtxt <- spacy_parse(sample_df, type = "all")
+
+ner = entity_extract(parsedtxt)  %>%
+  arrange(entity_type)
+```
+
+### Part of Speech Tagging Counts
+
+Display the different parts of speech identified as well as the counts of each.
+
+```{r}
+# Parts of Speech Tagging Counts
+parsedtxt %>%
+  group_by(pos) %>%
+  summarise(count = n(), .groups = "keep") %>%
+  arrange(desc(count))
+```
+
+### Entity Type Counts
+
+Display the counts of each of the Entity Types extracted from the corpus.
+
+```{r}
+ner %>%
+  group_by(entity_type) %>%
+  summarise(count = n(), .groups = "keep") %>%
+  arrange(desc(count))
+```
+
+### Entity Types
+
+The following 11 types of Entities were extracted, the following are their definitions as well as examples of each.
+
+https://spacy.io/api/annotation
+
+ * Entities of type PERSON which are People, including fictional.
+ * Entities of type NORP which are Nationalities or religious or political groups.
+ * Entities of type ORG which are Companies, agencies, institutions, etc.
+ * Entities of type GPE which are geo-political entities such as city, state/province, and country
+ * Entities of type PRODUCT which are products
+ * Entities of type WORK OF ART which are Titles of books, songs, etc.
+ * Entities of type LOC which are Non-GPE locations, mountain ranges, bodies of water.
+ * Entities of type FAC which are Buildings, airports, highways, bridges, etc.
+ * Entities of type EVENT which are Named hurricanes, battles, wars, sports events, etc.
+ * Entities of type LAW which are Named documents made into laws.
+ * Entities of type LANGUAGE which are Any named language.
+ 
+
+```{r}
+entities<- c("PERSON", "NORP", "ORG", "GPE", "PRODUCT", "WORK",
+             "LOC", "FAC", "EVENT", "LAW", "LANGUAGE")
+
+for (e in entities){
+  ner %>%
+    mutate(type=e) %>%
+    filter(entity_type == e) %>%
+    group_by(entity, type) %>%
+    summarize(count = n(), .groups = "keep") %>%
+    arrange(desc(count)) %>%
+    print()
+  
+}
+```
+
+# Topic Modeling
+
+Topic Modeling performed using LDA.
+
+ * Text pre-processing
+ * Case normalization (lower-case)
+ * Remove emails, stop words, punctuation, numbers, new lines, single quotes
+ * Lemmatization
+ * Include visualizations of topics and word groupings
+ * Assess the model. 
+
+Do the topics and words make sense given visual inspection? 
+
+## Preprocessing
+
+```{r}
+corpus <- Corpus(VectorSource(sample_df$text))
+```
+
+### Before cleaning
+
+```{r}
+inspect(corpus[1:5])
+```
+
+### Remove E-mails
+
+```{r}
+corpus <- tm_map(
+  corpus,
+  content_transformer(
+    function(x) str_replace_all(x,"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+", "")
+    )
+)
+```
+
+### Remove URLs
+
+```{r}
+corpus <- tm_map(
+  corpus,
+  content_transformer(
+    function(x) gsub("http[[:alnum:][:punct:]]*", "", x)
+    )
+)
+```
+
+### Remove New Line and Tab Escape Sequences
+
+```{r}
+# remove new lines and tabs
+corpus <- tm_map(
+  corpus,
+  content_transformer(
+    function(x) gsub("\\n", " ", x)
+    )
+)
+
+corpus <- tm_map(
+  corpus,
+  content_transformer(
+    function(x) gsub("\\t", " ", x)
+    )
+)
+```
+
+### Transform all Text to Lowercase 
+
+```{r}
+# force all to lowercase
+corpus <- tm_map(corpus, tolower)
+```
+
+### Remove Common Header Information from the Discussion Posts 
+
+```{r}
+# get rid of the useless newsgroup stuff
+corpus <- tm_map(
+  corpus,
+  content_transformer(
+    function(x) gsub("from:", " ", x)
+    )
+)
+
+corpus <- tm_map(
+  corpus,
+  content_transformer(
+    function(x) gsub("subject:", " ", x)
+    )
+)
+
+corpus <- tm_map(
+  corpus,
+  content_transformer(
+    function(x) gsub("re:", " ", x)
+    )
+)
+```
+
+### Remove Punctuation, White Space and Numbers
+
+```{r}
+corpus <- tm_map(corpus, removePunctuation)  # remove punctuation
+corpus <- tm_map(corpus, removeNumbers)      # remove numbers
+corpus <- tm_map(corpus, stripWhitespace)    # remove white space
+```
+
+### Remove Stop Words
+
+```{r}
+# stop and custom stop 
+corpus <- tm_map(corpus, removeWords, c(stopwords('english')))
+```
+
+### Perform Lemmatization
+
+```{r}
+corpus <- tm_map(corpus, lemmatize_strings) # lemmatizaton
+```
+
+### Remove Words that Aren't Helpful for Topic Modeling
+
+Custom list of words generated upon performing the topic modeling.  These were frequently appeared but do not add a lot of context to topic identification, or appear so frequently, such as `University`, that they are in every topic. 
+
+```{r}
+corpus <- tm_map(corpus, removeWords, c("line", "write", 
+                                        "article", "get", "good", "one", 
+                                        "year", "nntppostinghost", "can", 
+                                        "say", "will", "know", "may", 
+                                        "like", "see", "time", "just", 
+                                        "make", "think", "thing", "way", 
+                                        "come", "much", "want", "take",
+                                        "ive", "day", "first", "xnewsreader",
+                                        "university", "also", "people", "use",
+                                        "organization", "dod", "distribution"))
+```
+
+### Corpus After Cleaning
+
+```{r}
+inspect(corpus[1:5])
+```
+
+### Document Term Matrix Creation
+
+```{r}
+dtm <- DocumentTermMatrix(corpus, control = list(minWordLength = 5, 
+                removeNumbers=FALSE, removePunctuation=FALSE, 
+                removeStopwords=FALSE,  stemWords=FALSE, stripWhitespace=FALSE))
+```
+
+
+```{r}
+inspect(dtm)
+```
+
+```{r}
+# check for rows with all 0's
+zero_row <- sample_df[rowSums(as.matrix(dtm)) == 0, ] 
+dim(zero_row)
+```
+
+```{r}
+sel_idx <- rowSums(as.matrix(dtm)) > 0
+dtm <- dtm[sel_idx, ]
+dim(dtm)
+```
+
+## Latent Dirichlet Allocation (LDA)
+Is an unsupervised classification method designed for text data. Rather than relying on labeled (eg: hand-coded data sets), it is a probabilistic topic model that uses statistical algorithms to analyze words in raw text documents, to uncover thematic structure of the both the corpus and individual documents.
+
+### Find the best k - the Elbow Method
+The basic idea behind partitioning methods, such as k-means clustering, is to define clusters such that the total intra-cluster variation [or total within-cluster sum of square (WSS)] is minimized. The total WSS measures the compactness of the clustering and we want it to be as small as possible.
+
+The Elbow method looks at the total WSS as a function of the number of clusters: One should choose a number of clusters so that adding another cluster doesn’t improve much better the total WSS.
+
+https://www.datanovia.com/en/lessons/determining-the-optimal-number-of-clusters-3-must-know-methods/ 
+
+```{r}
+mat <- as.matrix (weightTfIdf(dtm) )
+
+# normalize the TfIdf scores by euclidean distance. 
+scaled_data  <- dist(mat, method = "euclidean")
+
+k.max <- 20
+data <- scaled_data
+wss <- sapply(1:k.max, 
+  function(k){kmeans(data, k, nstart=50,iter.max = 15)$tot.withinss})
+
+plot(1:k.max, wss,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+```
+
+Looking at the plot it looks like either **3** or **5 clusters** is our optimal value. We can plot both to see which one give us the best results. 
+
+## LDA
+
+```{r}
+lda <- LDA(dtm, k = 5, control = list(seed = 1234))
+lda
+```
+
+### Per-Topic-Per-Word Probabilities (Beta)
+
+```{r}
+# beta (per-term-per-topic) 
+topics <- tidy(lda, matrix = "beta")
+topics %>%
+  arrange(term, -beta)  %>%
+  head()
+```
+
+### Per-Document-Per-Topic Probabilities (Gamma)
+
+```{r}
+tidy(lda, matrix = "gamma")  %>%
+  arrange(document, -gamma)  %>%
+  head()
+```
+
+### Show the 10 terms that are most common within each topic.
+
+```{r fig.height=12, fig.width=12}
+top_terms <- topics %>%
+  group_by(topic) %>%
+  top_n(15, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ topic, scales = "free", ncol=2) +
+    theme_classic(base_size = 20) + 
+    scale_y_reordered() 
+```
+
+Starting with the slightly higher number of **5**, it does appear that there is heavy overlap with a couple of the topics.  We can re-run this with the other setting from the elbow plot, **3**.
+
+### High Level Groupings
+
+
+```{r}
+lda2 <- LDA(dtm, k = 3, control = list(seed = 1234))
+lda2
+```
+
+
+```{r}
+# beta (per-term-per-topic) 
+topics2 <- tidy(lda2, matrix = "beta")
+topics2 %>%
+  arrange(term, -beta)  %>%
+  head()
+```
+
+### Top-Level Topics
+
+```{r fig.height=5, fig.width=12}
+top_terms2 <- topics2 %>%
+  group_by(topic) %>%
+  top_n(15, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+top_terms2 %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ topic, scales = "free", ncol=3) +
+    theme_classic(base_size = 20) + 
+    scale_y_reordered() 
+```
+
+After reviewing the text from the **5** topics above, it appears that this data comes from **3** distinct discussion groups.
+
+ 1. **Baseball** - game, run, score, team, hit, base, pitch, win, and ball are all solid indications that this is true.
+ 2. **Religion** - god, christian, believe, jesus, church, bible, faith, sin are all words directed tied to religion and possible Christianity.
+ 3. **Motorcycles** - bike, ride, motorcycle are all potential for the third grouping.  But it's possible that there are only two main groupings, and this is a sub grouping since we see terms from baseball falling into this as well. 
+

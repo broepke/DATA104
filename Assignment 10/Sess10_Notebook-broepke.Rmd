@@ -4,22 +4,10 @@ author: "Brian Roepke"
 date: "Nov 15, 2020"
 output:
   html_document:
-    df_print: tibble
+    df_print: paged
 ---
-# Assignment 10
 
- * Load the attached dataset. 
-   * Show the structure, shape, etc..
-   * Check for duplicated text. Show these, its size, and remove these from the data frame, as needed. Only want non-duplicated text, for subsequent analysis.
- * Perform the following transformations in addition to any transformations desired for your analysis (create a column headline_len which stores the length of the headline text; eg: function str_count ()
- * Perform basic EDA (summary statistics, visualizations of text length distributions, headlines by date, etc..)
- * Perform Text Analysis. 
- Include tokenization and preprocessing. 
- * Perform analysis: 
-   * This is your choice; review the Lecture/Sample notebook for guidance. 
-   * Stay within the topics already covered so far. (Eg: Do not do sentiment analysis  or other ML modeling as we will cover those topics in subsequent sessions)
-
-```{r}
+```{r message=FALSE, warning=FALSE}
 # Text mining libs
 library(SnowballC)
 library(tidytext)
@@ -27,6 +15,7 @@ library(spacyr)
 library(tm)
 library(wordcloud2)
 library(ggraph)
+library(textstem)
 
 # plotting and pipes - tidyverse
 library(ggplot2)
@@ -50,20 +39,13 @@ df$publish_date <- as.Date(df$publish_date, "%d/%m/%y")
 # EDA
 Perform Exploratory Data Analysis to better understand what's in this set. 
 
-## Structure
-First Example the structure of the data
-
-```{r}
-str(df)
-```
-
 ## Summary Statistics
 
 ```{r}
 summary(df)
 ```
 
- * **publish_date**: There are dates ranging from 1/1/2009 to 12/12/2019, however there are 455,200 missing dates.
+ * **publish_date**: Dates range from 1/1/2009 to 12/12/2019; however, there are 455,200 missing dates.
  * **headline**: There are a total of 752,157 headlines (records) in this dataset. 
 
 ```{r}
@@ -72,7 +54,7 @@ tail(df)
 ```
 
 
-### Remove Duplicates from `Headline`
+### Remove Duplicates
 
 ```{r}
 df[duplicated(df$headline), ] %>%
@@ -89,21 +71,22 @@ length(df$headline) - length(df2$headline)
 
 ### Add New Columns to Support Analysis
 
-There are a few things that will help with the anaysis.  A length value for the headline, as well as breaking up the dates into individual columns. 
+There are a few things that will help with the anaysis—a length value for the headline and breaking up the dates into individual columns as well as adding a daw of week variable. 
 
 ```{r}
 df3 <- df2 %>%
   mutate(headline_len = str_count(df2$headline)) %>%
   mutate(year = lubridate::year(df2$publish_date)) %>%
   mutate(month = lubridate::month(df2$publish_date)) %>%
-  mutate(day = lubridate::day(df2$publish_date))
+  mutate(day = lubridate::day(df2$publish_date)) %>%
+  mutate(dow = weekdays(df2$publish_date))
 ```
 
 Reorder the columns to a more logical sequence
 
 ```{r}
-df3 <- select(df3, publish_date, year, month, day, headline, headline_len)
-df3
+df3 <- select(df3, publish_date, year, month, day, dow, headline, headline_len)
+head(df3)
 ```
 ### Summary Statistics for Headline Length
 
@@ -113,17 +96,26 @@ summary(df3$headline_len)
 
 The min length is `4.0`, max of `70` and a mean of `42.3`.
 
+
 ### Plot a Histogram of the Headline Length Statistics
+
+First determine the best bin size using Sturges' formula.
+https://www.statisticshowto.com/choose-bin-sizes-statistics/
+
+```{r}
+hl_bins <- round(log2(length(df3$headline)) + 1)
+hl_bins
+```
+
 
 ```{r}
 df3 %>%
-  ggplot(aes(x = headline_len, y = ..density..)) +
-  geom_histogram(color = "black", fill = "lightgray", bins = 30) + 
-  geom_density(color = "red", fill = "salmon", alpha = 0.5) +
+  ggplot(aes(x = headline_len)) +
+  geom_histogram(color = "black", fill = "lightgray", bins = hl_bins) + 
   theme_minimal()
 ```
 
-From the plot we can see that the histogram that is `bimodal.`  There is one peak around `45` characters per headline and another slightly smaller one around `60`.
+The shape of our data tells us that it's approximately normally distributed.  There are slightly fewer headlines that occur at a length that is greater than the mean of 42.3.
 
 ## Date Analysis
 
@@ -149,20 +141,34 @@ df_ts %>%
   geom_smooth(method = 'gam', formula = y ~ s(x, bs = "cs"), color = "salmon") +
   theme_minimal() +
   theme(
-  legend.title = element_blank(),
-  legend.position = "right",
   plot.title = element_text(face = "bold")) +
   labs(
   x = NULL, y = NULL,
-  title = "Trend of number of posts per day over time.",
+  title = "Trend of number of Headlines per day over time.",
   subtitle = "with all NA dates removed"
   )
 ```
 
-Headlines in the dataset (with Dates) are fairly consistent between 2009-2015 with approximately 200-230 headlines per day but then it tapers off through 2020.  It's very possible that the missing posts here are not tagged with dates actually represent headlines for these later years. 
+Headlines in the dataset (with Dates) are relatively consistent between `2009`-`2015` with approximately `200`-`230` headlines per day. Still, then it tapers off through `2020.` The headlines without dates may represent headlines for these later years. 
+
+```{r}
+df_dates %>%
+  ggplot(aes(x = dow)) +
+  geom_bar(color = "black", fill = "lightgray") + 
+  theme_minimal() +
+  theme(
+  plot.title = element_text(face = "bold")) +
+  labs(
+  x = NULL, y = "Count",
+  title = "Number of Headlines Per Day of Week",
+  subtitle = "with all NA dates removed"
+  )
+```
+
+Generally speaking, there isn't much variation in which day of the week the headlines come from; there is a fairly consistent number for each day of the week.
 
 # Text Analysis
-Start by building a document corpus
+Next we'll perform an text analysis to look at frequencies of words, after the text has been pre-processed.  
 
 ```{r}
 # build a document corpus
@@ -176,7 +182,7 @@ inspect(headline_corpus[1:4])
 
 
 ## Preprocessing
-Using the tm package, perform transformations on the corpora to clean the text. There are generalized text cleaning activities such as normalization and stop word removal.
+Using the `tm` package, perform transformations on the corpus to clean the text. There are generalized text cleaning activities such as normalization and stop word removal.
 
 ```{r}
 # standard cleansing
@@ -202,7 +208,7 @@ inspect(headline_corpus[1:5])
 ```
 
 ## Document-Term Matrix
-Create a TermDocumentMatrix from the cleaned Corpus
+Create a `Term-Document Matrix` from the cleaned Corpus
 
 ```{r}
 # The term document matrix is where each word/term is a row with documents as columns
@@ -212,28 +218,23 @@ dtm <- TermDocumentMatrix(headline_corpus)
 inspect(dtm)
 ```
 
-## Create a DocumentTermMatrix from the cleaned Corpus
+**Note:** Term-document matrices tend to get very big already for normal sized data sets. Therefore function `removeSparseTerms()` can be used to remove sparse terms (i.e., terms occurring only in very few documents). Normally, this reduces the matrix dramatically without losing significant relations inherent to the matrix. The sparse argument to `removeSparseTerms()`, is the threshold of relative document frequency for a term, above which the term will be removed. It is a value between 0 and 1. Closer to 0 means nearly all values will be retained while closer to 1 means nearly none of the documents will be retained.
+
+Since this is a very large and sparse corpus, we will remove all but the top `0.001` words
 
 ```{r}
-dtm2 <- DocumentTermMatrix(headline_corpus, control = list(minWordLength = 3))
-inspect(dtm2)
-```
-
-Note: Term-document matrices tend to get very big already for normal sized data sets. Therefore function removeSparseTerms() can be used to remove sparse terms (i.e., terms occurring only in very few documents). Normally, this reduces the matrix dramatically without losing significant relations inherent to the matrix. The sparse argument to removeSparseTerms(), is the threshold of relative document frequency for a term, above which the term will be removed. It is a value between 0 and 1. Closer to 0 means nearly all values will be retained while closer to 1 means nearly none of the documents will be retained.
-
-```{r}
-# inspect(removeSparseTerms(dtm2, .85))
+dtm3 = removeSparseTerms(dtm, .999)
 ```
 
 ## Perform Analysis
 
 ### Frequent Terms
- * Use freqwords(): find frequent terms in a document-term or term-document matrix.
- * Find terms that occur at least 5 times and show top 20
+ * Use `freqwords()`: find frequent terms in a document-term or term-document matrix.
+ * Find terms that occur at least 5 times and show top 50
 
 ```{r}
-findFreqTerms(dtm, 5) %>%
-  head(20)
+findFreqTerms(dtm3, 5) %>%
+  head(50)
 ```
 
 ### Word associations
@@ -242,37 +243,47 @@ findFreqTerms(dtm, 5) %>%
 
 ```{r}
 # word associations
-# findAssocs(dtm, c('home', 'fire', 'storm'), c(0.50, 0.40, 0.30))
+findAssocs(dtm3, c('health', 'assault', 'donald'), c(0.10, 0.10, 0.10))
 ```
 
+Even with the lower correlation value for matching terms, just a few results are returned. *Mental* with a `0.41` correlation to *Health*, *Assault* has two words, *Sexual* and *Charg*, which correlate `0.28` and `0.11` respectively. In contrast, *Trump* correlates strongly to *Donald* at `0.65`.
 
-### Top 50 frequent words with a word frequency of at least 20
+### Top 35 frequent words
 
 ```{r}
-# termCount <- rowSums(as.matrix(dtm))  # sums rows
-# termCount <- subset(termCount, termCount >=20)
+termCount <- rowSums(as.matrix(dtm3))  # sums rows
+termCount <- subset(termCount, termCount >=20)
 
-# df <- data.frame(term = names(termCount), freq = termCount) 
-
-# df %>%
-#  head(50) %>%
-#  ggplot( aes(x = reorder(term, freq), y = freq, fill= freq)) + 
-#    geom_bar(stat = "identity") +
-#    scale_colour_gradientn(colors = terrain.colors(10)) + 
-#    xlab(NULL) + ylab(NULL) + coord_flip()
+df <- data.frame(term = names(termCount), freq = termCount) 
 ```
+
+```{r}
+df %>%
+  head(35) %>%
+  ggplot( aes(x = reorder(term, freq), y = freq, fill= freq)) + 
+    geom_bar(stat = "identity") +
+    scale_colour_gradientn(colors = terrain.colors(10)) + 
+    coord_flip() +
+    theme(
+    plot.title = element_text(face = "bold")) +
+    labs(
+    x = NULL, y = "Count",
+    title = "Most Frequently Occuring Words"
+    )
+```
+
 
 
 ### Word cloud, top 200 words
 
 ```{r}
-#df3$headline %>% 
-#  head(200) %>% 
-#  wordcloud2( color = "random-dark", backgroundColor = "white")
+df %>% 
+  head(200) %>% 
+  wordcloud2(color = "random-dark", backgroundColor = "white")
 ```
 
 
-## using tidytext
+## Perform a Similar Analysis Using Tidytext
 An advantage of tidytext format is that once the text has been tidy-ed, regular R functions can be used to analyze it instead of the specialized functions necessary to analyze a Corpus object. We can perform some of the same analyis as above the tidy way as follows.
 
 ### tidying data
@@ -307,14 +318,9 @@ tidy_df
 ```
 
 ### text cleaning
-remove urls, numbers, stop words
-stemming
+remove stop words & then perform stemming
 
 ```{r}
-tidy_df = tidy_df[-grep("\\b\\d+\\b", tidy_df$word),]   # remove all numeric digits
-tidy_df = tidy_df[-grep('t.co',  tidy_df$word),]    
-tidy_df = tidy_df[-grep('amp',  tidy_df$word),]    
-
 tidy_df = tidy_df  %>%
   anti_join(stop_words) # stop words
 
@@ -330,30 +336,34 @@ tidy_df
 tidy_df = tidy_df%>%
     filter(n >= 20)  %>%   
     mutate(word = reorder(word, n)) %>%
-    head(30)   
-  
-  #ggplot(tidy_df, aes(word, n, fill= n)) + 
-  ggplot(tidy_df, aes(x = reorder(word, n), y = n, fill= n)) + 
+    head(30)
+```
+
+```{r}
+ggplot(tidy_df, aes(x = reorder(word, n), y = n, fill=n)) + 
     geom_bar(stat = "identity") + 
     scale_colour_gradientn(colors = terrain.colors(10)) + 
-    xlab(NULL) + ylab(NULL) + coord_flip()
+    coord_flip() +
+    theme(
+    plot.title = element_text(face = "bold")) +
+    labs(
+    x = NULL, y = "Count",
+    title = "Most Frequently Occuring Words"
+    )
 ```
+
 
 ## Top bi-grams
 A bigram is an n-gram for n=2. Here we show the top (15) 2 word phrases.
 
 ```{r}
-df = df3 %>%
-  # filter out other urls, etc
-  filter(!str_detect(headline, 'http\\S+\\s*'),
-         !str_detect(headline, 'amp'),
-         !str_detect(headline, 't.co')) %>%
+df2 = df3 %>%
   # get bi-grams
   unnest_tokens(bigram, headline, token = "ngrams", n = 2) %>%
   # separate bi-grams into different columns
   separate(bigram, c("word1", "word2"), sep = " ") 
 
-bigrams = df  %>%
+bigrams = df2  %>%
   filter(!word1 %in% stop_words$word) %>% # filter out stop words
   filter(!word2 %in% stop_words$word) %>%
   count(word1, word2, sort = TRUE) %>%
@@ -371,6 +381,86 @@ ggraph(bigrams, layout = "fr") +
   geom_edge_link() +
   geom_node_point() +
   geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
-  theme_minimal()
+  xlab(NULL) + ylab(NULL) + theme_minimal()
 ```
 
+## Lemmatization
+
+One thing not covered so far is the Lemmatization, or the process of breaking a word down into it's root form or "Lemma".  Overally the text of these headlines probably doesn't warrant Lemmatization, but it is interesting to try. 
+
+Here is a simple example of this on three forms of the word Run.
+
+```{r}
+vector <- c("run", "ran", "running")
+lemmatize_words(vector)
+```
+
+
+```{r}
+lemma_corpus <- Corpus(VectorSource(df3$headline))
+lemma_corpus
+```
+
+```{r}
+# standard cleansing
+lemma_corpus <- tm_map(lemma_corpus, tolower)            # normalize case
+lemma_corpus <- tm_map(lemma_corpus, removePunctuation)  # remove punctuation
+lemma_corpus <- tm_map(lemma_corpus, removeNumbers)      # remove numbers
+lemma_corpus <- tm_map(lemma_corpus, stripWhitespace)    # remove white space
+lemma_corpus <- tm_map(lemma_corpus, removeWords, stopwords("english")) # remove stopwords
+```
+
+```{r}
+inspect(lemma_corpus[1:5])
+```
+
+
+```{r}
+lemma_corpus <- tm_map(lemma_corpus, lemmatize_strings)
+```
+
+```{r}
+inspect(lemma_corpus[1:5])
+```
+
+### Create the same Document Term Matrix as Above
+
+```{r}
+# The term document matrix is where each word/term is a row with documents as columns
+lemma_dtm <- TermDocumentMatrix(lemma_corpus)
+
+# inspect
+inspect(lemma_dtm)
+```
+
+
+```{r}
+lemma_dtm = removeSparseTerms(lemma_dtm, .999)
+```
+
+## Perform Analysis
+
+### Frequent Terms
+ * Use freqwords(): find frequent terms in a document-term or term-document matrix.
+ * Find terms that occur at least 5 times and show top 50
+
+```{r}
+findFreqTerms(lemma_dtm, 5) %>%
+  head(50)
+```
+
+```{r}
+termCount2 <- rowSums(as.matrix(lemma_dtm))  # sums rows
+termCount2 <- subset(termCount, termCount2 >=20)
+
+df <- data.frame(term = names(termCount2), freq = termCount2) 
+```
+
+```{r}
+df %>%
+  head(35) %>%
+  ggplot( aes(x = reorder(term, freq), y = freq, fill= freq)) + 
+    geom_bar(stat = "identity") +
+    scale_colour_gradientn(colors = terrain.colors(10)) + 
+    xlab(NULL) + ylab(NULL) + coord_flip()
+```

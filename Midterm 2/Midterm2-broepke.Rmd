@@ -1,0 +1,745 @@
+---
+title: "Midterm 2"
+author: "Brian Roepke"
+date: "November 22, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+# YouTube Video Data Analysis
+
+Import all libraries needed. 
+
+```{r message=FALSE, warning=FALSE}
+# Basic libraries
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(corrplot)
+library(ggcorrplot)
+library(lubridate)
+library(jsonlite)
+library(stringi)
+library(wesanderson)
+
+# Text mining libs
+library(SnowballC)
+library(tidytext)
+library(spacyr)
+library(tm)
+library(ggraph)
+library(textstem)
+library(ggridges)
+```
+
+# Import, Cleaning, EDA
+
+```{r}
+# Read in the Data from a CSV file.
+df <- read.csv("YouTube-videos.csv") # colClasses=c("headline"="character")
+```
+
+
+```{r}
+# Remove unwanted columns
+df$thumbnail_link <- NULL
+df$comments_disabled <- NULL
+df$video_error_or_removed <- NULL
+df$ratings_disabled <- NULL
+
+# Convert Dates
+df$trending_date <- as.Date(df$trending_date, "%y.%d.%m")
+df$publish_time <- as.Date(df$publish_time, "%Y-%m-%d")
+
+# Change Others to Factors
+df$category_id <- as.factor(df$category_id)
+```
+
+## Mapping Category ID to an Actual Category English Name
+We can read in the separate JSON file and join them to our DataFrame
+
+```{r}
+# Import the YouTube Category Names
+cats <- fromJSON("youtubeVideoCatUS.json", flatten = TRUE)
+cats <- as.data.frame(cats)
+```
+
+
+```{r}
+# Create a new column that contains the English name of the category based on the Category ID
+df$category_name <- cats$items.snippet.title[match(df$category_id, cats$items.id)]
+df$category_name <- as.factor(df$category_name)
+```
+
+## Cleaning the Data
+There is one anomaly in the data where a number of entries for video_id have `#NAME?` as a value.  This will cause user counts and uniqueness counts to be off.  We can set these values to a randomly generated string that appears similar to a valid YouTube ID.
+
+```{r}
+df %>%
+  filter(video_id == "#NAME?") %>%
+  summarize(total_records = n())
+```
+
+Replace each occurrence of #NAME? with a random generated string.
+
+```{r}
+replacements_made <- 0
+
+for (row in 1:nrow(df)) {
+  if (df$video_id[row] == "#NAME?") {
+    df$video_id[row] <- stri_rand_strings(1, 11)
+    replacements_made <- replacements_made + 1
+  }
+}
+
+replacements_made
+```
+
+**NOTE**: There were `525` entries of `#NAME?` prior, and `525` replacements were made.
+ 
+```{r}
+df$video_id <- as.factor(df$video_id)
+```
+ 
+
+## EDA
+Perform Exploratory Data Analysis to better understand the data. 
+
+### Structure & Summary Statistics
+
+```{r}
+str(df)
+```
+
+
+```{r}
+df %>%
+  select(video_id, trending_date, publish_time, views, likes, dislikes, comment_count, category_name) %>%
+  summary()
+```
+
+
+ * **video_id:** After converting the `video_id` into a Factor, we can see that there are `4` id's with `8` different entries, meaning that was the maximum time any single video occurred in the dataset.
+ * **trending_date:** Dates range from `2017-11-14` to `2018-06-14`.
+ * **publish_time:** The original publish date, differing from the date that the video trended.  Ranges from `2008-01-13` to `2018-06-14`.  A much more comprehensive range of dates.
+ * **views:** Views have an extensive spread ranging from `733` to `137,843,120` views.  There also is a large difference between the median `371,204` and mean `1,147,036`.
+ * **likes:** Likes follow a similar pattern to views with large extremes.  These range from `0` to `5,053,338`.
+ * **dislikes:** Dislikes follow a similar pattern to views with large extremes.  These range from `0` to `1,602,383`.
+ * **comment_count:** Comment Count follow a similar pattern to views with large extremes.  These range from `0` to `1,114,800`.
+ * **category_name:** Category name is a categorical data type showing each of the number of entries.  Entertainment is the largest at `13,451` and the next largest, Entertainment & Politics, at `4,159`.
+
+```{r}
+head(df)
+tail(df)
+```
+
+## Views, Likes and Dislikes
+Analyze the number of views, likes, and dislikes with full data visualization (univariate and multivariate). Then comment on various trends.
+ 
+```{r warning=FALSE}
+colors <- c("Views" = "#00BFC4", "Likes" = "#7CAE00", "Dislikes" = "#F8766D")
+
+df %>%
+  # mutate(mon = floor_date(trending_date, 'month')) %>%
+  mutate(mon = trending_date) %>%
+  group_by(mon) %>%
+  summarize(dislikes = mean(dislikes), likes = mean(likes), views = mean(views), .groups = "keep") %>%
+  ggplot(aes(x = mon)) +
+  geom_line(aes(y = views, color = "Views")) +
+  geom_line(aes(y = likes, color = "Likes")) +
+  geom_line(aes(y = dislikes, color = "Dislikes")) +
+  scale_x_date(date_breaks = "1 month", expand = c(0, 0), date_labels = "%b-%y") +
+  scale_y_continuous(trans = "log10") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold")
+  ) +
+  labs(
+    x = "Trending Date", y = "",
+    title = "Views, Likes, and Dislikes by Date",
+    subtitle = "Log10 Tranformation",
+    color = "Legend"
+  ) +
+  scale_color_manual(values = colors)
+```
+
+Other than the various difference in quantities of the three, they tend to remain fairly consistent over time when transformed on a logarithmic scale. With dislikes, we see a noticeable order of magnitude shift in the early part of December.
+  
+### Views
+We'll start by examining Views.
+ 
+```{r}
+df %>%
+  ggplot(aes(x = views)) +
+  geom_histogram(color = "lightblue3", fill = "lightblue", bins = 30) +
+  scale_y_continuous(trans = "log10") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold")
+  ) +
+  labs(
+    x = NULL, y = "Count (Log 10)",
+    title = "Distribution of Views",
+    subtitle = "Using a log10 transformation the x-axis"
+  )
+```
+
+We can see that the number of views is normally distributed.
+
+```{r warning=FALSE}
+df %>%
+  ggplot(aes(x = views, color = category_name, fill = category_name)) +
+  geom_histogram(alpha = 0.6, bins = 30) +
+  scale_y_continuous(trans = "log10") +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.spacing = unit(0.1, "lines"),
+    strip.text.x = element_text(size = 8)
+  ) +
+  xlab("") +
+  ylab("") +
+  facet_wrap(~category_name)
+```
+
+When breaking out each category, we can see that the distributions generally have the same shape as the population. However, the relative concentration of each category. *Entertainment* is the standout leader in view volume, *Comedy*, *News & Politics*, *People & Blogs*, and *Music* also have significant numbers. 
+
+```{r}
+df %>%
+  group_by(category_name) %>%
+  summarise(total_views = mean(views), .groups = "keep") %>%
+  arrange(desc(total_views)) %>%
+  ggplot(aes(reorder(category_name, total_views), total_views)) +
+  geom_col(color = "lightblue3", fill = "lightblue") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold")
+  ) +
+  labs(
+    x = NULL, y = "Count",
+    title = "Mean Number of Views per Category"
+  ) +
+  coord_flip()
+```
+
+When we look at the mean views versus the distribution of views, different categories after *Music* end up higher on the list.  *Movies*, *Nonprofit & Activism*, *Film & Animation* all have a minimal overall share of views, but a very high mean number of views. 
+
+
+```{r}
+df %>%
+  mutate(mon = floor_date(trending_date, "month")) %>%
+  group_by(mon, category_name) %>%
+  summarize(total = mean(views), .groups = "keep") %>%
+  ggplot(aes(x = mon, y = total, fill = category_name)) +
+  geom_col(color = "black") +
+  scale_x_date(date_breaks = "1 month", expand = c(0, 0), date_labels = "%b-%y") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(face = "bold")
+  ) +
+  labs(
+    x = "Trending Date", y = "Views",
+    title = "Mean Number of Views per Category",
+    subtitle = "Grouped by Month for Trending Date"
+  )
+```
+
+Here we see how mean views trend over time, based on their*trending date*, not original publish date. We can see a slight directional increase in views in later dates.  For the most part, categories appear to remain fairly consistent over time relative to each other; we can see a stand-out in January where the *Nonprofit & Activism* category shows a one-month increase. A similar increase in *Movies* in June 2018, potentially signaling the release of a new film or trailer.  We can examine that. 
+
+```{r message=FALSE, warning=FALSE}
+df %>%
+  filter(category_name == "Movies" & trending_date > 2018-06-01) %>%
+  group_by(video_id, title) %>%
+  summarise(total_views = sum(views)) %>%
+  arrange(desc(total_views))
+```
+
+Turns out that it is a single video *Golak Bugni Bank Te Batua Full Movie (HD) | Harish Verma | Simi Chahal | Superhit Punjabi Movies* that was trending and produced `17,120,490` views total 
+
+### Likes
+Next we'll explore Likes.
+
+```{r warning=FALSE}
+df %>%
+  ggplot(aes(x = likes)) +
+  geom_histogram(color = "green4", fill = "palegreen2", bins = 30) +
+  geom_vline(xintercept = median(df$likes), lwd = 0.5, linetype = "dashed") +
+  geom_vline(xintercept = mean(df$likes), lwd = 0.5) +
+  scale_y_continuous(trans = "log10") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold")
+  ) +
+  labs(
+    x = NULL, y = "Count (Log 10)",
+    title = "Distribution of Likes",
+    subtitle = "Using a log10 transformation the x-axis"
+  )
+```
+
+```{r}
+sprintf("Skewness = %s", moments::skewness(df$likes))
+```
+
+
+For likes, we can see a slightly right-skewed distribution with positive Skewness of `13.66`.  We can also see that the solid line's mean is greater than the median represented by the dotted line.
+
+
+```{r warning=FALSE}
+df %>%
+  ggplot(aes(x = likes, color = category_name, fill = category_name)) +
+  geom_histogram(alpha = 0.6, bins = 30) +
+  scale_y_continuous(trans = "log10") +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.spacing = unit(0.1, "lines"),
+    strip.text.x = element_text(size = 8)
+  ) +
+  xlab("") +
+  ylab("") +
+  facet_wrap(~category_name)
+```
+
+The *Entertainment* category contains the largest population of likes, with *Comedy*, *People & Blogs*, *Music*, and *News & Politics* showing the next most.  Each category's histogram deviats in shape a bit from the population.  Some left-skewed and some right-skewed.
+
+
+```{r}
+df %>%
+  group_by(category_name) %>%
+  summarise(total_likes = mean(likes), .groups = "keep") %>%
+  arrange(desc(total_likes)) %>%
+  ggplot(aes(reorder(category_name, total_likes), total_likes)) +
+  geom_col(color = "green4", fill = "palegreen2") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold")
+  ) +
+  labs(
+    x = NULL, y = "Count",
+    title = "Mean Number of Likes per Category"
+  ) +
+  coord_flip()
+```
+
+Similar to the results of the overall Views for the categories, different categories have a greater mean number of Likes.  *Music* is the first, and *Nonprofits & Activism* a close second. This suggests that while the number of videos in these categories is smaller, the *likes* activity is greater per video.
+
+
+```{r}
+df %>%
+  mutate(mon = floor_date(trending_date, "month")) %>%
+  group_by(mon, category_name) %>%
+  summarize(total = mean(likes), .groups = "keep") %>%
+  ggplot(aes(x = mon, y = total, fill = category_name)) +
+  geom_col(color = "black") +
+  scale_x_date(date_breaks = "1 month", expand = c(0, 0), date_labels = "%b-%y") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(face = "bold")
+  ) +
+  labs(
+    x = "Trending Date", y = "Likes",
+    title = "Mean Number of Likes per Category",
+    subtitle = "Grouped by Month for Trending Date"
+  )
+```
+
+Like *Views*, many categories are consistent with a massive spike in January 2018 in the *Nonprofit & Activism* category. 
+
+### Dislikes
+Finally, we can take a look at dislikes. 
+
+```{r warning=FALSE}
+df %>%
+  ggplot(aes(x = dislikes)) +
+  geom_histogram(color = "gray", fill = "lightgray", bins = 30) +
+  scale_y_continuous(trans = "log10") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold")
+  ) +
+  labs(
+    x = NULL, y = "Count (Log 10)",
+    title = "Distribution of Dislikes",
+    subtitle = "Using a log10 transformation the x-axis"
+  )
+```
+
+Dislikes follow an approximatley normal distribution as well. 
+
+
+```{r warning=FALSE}
+df %>%
+  ggplot(aes(x = dislikes, color = category_name, fill = category_name)) +
+  geom_histogram(alpha = 0.6, bins = 30) +
+  scale_y_continuous(trans = "log10") +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.spacing = unit(0.1, "lines"),
+    strip.text.x = element_text(size = 8)
+  ) +
+  xlab("") +
+  ylab("") +
+  facet_wrap(~category_name)
+```
+
+The *Entertainment* category contains the largest population of dislikes, with *Comedy*, *Music*, *News & Politics*, and *People & Blogs* next most. This is a similar pattern between all three categories of Views, Likes, and Dislikes. This could suggest a **correlation** between these values.  We will explore that later.
+
+```{r}
+df %>%
+  group_by(category_name) %>%
+  summarise(total_dislikes = mean(dislikes), .groups = "keep") %>%
+  arrange(desc(total_dislikes)) %>%
+  ggplot(aes(reorder(category_name, total_dislikes), total_dislikes)) +
+  geom_col(color = "gray", fill = "lightgray") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold")
+  ) +
+  labs(
+    x = NULL, y = "Count",
+    title = "Mean Number of Dislikes per Category"
+  ) +
+  coord_flip()
+```
+
+For mean *Dislikes*, we can see that in this case, *Nonprofits & Activism* is the far and away leader.
+
+Let's explore a few of the top selections in this category. 
+
+```{r message=FALSE, warning=FALSE}
+df %>%
+  filter(category_name == "Nonprofits & Activism") %>%
+  group_by(video_id, title) %>%
+  summarise(dislikes = mean(dislikes)) %>%
+  arrange(desc(dislikes)) %>%
+  head()
+```
+
+The first video is a suicide prevention video by a Popular YouTuber who received backlash over inappropriate comments he made regarding Suicide in a prior video.  Others are Russian news and finally some political videos. 
+
+
+```{r}
+df %>%
+  mutate(mon = floor_date(trending_date, "month")) %>%
+  group_by(mon, category_name) %>%
+  summarize(total = mean(dislikes), .groups = "keep") %>%
+  ggplot(aes(x = mon, y = total, fill = category_name)) +
+  geom_col(color = "black") +
+  scale_x_date(date_breaks = "1 month", expand = c(0, 0), date_labels = "%b-%y") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(face = "bold")
+  ) +
+  labs(
+    x = "Trending Date", y = "Dislikes",
+    title = "Mean Number of Dislikes per Category",
+    subtitle = "Grouped by Month for Trending Date"
+  )
+```
+
+There are two large spikes in December and January for *Nonprofits & Activism*.  Overall, as demonstrated in the initial graph, dislikes are by volume lower than Likes, generally speaking. 
+
+## Top 5 Videos
+ * Identify the top 5 videos based on the number of views and number of likes
+ 
+## Top 5 Videos based on Likes
+
+The following are the top five videos based on *Likes*.  We can see that the top 5 videos are all the same, but with different trending dates. 
+ 
+```{r}
+df %>%
+  arrange(desc(likes)) %>%
+  select(trending_date, title, likes) %>%
+  head(n = 5)
+```
+ 
+The following are the top five *unique* videos based on summ of all *likes* received. 
+ 
+```{r}
+df %>%
+  group_by(video_id, title) %>%
+  summarise(likes = sum(likes), .groups = "keep") %>%
+  arrange(desc(likes)) %>%
+  head(n = 5)
+```
+ 
+### Top 5 Videos based on Views
+
+The following are the top five unique videos based on *views*. 
+
+```{r}
+df %>%
+  group_by(video_id, title) %>%
+  summarise(views = sum(views), .groups = "keep") %>%
+  arrange(desc(views)) %>%
+  head(n = 5)
+```
+ 
+ 
+## Correlation to Likes
+Earlier we observed that the distributions between *Views*, *Likes*, and *Dislikes* were all quite similar.  Even after breaking them into categories, the shapes and sizes of the histograms per category were similar.  We can explore how correlated they are.  We'll use "Likes" as the dependent variable. 
+ 
+```{r}
+df_corr <- df %>%
+  select_if(is.numeric) %>%
+  # reordering the numeric columns so likes is listed first.
+  select(likes, views, dislikes, comment_count)
+```
+
+## Correlation Test
+
+In order to find out which numeric values correlate to likes, we can create a correlation matrix and correlation plot. 
+
+```{r}
+corr <- round(cor(df_corr), 2)
+corr
+```
+
+We can see that all of the other numeric values positively correlate to *likes* with *comment_count* being the strongest at `0.84`, views being the next strongest at `0.83`, dislikes at `0.46`
+
+Next we can see a visualization of these values. 
+
+```{r}
+ggcorrplot(corr, colors = c("#6D9EC1", "white", "#E46726"), lab = TRUE, ggtheme = ggplot2::theme_gray)
+```
+### Scatterplot 
+
+```{r warning=FALSE}
+df %>%
+  ggplot(aes(x = likes, y = comment_count)) +
+  geom_point(alpha = 0.1, color = "#E46726") +
+  theme_minimal() +
+  scale_x_continuous(trans = "log10") +
+  scale_y_continuous(trans = "log10") +
+  geom_smooth(method = "lm", se = TRUE, formula = y ~ x, color = "black", linetype = "dashed") +
+  labs(
+    x = "Views (Log 10 Scale)",
+    y = "Likes (Log 10 Scale)",
+    title = "Correlation of Comment Count vs. Views"
+  )
+```
+
+After transforming the data on both axes with a log 10 scale, we can see the very linear, positive relationship between *Likes*' dependent variable and our most robust correlated independent variable, *comment_count*.
+
+Next, we'll create a simple linear regression model and a multiple linear regression model and test which performs better. 
+
+```{r}
+fit1 <- lm(formula = log1p(likes) ~ log1p(comment_count), data = df)
+
+summary(fit1)
+```
+
+```{r}
+fit2 <- lm(formula = log1p(likes) ~ log1p(views) + log1p(comment_count) + log1p(dislikes), data = df)
+
+summary(fit2)
+```
+
+
+```{r}
+anova(fit1, fit2)
+```
+
+
+**Summary:** Both models are significant with very small P-values, and each independent variable in the multiple-regression model is also significant.  When we perform an ANOVA test for significance, we can see that the Multiple Linear model (Fit2) still holds up and therefore is the better model increasing the Adjusted R-squared from `0.6322` to `0.7637`.  
+
+Therefore, with Model 2, we can say that for the dependent variable, *Likes*, *Views*, *Comment_Count*, and *Dislikes* contribute to `76.37%` of the variance. 
+
+# Text Analysis
+
+The following sections will perform necessary preprocessing of the *title* field, and the *description* field and extract the top 35 most common words used. 
+
+## Titles
+
+```{r}
+title_corpus <- Corpus(VectorSource(df$title))
+title_corpus
+```
+
+```{r}
+inspect(title_corpus[1:4])
+```
+
+## Preprocessing
+Using the `tm` package, perform transformations on the corpus to clean the text. There are generalized text cleaning activities such as normalization and stop word removal.
+
+```{r}
+# standard cleansing
+title_corpus <- tm_map(title_corpus, tolower) # normalize case
+title_corpus <- tm_map(title_corpus, removePunctuation) # remove punctuation
+title_corpus <- tm_map(title_corpus, removeNumbers) # remove numbers
+title_corpus <- tm_map(title_corpus, stripWhitespace) # remove white space
+title_corpus <- tm_map(title_corpus, removeWords, stopwords("english")) # remove stopwords
+```
+
+```{r}
+inspect(title_corpus[1:4])
+```
+
+```{r}
+# stem words using SnowBall stemmer
+title_corpus <- tm_map(title_corpus, stemDocument)
+```
+
+## Document-Term Matrix
+Create a `Term-Document Matrix` from the cleaned Corpus
+
+```{r}
+# The term document matrix is where each word/term is a row with documents as columns
+title_dtm <- TermDocumentMatrix(title_corpus)
+
+# inspect
+inspect(title_dtm)
+```
+
+```{r}
+title_dtm1 <- removeSparseTerms(title_dtm, 0.99)
+inspect(title_dtm1)
+```
+
+## Perform Analysis
+
+### Frequent Terms
+ * Use `freqwords()`: find frequent terms in a document-term or term-document matrix.
+ * Find terms that occur at least 5 times and show top 50
+
+```{r}
+findFreqTerms(title_dtm1, 5) %>%
+  head(50)
+```
+
+```{r}
+termCount <- rowSums(as.matrix(title_dtm1)) # sums rows
+termCount <- subset(termCount, termCount >= 20)
+
+title_df <- data.frame(term = names(termCount), freq = termCount)
+```
+
+```{r}
+title_df %>%
+  head(35) %>%
+  ggplot(aes(x = reorder(term, freq), y = freq, fill = freq)) +
+  geom_bar(stat = "identity") +
+  scale_colour_gradientn(colors = terrain.colors(10)) +
+  theme_minimal() +
+  coord_flip() +
+  theme(
+    plot.title = element_text(face = "bold")
+  ) +
+  labs(
+    x = NULL, y = "Count",
+    title = "Most Frequently Occuring Words in Titles"
+  )
+```
+
+## Descriptions
+
+```{r}
+description_corpus <- Corpus(VectorSource(df$description))
+description_corpus
+```
+
+```{r}
+inspect(description_corpus[1:2])
+```
+
+## Preprocessing
+Using the `tm` package, perform transformations on the corpus to clean the text. There are generalized text cleaning activities such as normalization and stop word removal.
+
+
+```{r}
+# Remove URLs
+description_corpus <- tm_map(
+  description_corpus,
+  content_transformer(function(x) gsub("http[[:alnum:][:punct:]]*", "", x))
+)
+
+# Replace new line symbols with a space
+description_corpus <- tm_map(
+  description_corpus,
+  content_transformer(function(x) gsub("\\\\n", "", x))
+)
+
+# Remove non-ASCII characters in the dataset that people use to decorate text
+description_corpus <- tm_map(
+  description_corpus,
+  content_transformer(function(x) iconv(x, "latin1", "ASCII", sub = ""))
+)
+```
+
+
+```{r}
+inspect(description_corpus[1:4])
+```
+
+```{r}
+# standard cleansing
+description_corpus <- tm_map(description_corpus, tolower) # normalize case
+description_corpus <- tm_map(description_corpus, removePunctuation) # remove punctuation
+description_corpus <- tm_map(description_corpus, removeNumbers) # remove numbers
+description_corpus <- tm_map(description_corpus, stripWhitespace) # remove white space
+description_corpus <- tm_map(description_corpus, removeWords, stopwords("english")) # remove stopwords
+```
+
+
+
+```{r}
+inspect(description_corpus[1:4])
+```
+
+```{r}
+# Use the Snowball Stemmer on the Corpus
+description_corpus <- tm_map(description_corpus, stemDocument)
+```
+
+## Document-Term Matrix
+Create a `Term-Document Matrix` from the cleaned Corpus
+
+```{r}
+# The term document matrix is where each word/term is a row with documents as columns
+description_dtm <- TermDocumentMatrix(description_corpus)
+
+# inspect
+inspect(description_dtm)
+```
+
+```{r}
+description_dtm1 <- removeSparseTerms(description_dtm, 0.95)
+inspect(description_dtm1)
+```
+
+### Frequent Terms
+ * Use `freqwords()`: find frequent terms in a document-term or term-document matrix.
+ * Find terms that occur at least 5 times and show top 50
+
+```{r}
+findFreqTerms(description_dtm1, 5) %>%
+  head(50)
+```
+
+```{r}
+termCount <- rowSums(as.matrix(description_dtm1)) # sums rows
+termCount <- subset(termCount, termCount >= 20)
+
+description_df <- data.frame(term = names(termCount), freq = termCount)
+```
+
+
+```{r}
+description_df %>%
+  head(35) %>%
+  ggplot(aes(x = reorder(term, freq), y = freq, fill = freq)) +
+  geom_bar(stat = "identity") +
+  scale_colour_gradientn(colors = terrain.colors(10)) +
+  theme_minimal() +
+  coord_flip() +
+  theme(
+    plot.title = element_text(face = "bold")
+  ) +
+  labs(
+    x = NULL, y = "Count",
+    title = "Most Frequently Occuring Words in Descriptions"
+  )
+```
