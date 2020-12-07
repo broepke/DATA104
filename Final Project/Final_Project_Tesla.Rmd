@@ -33,6 +33,10 @@ library(textstem)
 library(ggraph)
 library(igraph)
 library(widyr)
+library(spacyr)
+library(SnowballC)
+library(topicmodels)
+
 
 # date/time library
 library(lubridate)
@@ -40,8 +44,23 @@ library(lubridate)
 
 
 ```{r}
-df <- read_twitter_csv("tesla.csv")
+spacy_initialize(model = "en_core_web_sm", condaenv="DATA104")
 ```
+
+```{r}
+tesla <- read_twitter_csv("tesla.csv")
+tesla_stock <- read_twitter_csv("tesla_stock.csv")
+elon_musk <- read_twitter_csv("elon_musk.csv")
+```
+
+```{r}
+df <- rbind(tesla, tesla_stock)
+```
+
+```{r}
+df <- rbind(df, elon_musk)
+```
+
 
 
 ```{r}
@@ -113,6 +132,12 @@ df_select <- df %>%
   select(doc_id, user_id, status_id, screen_name, created_at, text, text_len)
 ```
 
+Create a copy for NER later
+```{r}
+df_ner <- df_select
+```
+
+
 ## Tweet Length
 Number of tweets by each candidate
 
@@ -132,12 +157,11 @@ df_select %>%
   scale_fill_tableau()
 ```
 
-
 ### Tweets Over Time
 
 ```{r}
 df_select %>%
-  ts_plot("1 weeks", trim = 0L) +
+  ts_plot("1 hours", trim = 0L) +
   geom_line(color = "#1F77B4") +
   theme_minimal() +
   scale_fill_tableau() +
@@ -349,7 +373,7 @@ afinn_df %>%
 
 ```{r}
 plot_df2 <- afinn_df %>%
-  mutate(mon = floor_date(created_at, "30 minutes")) %>%
+  mutate(mon = floor_date(created_at, "6 hours")) %>%
   group_by(screen_name, mon) %>%
   summarize(value = mean(value), .groups = 'keep')
 
@@ -471,7 +495,7 @@ bigram_counts %>%
 
 ```{r message=FALSE, warning=FALSE}
 bigram_graph <- bigram_counts %>%
-  filter(n > 100) %>%
+  filter(n > 180) %>%
   graph_from_data_frame()
 
 set.seed(2017)
@@ -483,4 +507,228 @@ ggraph(bigram_graph, layout = "fr") +
   theme_minimal() +
   scale_fill_tableau()
 ```
+
+# NER
+
+```{r}
+# sample smaller set of docs
+set.seed(1234)
+sample_df <-  df_ner %>%
+  sample_n(1000) 
+```
+
+```{r}
+# parse name-entities
+parsedtxt <- spacy_parse(sample_df, type = "all")
+
+ner = entity_extract(parsedtxt)  %>%
+  arrange(entity_type)
+```
+
+
+### Part of Speech Tagging Counts
+
+Display the different parts of speech identified as well as the counts of each.
+
+```{r}
+# Parts of Speech Tagging Counts
+parsedtxt %>%
+  group_by(pos) %>%
+  summarise(count = n(), .groups = "keep") %>%
+  arrange(desc(count))
+```
+
+### Entity Type Counts
+
+Display the counts of each of the Entity Types extracted from the corpus.
+
+```{r}
+ner %>%
+  group_by(entity_type) %>%
+  summarise(count = n(), .groups = "keep") %>%
+  arrange(desc(count))
+```
+
+### Entity Types
+
+The following 11 types of Entities were extracted, the following are their definitions as well as examples of each.
+
+https://spacy.io/api/annotation
+
+
+ 
+
+```{r}
+entities<- c("ORG", "PERSON", "GPE", "PRODUCT", "LOC", "WORK",
+             "NORP", "FAC", "EVENT", "LANGUAGE", "LAW")
+
+for (e in entities){
+  ner %>%
+    mutate(type=e) %>%
+    filter(entity_type == e) %>%
+    group_by(entity, type) %>%
+    summarize(count = n(), .groups = "keep") %>%
+    arrange(desc(count)) %>%
+    print()
+  
+}
+```
+
+# Topic Modeling
+
+
+## Preprocessing
+
+```{r}
+corpus <- Corpus(VectorSource(df_select$text))
+```
+
+### Before cleaning
+
+```{r}
+inspect(corpus[1:5])
+```
+
+### Transform all Text to Lowercase 
+
+```{r}
+# force all to lowercase
+corpus <- tm_map(corpus, tolower)
+```
+
+### Remove Punctuation, White Space and Numbers
+
+```{r}
+corpus <- tm_map(corpus, removePunctuation)  # remove punctuation
+corpus <- tm_map(corpus, removeNumbers)      # remove numbers
+corpus <- tm_map(corpus, stripWhitespace)    # remove white space
+```
+
+### Remove Stop Words
+
+```{r}
+# stop and custom stop 
+corpus <- tm_map(corpus, removeWords, c(stopwords('english')))
+```
+
+### Perform Lemmatization
+
+```{r}
+corpus <- tm_map(corpus, lemmatize_strings) # lemmatizaton
+```
+
+### Remove Words that Aren't Helpful for Topic Modeling
+
+Custom list of words generated upon performing the topic modeling.  These were frequently appeared but do not add a lot of context to topic identification, or appear so frequently, such as `University`, that they are in every topic. 
+
+```{r}
+corpus <- tm_map(corpus, removeWords, c("just"))
+```
+
+
+```{r}
+inspect(corpus[1:10])
+```
+
+
+### Document Term Matrix Creation
+
+```{r}
+dtm <- DocumentTermMatrix(corpus, control = list(minWordLength = 5, 
+                removeNumbers=FALSE, removePunctuation=FALSE, 
+                removeStopwords=FALSE,  stemWords=FALSE, stripWhitespace=FALSE))
+```
+
+
+```{r}
+inspect(dtm)
+```
+
+### Remove Sparse Terms
+
+```{r}
+dtm = removeSparseTerms(dtm, .98)
+```
+
+```{r}
+inspect(dtm)
+```
+
+```{r}
+sel_idx <- rowSums(as.matrix(dtm)) > 0
+dtm <- dtm[sel_idx, ]
+dim(dtm)
+```
+
+## Latent Dirichlet Allocation (LDA)
+Is an unsupervised classification method designed for text data. Rather than relying on labeled (eg: hand-coded data sets), it is a probabilistic topic model that uses statistical algorithms to analyze words in raw text documents, to uncover thematic structure of the both the corpus and individual documents.
+
+### Find the best k - the Elbow Method
+The basic idea behind partitioning methods, such as k-means clustering, is to define clusters such that the total intra-cluster variation [or total within-cluster sum of square (WSS)] is minimized. The total WSS measures the compactness of the clustering and we want it to be as small as possible.
+
+The Elbow method looks at the total WSS as a function of the number of clusters: One should choose a number of clusters so that adding another cluster doesn’t improve much better the total WSS.
+
+https://www.datanovia.com/en/lessons/determining-the-optimal-number-of-clusters-3-must-know-methods/ 
+
+```{r}
+mat <- as.matrix (weightTfIdf(dtm) )
+
+# normalize the TfIdf scores by euclidean distance. 
+scaled_data  <- dist(mat, method = "euclidean")
+
+k.max <- 5
+data <- scaled_data
+wss <- sapply(1:k.max, 
+  function(k){kmeans(data, k, nstart=50,iter.max = 15)$tot.withinss})
+
+plot(1:k.max, wss,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+```
+
+
+## LDA
+
+```{r}
+lda <- LDA(dtm, k = 3, control = list(seed = 1234))
+lda
+```
+
+### Per-Topic-Per-Word Probabilities (Beta)
+
+```{r}
+# beta (per-term-per-topic) 
+topics <- tidy(lda, matrix = "beta")
+topics %>%
+  arrange(term, -beta)  %>%
+  head()
+```
+
+### Per-Document-Per-Topic Probabilities (Gamma)
+
+```{r}
+tidy(lda, matrix = "gamma")  %>%
+  arrange(document, -gamma)  %>%
+  head()
+```
+
+### Top-Level Topics
+
+```{r fig.height=5, fig.width=12}
+top_terms <- topics %>%
+  group_by(topic) %>%
+  top_n(15, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ topic, scales = "free", ncol=3) +
+    theme_classic(base_size = 20) + 
+    scale_y_reordered() 
+```
+
 

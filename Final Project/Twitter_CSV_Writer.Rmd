@@ -33,35 +33,22 @@ get_token()
 # Download Data for a Search
 
 ```{r}
-rt <- search_tweets(
-  "#TrumpRally", n = 18000, include_rts = FALSE
-)
-
-## preview tweets data
-rt
-
-## preview users data
-users_data(rt)
-
+rt <- search_tweets("Tesla stock", n = 18000, include_rts = FALSE)
 ```
 
 ```{r}
-write_as_csv(rt, "trump_rally.csv")
+write_as_csv(rt, "tesla_stock.csv")
+csv <- read_twitter_csv("tesla_stock.csv")
 ```
 
 
 ```{r}
-df <- read_twitter_csv("trump_rally.csv")
-```
-
-
-```{r}
-df
+csv
 ```
 
 ```{r}
 ## plot time series of tweets
-ts_plot(rt, "1 minutes") +
+ts_plot(csv, "1 day") +
   theme_minimal() +
   theme(plot.title = ggplot2::element_text(face = "bold")) +
   labs(
