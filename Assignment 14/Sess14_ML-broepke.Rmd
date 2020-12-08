@@ -1,0 +1,42 @@
+---
+title: "Assignment 14"
+author: "Your Name"
+date: "Dec 13, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+# Machine Learning Sentiment Analysis
+
+
+
+```{r message=FALSE, warning=FALSE}
+# twitter library 
+library(rtweet)
+
+# plotting and pipes
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(ggthemes)
+
+# text mining library
+library(tm)
+library(tidytext)
+library(wordcloud)
+library(reshape2)
+library(textstem)
+library(ggraph)
+library(igraph)
+library(widyr)
+library(spacyr)
+library(SnowballC)
+library(topicmodels)
+
+
+# date/time library
+library(lubridate)
+```
+
