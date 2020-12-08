@@ -1,13 +1,11 @@
 ---
 title: "Data Camp WebScraping"
-output:
-  html_document:
-    df_print: paged
 ---
 
 ```{r}
 library(rvest)
 library(tidyverse)
+library(httr)
 ```
 
 # Intro to HTML
@@ -372,5 +370,64 @@ cast <- tibble(
   Function = functions)
 
 cast
+```
+
+# The nature of HTTP requests
+
+```{r}
+# Get the HTML document from Wikipedia using httr
+wikipedia_response <- GET('https://en.wikipedia.org/wiki/Varigotti')
+# Check the status code of the response
+status_code(wikipedia_response)
+# Parse the response into an HTML doc
+wikipedia_page <- read_html(wikipedia_response)
+# Extract the altitude with XPATH
+wikipedia_page %>% 
+	html_nodes(xpath = '//table//tr[position() = 9]/td') %>% 
+	html_text()
+```
+
+```{r}
+# Access https://httpbin.org/headers with httr
+response <- GET("https://httpbin.org/headers")
+# Print its content
+content(response)
+```
+
+# Throttleing Calls
+
+```{r}
+throttled_read_html <- slowly(~ read_html("https://wikipedia.org"),
+                    rate = rate_delay(0.5))
+
+for(i in c(1, 2, 3)){
+  throttled_read_html("https://google.com") %>% 
+      html_node("title") %>% 
+      html_text() %>%
+    print()
+}      
+```
+
+```{r}
+a <- "https://en.wikipedia.org/w/index.php?title=Mount_Everest&oldid=958643874"
+b <- "https://en.wikipedia.org/w/index.php?title=K2&oldid=956671989"           
+c <- "https://en.wikipedia.org/w/index.php?title=Kangchenjunga&oldid=957008408"
+
+mountain_wiki_pages <- c(a,b,c)
+
+# Define a throttled read_html() function with a delay of 0.5s
+read_html_delayed <- slowly(read_html, 
+                            rate = rate_delay(0.5))
+# Construct a loop that goes over all page urls
+for(page_url in mountain_wiki_pages){
+  # Read in the html of each URL with a delay of 0.5s
+  html <- read_html_delayed(page_url)
+  # Extract the name of the peak and its coordinates
+  peak <- html %>% 
+  	html_node("#firstHeading") %>% html_text()
+  coords <- html %>% 
+    html_node("#coordinates .geo-dms") %>% html_text()
+  print(paste(peak, coords, sep = ": "))
+}
 ```
 

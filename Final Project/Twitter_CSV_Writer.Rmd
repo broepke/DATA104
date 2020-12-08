@@ -33,12 +33,12 @@ get_token()
 # Download Data for a Search
 
 ```{r}
-rt <- search_tweets("Tesla stock", n = 18000, include_rts = FALSE)
+rt <- search_tweets("Tesla Model 3", n = 18000, include_rts = FALSE)
 ```
 
 ```{r}
-write_as_csv(rt, "tesla_stock.csv")
-csv <- read_twitter_csv("tesla_stock.csv")
+write_as_csv(rt, "tesla_model_3.csv")
+csv <- read_twitter_csv("tesla_model_3.csv")
 ```
 
 
