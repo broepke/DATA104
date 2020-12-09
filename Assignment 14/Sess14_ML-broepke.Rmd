@@ -8,6 +8,35 @@ output:
 ---
 # Machine Learning Sentiment Analysis
 
+Sentiment Analysis is a text classification process for determining the sentiment (eg: positive, negative or neutral) in a given text. It provides data analysts with a tool to for gauging public opinion and customer experience of brand or products and can be used for nuanced market research.
+
+Sentiment Analysis is complex and ML (machine learning) models need to be able to determine the textual context relevant to the desired. This includes the understanding of negation, human patterns of speech, idioms, metaphors, etc. With advances in deep learning methods, these models have improved significantly, quickly approaching human precision.
+
+The first step in development is gathering suitable sources of training data. There are a few standard datasets, but new datasets are being developed as labeled data becomes more available.
+
+ * Stanford Sentiment Treebank contains over 11,000 sentences extracted from movie reviews
+ * Amazon Product Reviews Dataset provides over 142 million Amazon product reviews
+ * IMDB Movie Reviews Dataset provides 50,000 highly polarized movie reviews with a 50-50 train/test split.
+ 
+## Models
+ * **Bag of Words (BoW)**: an algorithm that counts how many times a word appears in a document. Those word counts allows comparisons of documents to gauge their similarities for applications including: search, document classification and topic modeling. BoW lists words paired with their word counts per document. The words and documents become vectors, where each row is a word, each column is a document, and each cell is a word count. We used BoW when we studied LDA for topic modeling. BoW is also used for preparing text for input in a deep-learning.
+
+ * **Term Frequency-Inverse Document Frequency (TF-IDF)** provides another method for determining the topic of an article. TF-IDF measures relevance, not frequency. Word counts are replaced with TF-IDF scores. First, TF-IDF measures the number of times words appear in a given document (term frequency). But frequent words like ‘and’, ’the; appearing frequently in all documents are systematically discounted (inverse-document). The more documents a word appears, the less valuable it is in differentiating any given document. The idea is retain frequent AND distinctive words.
+
+ * **Machine Learning Sentiment Analysis models**: requires a lot of training examples.
+For example: I’m so happy today!, Stay happy San Diego, Coffee makes my heart happy, etc.. The terms such ‘happy’ has a relatively high tf-idf score when compared with other terms. When trained with many examples, a model should be able to detect that ‘happy’ is correlated with text assoiated with positive sentiment and be able to predict future ‘unlabeled’ examples.
+
+   * **Logistic regression** is a good model as it trains quickly even on large datasets with robust results.
+   * **SVMs, Random Forests, and Naive Bayes** are other choices which can be improved by trainingl not only individual tokens, but also bigrams /tri-grams. This allows the classifier to detect negations and short phrases that can carry sentiment information that individual tokens do not.
+   * **Unsupervised Models**: are trained without any labeled sentiment data. For good accuracy, these models require huge volumes of data.
+
+**References**
+
+ * https://wiki.pathmind.com/bagofwords-tf-idf
+ * https://algorithmia.com/blog/using-machine-learning-for-sentiment-analysis-a-deep-dive
+
+The remainder of this notebook uses the Bing lexicon to create class labels for use in training a ML algorithm. Note that supervised machine learning models require high quality training data; labeled training sets. This dataset includes tweets about the company Apple and we will create a labeled dataset with the inclusion of a sentiment column/field that will be used to train a sentiment prediction model. This is only being done as an exploratory exercise as one would typically have the labeled training dataset.
+ 
 
 
 ```{r message=FALSE, warning=FALSE}
@@ -20,7 +49,6 @@ library(ggplot2)
 library(dplyr)
 library(stringr)
 library(tidyr)
-library(ggthemes)
 
 # text mining library
 library(tm)
@@ -35,8 +63,209 @@ library(spacyr)
 library(SnowballC)
 library(topicmodels)
 
+# Machine Learning
+library(caTools)
+library(randomForest)
+
 
 # date/time library
 library(lubridate)
 ```
 
+
+# Assignment 14 Supervised Machine Learning Model for Sentiment Analysis
+
+Supervised machine learning requires training using a labeled dataset. Our apple tweets were unlabeled as to their sentiment. For demonstration purposes, we created a labeled dataset using BING to assess the sentiment of each tweet. As observed, due to the simplicity of unigram sentiment analysis, some of the tweets were mislabeled. This is fine for the sake of demonstrating the supervised ML technique, but keep in mind this is not typical. Ordinarily, we would have high quality, labeled training data.
+
+
+```{r}
+df <- read.csv('apl_tweets2.csv')
+```
+
+## Import and Inspect
+
+```{r}
+str(df)
+```
+
+
+```{r}
+head(df)
+tail(df)
+```
+
+## Preprocessing
+
+```{r}
+corpus <- Corpus(VectorSource(df$Tweet))
+corpus
+```
+
+```{r}
+inspect(corpus[1])
+```
+
+
+```{r message=FALSE, warning=FALSE}
+# standard cleansing
+corpus <- tm_map(corpus, tolower) # normalize case
+corpus <- tm_map(corpus, removePunctuation) # remove punctuation
+corpus <- tm_map(corpus, removeNumbers) # remove numbers
+corpus <- tm_map(corpus, stripWhitespace) # remove white space
+corpus = tm_map(corpus, removeWords, c("apple", stopwords("english")))
+# corpus = tm_map(corpus, stemDocument)
+```
+
+```{r}
+inspect(corpus[1])
+```
+
+## Document Term Matrix
+
+```{r}
+dtm <- DocumentTermMatrix(corpus)
+
+# inspect
+inspect(dtm)
+```
+
+```{r}
+sparse <- removeSparseTerms(dtm, .995)
+inspect(dtm)
+```
+
+
+
+### Convert the DTM to a data frame
+
+```{r}
+tSparse = as.data.frame(as.matrix(sparse))
+colnames(tSparse) = make.names(colnames(tSparse))
+tSparse$recommended_id = df$sentiment
+```
+
+
+```{r}
+tSparse
+```
+
+
+### Distribution of sentiment class
+
+```{r}
+table(tSparse$recommended_id)
+
+```
+
+```{r}
+prop.table(table(tSparse$recommended_id))
+```
+
+ * 236 labeled as negative (20%)
+ * 637 labeled neutral (54%)
+ * 308 negative (26%)
+
+## Creating Training and Test Data for Machine Learning
+
+divide the data into training and test data.
+70% train and 30% test
+
+```{r}
+set.seed(100)
+split = sample.split(tSparse$recommended_id, SplitRatio = 0.7)
+trainSparse = subset(tSparse, split==TRUE)
+testSparse = subset(tSparse, split==FALSE)
+```
+
+```{r}
+dim(trainSparse)
+dim(testSparse)
+```
+
+ * training has 827 observations
+ * test has 354 observations
+ 
+## Random Forest Mode
+
+### Train the Model
+
+```{r}
+set.seed(1234)
+trainSparse$recommended_id = as.factor(trainSparse$recommended_id)
+testSparse$recommended_id = as.factor(testSparse$recommended_id )
+```
+
+
+```{r}
+RF_model = randomForest(recommended_id ~ ., data=trainSparse)
+RF_model
+```
+
+```{r}
+predictRF = predict(RF_model, newdata=testSparse)
+cm <- as.matrix(table(Actual = testSparse$recommended_id, Predicted = predictRF))
+cm
+```
+
+
+A **Confusion Matrix** is an N x N matrix used for evaluating the performance of a classification model, where N is the number of target classes, in this case 3 (negative, neutral, positive). The matrix compares the actual target values with those predicted by the machine learning model
+
+ * The diagonal represent correct predictions, True (positive and negatives). The others are prediction errors as follows
+   * **False Positive (FP)** – Type 1 error: predicted value was falsely predicted
+   * **False Negative (FN)** – Type 2 error: The predicted value was falsely predicted
+
+
+## Computing Classification Evaluation Metrics in R
+
+by Said Bleik, Shaheen Gauher, Data Scientists at Microsoft
+
+Evaluation metrics are the key to understanding how your classification model performs when applied to a test dataset. In what follows, we present a tutorial on how to compute common metrics that are often used in evaluation, in addition to metrics generated from random classifiers, which help in justifying the value added by your predictive model, especially in cases where the common metrics suggest otherwise.
+
+https://blog.revolutionanalytics.com/2016/03/com_class_eval_metrics_r.html
+
+### Creating the Confusion Matrix
+
+We will start by creating a confusion matrix from simulated classification results. The confusion matrix provides a tabular summary of the actual class labels vs. the predicted ones. The test set we are evaluating on contains 100 instances which are assigned to one of 3 classes.
+
+### Base Variables 
+Next we will define some basic variables that will be needed to compute the evaluation metrics.
+
+```{r}
+n = sum(cm) # number of instances
+n
+```
+
+```{r}
+nc = nrow(cm) # number of classes
+nc
+```
+
+```{r}
+diag = diag(cm) # number of correctly classified instances per class 
+diag
+```
+
+ * 354 total observations in the test set
+ * 3 classes
+ * Diagonal are the correctly classified classes
+
+```{r}
+rowsums = apply(cm, 1, sum) # number of instances per class
+rowsums
+```
+
+```{r}
+colsums = apply(cm, 2, sum) # number of predictions per class
+colsums
+```
+
+### Accuracy
+
+A key metric to start with is the overall classification accuracy. It is defined as the fraction of instances that are correctly classified.
+
+```{r}
+accuracy = sum(diag) / n
+accuracy
+```
+
+This model is about **67%** accurate.

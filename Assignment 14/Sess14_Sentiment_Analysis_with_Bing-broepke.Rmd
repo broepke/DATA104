@@ -1,0 +1,231 @@
+---
+title: "Assignment 14"
+author: "Your Name"
+date: "Dec 13, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+#Discussion 14:
+This is your discussion for this week. There is no original code to submit.  The code and dataset was provided for your reference.  You are to discuss the issues around sentiment accuracy when using simple, unigram lexicon sentiment.  Submit what you plan to say in discussion forum.
+
+## Post
+
+These 30 tweets display several different issues with unigram, lexicon-based lookup sentiment analysis. 
+
+### Short Text
+There is a higher probability that few words might exist in the lexicon for shorter bodies of text.  This effect can be exacerbated when there are proper names and brand names included.  A perfect example is this tweet:
+
+*"Just found out that @apple added the #watchESPN app to AppleTV. I may never leave the house again! #SEC"
+In this case, not a single word was in the BING lexicon.*
+
+Additionally, just a few words may show up and change the overall score of the text.  The following text is clearly positive, but since only one word, "damage," was in the lexicon and is negative, the whole text is marked as such.
+
+*"I just dropped my phone down two flights of wooden stairs, no damage. Thanks @apple!"*
+
+### Stop Word Removal
+It's possible that when removing stop words, you can change the sentiment of the text.   Forty-three words appear in both the "stop_words" and BING lexicons.  Of those, 37 of them are positive words, and six are negative.   By removing these, one can see how several words could be removed from shorter text, changing its sentiment.
+These are words such as: `appreciate`, `best`, `like`, `welcome`, `thank`, and `greatest.`
+
+### Slang
+When looking at the following text, it shows a very positive sentiment:
+
+*"@V2vista Fingerprint scanner: The killer feature of iPhone 5S. This is so bloody brilliant."*
+
+However, because of the terms killer and bloody, it turns the overall sentiment negative.
+
+### n-Grams and Negation Terms
+Using this example again, since it only looks at words individually, it doesn't consider negation terms such as `not`, `without`, `no`, `can't`, `don't`, and `won't`.  In the following case, damage is a negative term; however, no damage is not.
+
+*"I just dropped my phone down two flights of wooden stairs, no damage. Thanks @apple!"*
+
+
+
+
+
+
+
+
+
+
+# Limitations of lexicon based sentiment
+Dictionary-based methods like the ones we are discussing find the total sentiment of a piece of text by adding up the individual sentiment scores for each word in the text.
+
+It is important to keep in mind that these methods do not take into account qualifiers before a word, such as in “no good” or “not true”; a lexicon-based method like this is based on unigrams only.
+
+One last caveat is that the size of the chunk of text that we use to add up unigram sentiment scores can have an effect on an analysis. A text the size of many paragraphs can often have positive and negative sentiment averaged out to about zero, while sentence-sized or paragraph-sized text often works better.
+
+```{r message=FALSE, warning=FALSE}
+# twitter library 
+library(rtweet)
+
+# plotting and pipes - tidyverse
+library(ggplot2)
+library(dplyr, warn.conflicts = FALSE)
+options(dplyr.summarise.inform = FALSE) # Suppress summarise info
+
+# text mining library
+suppressPackageStartupMessages(library(tidyverse)) # suppress startup message
+
+library(tidytext)
+
+# stemming libary
+library(SnowballC)
+
+# lemmatization
+library(textstem)
+```
+
+
+
+```{r}
+df1 = read.csv('problem_tweets2.csv', 
+                 stringsAsFactors = FALSE)
+
+df1 = df1 %>%
+  mutate(doc_id = paste0("doc", row_number())) %>%
+  select(doc_id, everything())
+
+str(df1)
+```
+
+```{r}
+df1
+```
+
+After reading data we would generally want to preprocess text by removing stop words, stemming, etc.. However, be aware that by doing so, you could remove words, or change its lemma such that there is no longer a match in the lexicon. For this exercise, other than the basic preprocessing automated by tidytext, we will not perform additional preprocessing. The following join creates a table with common words between stop_words and bing.
+
+
+```{r}
+inner_join(stop_words, get_sentiments("bing"), by='word')
+```
+
+
+```{r}
+inner_join(stop_words, get_sentiments("bing"), by='word') %>%
+  group_by(sentiment) %>%
+  summarise(count = n())
+```
+
+```{r}
+stop_words
+```
+
+
+merge with bing sentiment words
+
+```{r}
+df2 = df1 %>%
+  unnest_tokens(word, text)   %>%       # tokenize
+  inner_join(get_sentiments("bing"),    # merge words with bing lexicon
+             by='word')   %>%
+  group_by(doc_id, word) %>%
+  count(word, sentiment) %>%               # count number of positive and negative
+ 
+  spread(sentiment, n, fill = 0) %>%       # wide format
+  mutate(sentiment = positive - negative)  # total sentiment score  
+
+df2
+```
+
+ * a word with sentiment < 0 is negative
+ * a word with sentiment > 0 is positive
+ * a document can contain both negative and positive words. For example doc1 has (2) negative words and (1) positive. If we were to sum these, we get (-1) meaning the overall sentiment for doc1 is negative
+
+```{r}
+df3 = df2 %>%
+  select(doc_id, word, sentiment)  %>%
+  group_by(doc_id)  %>%
+  summarise(sentiment = sum(sentiment))
+
+df3
+```
+
+```{r}
+# now join with the original dataset
+df4 = df1 %>%
+  left_join(df3, by='doc_id')
+
+# if words do not exist in bing lexicon, will be NA, treat this as neutral (0)
+df4[is.na(df4)] <- 0
+
+df4
+```
+ * observe df3 returns fewer than the total of 30. This is because some of the docs did not match the bing lexicon.
+ * observe doc1 has an overall sentiment score of -1
+ * df4 is the original dataframe, joined with the bing sentiment. NA pertains to words not found in bing. These include all docs on page 3, which we categorized as neutral (0)
+   * doc1-10 -> positive
+   * doc11-20 -> negative
+   * doc21-30 -> neutral/uknown
+
+## Review each document and see if sentiment is correct
+For each section, answer whether the sentiment label is correct? If not, why do you think it was mislabeled?
+
+### positive sentiment
+
+```{r}
+df4  %>%
+  filter(sentiment > 0 ) %>%
+  select(doc_id, text)
+```
+
+### negative sentiment
+
+```{r}
+df4  %>%
+  filter(sentiment < 0 ) %>%
+  select(doc_id, text)
+```
+
+### neutral sentiment
+
+```{r}
+df4  %>%
+  filter(sentiment == 0 ) %>%
+  select(doc_id, text)
+```
+
+
+## helper function to test specific documents
+
+```{r}
+s = df4 %>% filter(doc_id=='doc28')
+
+bing = get_sentiments("bing")
+
+tokens <- tibble(text = s) 
+
+tokens= tokens %>%
+  unnest_tokens(word, text)
+
+# check if the word is in the lexicon
+for (t in tokens) {
+  print(t)
+  print(t %in% bing$word)
+}
+```
+
+
+
+```{r}
+df1 %>%
+  filter(doc_id =="doc4") %>%
+  unnest_tokens(word, text)   %>%       # tokenize
+  left_join(get_sentiments("bing"),    # merge words with bing lexicon
+             by='word')
+```
+
+
+```{r}
+df2
+```
+
+
+
+
+
+
+
+

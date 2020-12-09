@@ -48,17 +48,9 @@ spacy_initialize(model = "en_core_web_sm", condaenv="DATA104")
 ```
 
 ```{r}
-tesla <- read_twitter_csv("tesla.csv")
-tesla_stock <- read_twitter_csv("tesla_stock.csv")
-elon_musk <- read_twitter_csv("elon_musk.csv")
-```
-
-```{r}
-df <- rbind(tesla, tesla_stock)
-```
-
-```{r}
-df <- rbind(df, elon_musk)
+df <- read_twitter_csv("tesla_tweets.csv")
+#stock <- read_twitter_csv("tsla.csv")
+#df <- rbind(tesla, stock)
 ```
 
 
@@ -495,7 +487,7 @@ bigram_counts %>%
 
 ```{r message=FALSE, warning=FALSE}
 bigram_graph <- bigram_counts %>%
-  filter(n > 180) %>%
+  filter(n > 100) %>%
   graph_from_data_frame()
 
 set.seed(2017)
@@ -504,8 +496,7 @@ ggraph(bigram_graph, layout = "fr") +
   geom_edge_link() +
   geom_node_point() +
   geom_node_text(aes(label = name), vjust = -.5, hjust = -.2) +
-  theme_minimal() +
-  scale_fill_tableau()
+  theme_minimal()
 ```
 
 # NER
@@ -622,7 +613,7 @@ corpus <- tm_map(corpus, lemmatize_strings) # lemmatizaton
 Custom list of words generated upon performing the topic modeling.  These were frequently appeared but do not add a lot of context to topic identification, or appear so frequently, such as `University`, that they are in every topic. 
 
 ```{r}
-corpus <- tm_map(corpus, removeWords, c("just"))
+corpus <- tm_map(corpus, removeWords, c("tesla", "get", "much", "can", "will", "say"))
 ```
 
 
@@ -647,12 +638,11 @@ inspect(dtm)
 ### Remove Sparse Terms
 
 ```{r}
-dtm = removeSparseTerms(dtm, .98)
-```
-
-```{r}
+dtm = removeSparseTerms(dtm, .995)
 inspect(dtm)
 ```
+
+
 
 ```{r}
 sel_idx <- rowSums(as.matrix(dtm)) > 0
@@ -670,7 +660,7 @@ The Elbow method looks at the total WSS as a function of the number of clusters:
 
 https://www.datanovia.com/en/lessons/determining-the-optimal-number-of-clusters-3-must-know-methods/ 
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 mat <- as.matrix (weightTfIdf(dtm) )
 
 # normalize the TfIdf scores by euclidean distance. 
@@ -691,7 +681,7 @@ plot(1:k.max, wss,
 ## LDA
 
 ```{r}
-lda <- LDA(dtm, k = 3, control = list(seed = 1234))
+lda <- LDA(dtm, k = 6, control = list(seed = 1234))
 lda
 ```
 
@@ -715,7 +705,7 @@ tidy(lda, matrix = "gamma")  %>%
 
 ### Top-Level Topics
 
-```{r fig.height=5, fig.width=12}
+```{r fig.height=7, fig.width=12}
 top_terms <- topics %>%
   group_by(topic) %>%
   top_n(15, beta) %>%
@@ -727,7 +717,7 @@ top_terms %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
     geom_col(show.legend = FALSE) +
     facet_wrap(~ topic, scales = "free", ncol=3) +
-    theme_classic(base_size = 20) + 
+    theme_classic(base_size = 28) + 
     scale_y_reordered() 
 ```
 

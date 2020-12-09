@@ -1,0 +1,606 @@
+---
+title: "Data 104 Final Project"
+author: "Brian Roepkee"
+date: "Dec 20, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Tesla Model 3 Discussion Forum Analysis
+
+```{r message=FALSE, warning=FALSE}
+# twitter library 
+library(rtweet)
+
+# plotting and pipes
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(ggthemes)
+
+# text mining library
+library(tm)
+library(tidytext)
+library(wordcloud)
+library(reshape2)
+library(textstem)
+library(ggraph)
+library(igraph)
+library(widyr)
+library(spacyr)
+library(SnowballC)
+library(topicmodels)
+
+
+# date/time library
+library(lubridate)
+```
+
+```{r}
+df <- read.csv('tesla_forums.csv')
+```
+
+```{r}
+df$Time <- as.Date(df$Time, "%m/%d/%y")
+df$User <- as.factor(df$User)
+df$Topic <- as.factor(df$Topic)
+```
+
+
+```{r}
+str(df)
+```
+
+
+```{r}
+summary(df)
+```
+
+
+```{r}
+df <- distinct(df)
+```
+
+
+```{r}
+summary(df)
+```
+
+
+```{r}
+df_topics <- df %>%
+  group_by(Topic) %>%
+  summarise(count = n(), .groups="keep")
+df_topics
+```
+
+
+
+
+### Add Doc_Id incrementing per Row
+
+```{r}
+df = df %>%
+  mutate(doc_id = paste0("doc", row_number())) %>%
+  select(doc_id, everything())
+head(df)
+```
+
+### Add a Column for Text Length
+
+```{r}
+df$text_len <- str_count(df$Discussion)
+```
+
+# EDA
+
+Simplify the Data Frame to just the target fields we'll be using throughout the analysis.
+
+```{r}
+df_select <- df
+```
+
+
+
+
+## Tweet Length
+Number of tweets by each candidate
+
+```{r}
+summary(df_select)
+```
+
+Tweets for the dataset range from `7` characters to `316` with a mean of `172`
+
+
+
+```{r}
+df_select %>%
+  ggplot(aes(x = text_len, fill="#1F77B4")) +
+  geom_histogram(bins = 32, show.legend = FALSE) +
+  theme_minimal() +
+  scale_fill_fivethirtyeight()
+```
+
+### Tweets Over Time
+
+# Clean and Prepare the Text for Analysis
+
+Get rid of various useless text like URLS and shortened URLs.  These appear frequently in the text and skew results.
+
+### Clean Twitter specific items
+https://stackoverflow.com/questions/31348453/how-do-i-clean-twitter-data-in-r
+
+
+```{r}
+# Non Latin Characters
+df_select$Discussion <- iconv(df_select$Discussion, "latin1", "ASCII", sub = "")
+# New Lines
+df_select$Discussion <- str_replace_all(df_select$Discussion,"\\n","")
+df_select$Discussion <- str_replace_all(df_select$Discussion,"@","")
+```
+
+
+### Remove Whitespace and Lemmatize
+
+```{r}
+df_select$Discussion = removePunctuation(df_select$Discussion)
+df_select$Discussion = removeNumbers(df_select$Discussion)
+df_select$Discussion = stripWhitespace(df_select$Discussion)
+df_select$Discussion = tolower(df_select$Discussion)
+df_select$Discussion = lemmatize_strings(df_select$Discussion)
+```
+
+
+```{r}
+tail(df_select$Discussion, n=10)
+```
+
+
+### Unnest_Tokens()
+
+Create a new column with each word on it's own row.
+
+```{r}
+tidy_df <- df_select %>%
+  unnest_tokens(word, Discussion)
+```
+
+### Stop Word Removal
+remove stop words and custom stop words from the results.
+
+```{r}
+custom_stop_words <- bind_rows(tibble(word = c("fuck", "shit", "i"), lexicon = c("custom")), stop_words)
+
+tidy_df <- tidy_df %>%
+  anti_join(custom_stop_words, by = "word")
+```
+
+### Validate the New number of Rows
+Dramatically larger now that each word from text is in it's own row.
+
+```{r}
+nrow(tidy_df)
+```
+
+# Sentiment Analysis
+
+## Bing Sentiment Lexicon
+Using the Bing Lexicon from Bing Liu and collaborators, adds the column "Sentiment" and mark each word as positive or negative. 
+
+https://www.cs.uic.edu/~liub/FBS/sentiment-analysis.html
+
+```{r}
+bing_df <- tidy_df %>%
+  inner_join(get_sentiments("bing"), by = "word")
+```
+
+
+```{r}
+bing_df %>%
+  group_by(sentiment) %>%
+  summarise(count = n(), .groups = "keep")
+```
+
+
+### AFINN scoring Lexicon
+AFINN from Finn Årup Nielsen, adds the `value` column, with a numeric representation of how positive, or negative the word is.  The AFINN lexicon measures sentiment with a numeric score between -5 and 5
+
+http://www2.imm.dtu.dk/pubdb/pubs/6010-full.html 
+
+```{r}
+afinn_df <- tidy_df %>%
+  inner_join(get_sentiments("afinn"), by = "word")
+
+head(afinn_df)
+```
+
+
+```{r}
+afinn_df %>%
+  ggplot(aes(x = value, fill="#1F77B4")) +
+  geom_histogram(bins = 10, show.legend = FALSE) +
+  scale_x_continuous(breaks = c(-5, -3, -1, 1, 3, 5)) +
+  theme_minimal() +
+  scale_fill_fivethirtyeight()
+```
+
+For the dataset overall, there is a slight left-skew showing there is a greater concentration of words with positive values.  There are very few in the high and low values (`-4`,`-5`, `+5`). 
+
+*Note: `0` is not a valid value in this scoring system, therefore the bin is empty*
+
+### NRC Sentiment Lexicon
+NRC from Saif Mohammad and Peter Turney. The NRC Emotion Lexicon is a list of English words and their associations with eight basic emotions as well as positive and negative sentiment.
+
+One thing to note, single words can have multiple emotions
+
+```{r}
+nrc_df <- tidy_df %>%
+  inner_join(get_sentiments("nrc"), by = "word")
+```
+
+Total counts for all 8 emotions and 2 sentiments.
+
+```{r}
+nrc_df %>%
+  group_by(sentiment) %>%
+  summarise(total = n(), .groups = "keep") %>%
+  arrange(desc(total))
+```
+
+## Inspect Top Words Per Candidate
+Using various methods, inspect what words are most frequently used, per candidate, proportions of negative and positive words, and trend over time. 
+
+### Top Word Counts (BING)
+
+```{r message=FALSE, warning=FALSE}
+bing_df %>%
+  count(word, sort = TRUE, sentiment) %>%
+
+  group_by(sentiment) %>%
+  top_n(15) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  theme_minimal() +
+  scale_fill_fivethirtyeight() +
+  labs(x = "Contribution to sentiment",
+       y = NULL)
+```
+
+When looking at data as a whole, we can see the top negative word is `crisis` and positive is `win`.  Next, we'll split these out by candidate. 
+
+### Overall Top Words (BING)
+
+```{r message=FALSE, warning=FALSE}
+bing_df %>%
+  count(word, sort = TRUE, sentiment) %>%
+  top_n(40) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = TRUE) +
+  theme_minimal() +
+  scale_fill_fivethirtyeight() +
+  labs(x = "Contribution to sentiment", y = NULL)
+```
+
+
+### Top Words Sorted by AFINN Score
+
+```{r message=FALSE, warning=FALSE}
+afinn_df$color <- ifelse(afinn_df$value < 0, "Negative","Positive")
+
+afinn_df %>%
+  count(word, sort = TRUE, value, color) %>%
+  top_n(30) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, value)) %>%
+  
+  ggplot(aes(value, word, fill = color)) +
+  geom_col(show.legend = TRUE) +
+  theme_minimal() +
+  scale_fill_fivethirtyeight() +
+  labs(x = "AFINN Sentiment Score", y = NULL)
+```
+
+
+### Sentiment of Tweets over Time (AFINN)
+
+```{r}
+plot_df2 <- afinn_df %>%
+  mutate(mon = floor_date(Time, "month")) %>%
+  group_by(mon) %>%
+  summarize(value = mean(value), .groups = 'keep')
+
+plot_df2$color <- ifelse(plot_df2$value < 0, "negative","positive")
+
+ggplot(plot_df2, aes(mon, value, fill = color)) +
+  geom_col(show.legend = FALSE) +
+  labs(x = NULL, y = "Mean AFINN Sentiment Score") +
+  theme_minimal() +
+  scale_fill_fivethirtyeight()
+```
+
+Since August, showing the frequency of sentiment for each candidate.  Using the mean sentiment score we can see how each candidate tweeted on a daily basis.  Trumps earlier timeline tended to be more negative, while both candidates were more positive starting mid September. 
+
+
+## Most Positive Messages
+
+```{r}
+afinn_df %>%
+  group_by(doc_id) %>%
+  summarize(total_value = sum(value), word_count = n(), .groups = "keep") %>%
+  arrange(desc(total_value)) %>%
+  head()
+```
+
+```{r}
+df %>%
+  filter(doc_id == "doc30686" | doc_id == "doc26462" | doc_id == "doc9918") %>%
+  select(Discussion)
+```
+
+
+## Most Negative Messages
+
+```{r}
+afinn_df %>%
+  group_by(doc_id) %>%
+  summarize(total_value = sum(value), word_count = n(), .groups = "keep") %>%
+  arrange(total_value) %>%
+  head()
+```
+
+```{r}
+df %>%
+  filter(doc_id == "doc11454" | doc_id == "doc18909" | doc_id == "doc19248") %>%
+  select(Discussion)
+```
+
+# Word Clouds
+
+## Overall Word Cloud
+
+```{r message=FALSE, warning=FALSE}
+bing_df %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 150))
+```
+
+
+## By Sentiment
+Word cloud of the top 200 words grouped by sentiment, positive or negative.
+
+```{r message=FALSE, warning=FALSE}
+bing_df %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("#1F77b4", "#FF7F0E"), max.words = 150)
+```
+
+
+# Checking for Top-Negation Word Pairs
+The method used here doesn't take into account negation of words like no, and never preceding words.  We can quickly check the top word pairs to see how they occur in our text.
+
+
+```{r}
+df_select$Discussion <- removeWords(df_select$Discussion, c(stopwords('english'), "i"))
+```
+
+```{r}
+bigrams <- df_select %>%
+  unnest_tokens(bigram, Discussion, token = "ngrams", n = 2)
+```
+
+
+```{r}
+bigram_counts <- bigrams %>%
+  count(bigram, sort = TRUE) %>%
+  separate(bigram, c("word1", "word2"), sep = " ")
+
+head(bigram_counts, n=10)
+```
+
+```{r message=FALSE, warning=FALSE}
+bigram_graph <- bigram_counts %>%
+  filter(n > 200) %>%
+  graph_from_data_frame()
+
+set.seed(2017)
+
+ggraph(bigram_graph, layout = "fr") +
+  geom_edge_link() +
+  geom_node_point() +
+  geom_node_text(aes(label = name), vjust = -.9, hjust = -.1) +
+  theme_minimal()
+```
+
+
+
+# Topic Modeling
+
+## Preprocessing
+
+```{r}
+corpus <- Corpus(VectorSource(df$Discussion))
+```
+
+### Before cleaning
+
+```{r}
+inspect(corpus[1:5])
+```
+
+### Transform all Text to Lowercase 
+
+```{r}
+# force all to lowercase
+corpus <- tm_map(corpus, tolower)
+```
+
+### Odd Characters
+There are some odd puncutation marks that aren't being removed.  Just strip all non-ascii
+
+
+```{r}
+# Remove non-ASCII characters in the dataset that people use to decorate text
+corpus <- tm_map(corpus,
+                 content_transformer(
+                   function(x) iconv(x, "latin1", "ASCII", sub = "")
+                   )
+)
+
+# Replace new line symbols with a space
+corpus <- tm_map(corpus,
+                 content_transformer(
+                   function(x) gsub("\\n", "", x)
+                   )
+)
+```
+
+
+### Remove Punctuation, White Space and Numbers
+
+```{r}
+corpus <- tm_map(corpus, removePunctuation)  # remove punctuation
+corpus <- tm_map(corpus, removeNumbers)      # remove numbers
+corpus <- tm_map(corpus, stripWhitespace)    # remove white space
+```
+
+### Remove Stop Words
+
+```{r}
+# stop and custom stop 
+corpus <- tm_map(corpus, removeWords, c(stopwords('english')))
+```
+
+### Perform Lemmatization
+
+```{r}
+corpus <- tm_map(corpus, lemmatize_strings) # lemmatizaton
+```
+
+### Remove Words that Aren't Helpful for Topic Modeling
+
+Custom list of words generated upon performing the topic modeling.  These were frequently appeared but do not add a lot of context to topic identification, or appear so frequently, such as `University`, that they are in every topic. 
+
+```{r}
+corpus <- tm_map(corpus, removeWords, c("tesla", "get", "much", "can", "will", "say"))
+```
+
+
+
+
+```{r}
+inspect(corpus[1:10])
+```
+
+
+### Document Term Matrix Creation
+
+```{r}
+dtm <- DocumentTermMatrix(corpus, control = list(minWordLength = 5, 
+                removeNumbers=FALSE, removePunctuation=FALSE, 
+                removeStopwords=FALSE,  stemWords=FALSE, stripWhitespace=FALSE))
+```
+
+
+```{r}
+inspect(dtm)
+```
+
+### Remove Sparse Terms
+
+```{r}
+dtm = removeSparseTerms(dtm, .990)
+inspect(dtm)
+```
+
+
+
+```{r}
+sel_idx <- rowSums(as.matrix(dtm)) > 0
+dtm <- dtm[sel_idx, ]
+dim(dtm)
+```
+
+## Latent Dirichlet Allocation (LDA)
+Is an unsupervised classification method designed for text data. Rather than relying on labeled (eg: hand-coded data sets), it is a probabilistic topic model that uses statistical algorithms to analyze words in raw text documents, to uncover thematic structure of the both the corpus and individual documents.
+
+### Find the best k - the Elbow Method
+The basic idea behind partitioning methods, such as k-means clustering, is to define clusters such that the total intra-cluster variation [or total within-cluster sum of square (WSS)] is minimized. The total WSS measures the compactness of the clustering and we want it to be as small as possible.
+
+The Elbow method looks at the total WSS as a function of the number of clusters: One should choose a number of clusters so that adding another cluster doesn’t improve much better the total WSS.
+
+https://www.datanovia.com/en/lessons/determining-the-optimal-number-of-clusters-3-must-know-methods/ 
+
+```{r eval=FALSE, include=FALSE}
+mat <- as.matrix (weightTfIdf(dtm) )
+
+# normalize the TfIdf scores by euclidean distance. 
+scaled_data  <- dist(mat, method = "euclidean")
+
+k.max <- 5
+data <- scaled_data
+wss <- sapply(1:k.max, 
+  function(k){kmeans(data, k, nstart=50,iter.max = 15)$tot.withinss})
+
+plot(1:k.max, wss,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+```
+
+
+## LDA
+
+```{r}
+lda <- LDA(dtm, k = 6, control = list(seed = 1234))
+lda
+```
+
+### Per-Topic-Per-Word Probabilities (Beta)
+
+```{r}
+# beta (per-term-per-topic) 
+topics <- tidy(lda, matrix = "beta")
+topics %>%
+  arrange(term, -beta)  %>%
+  head()
+```
+
+### Per-Document-Per-Topic Probabilities (Gamma)
+
+```{r}
+tidy(lda, matrix = "gamma")  %>%
+  arrange(document, -gamma)  %>%
+  head()
+```
+
+### Top-Level Topics
+
+```{r fig.height=7, fig.width=12}
+top_terms <- topics %>%
+  group_by(topic) %>%
+  top_n(15, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ topic, scales = "free", ncol=3) +
+    theme_classic(base_size = 28) + 
+    scale_y_reordered() +
+    scale_fill_tableau()
+```
+
+
+

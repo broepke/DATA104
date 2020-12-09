@@ -1,0 +1,240 @@
+---
+title: "Assignment 14"
+author: "Your Name"
+date: "Dec 13, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+# Machine Learning Sentiment Analysis
+
+Sentiment Analysis is a text classification process for determining the sentiment (eg: positive, negative or neutral) in a given text. It provides data analysts with a tool to for gauging public opinion and customer experience of brand or products and can be used for nuanced market research.
+
+Sentiment Analysis is complex and ML (machine learning) models need to be able to determine the textual context relevant to the desired. This includes the understanding of negation, human patterns of speech, idioms, metaphors, etc. With advances in deep learning methods, these models have improved significantly, quickly approaching human precision.
+
+The first step in development is gathering suitable sources of training data. There are a few standard datasets, but new datasets are being developed as labeled data becomes more available.
+
+ * Stanford Sentiment Treebank contains over 11,000 sentences extracted from movie reviews
+ * Amazon Product Reviews Dataset provides over 142 million Amazon product reviews
+ * IMDB Movie Reviews Dataset provides 50,000 highly polarized movie reviews with a 50-50 train/test split.
+ 
+## Models
+ * **Bag of Words (BoW)**: an algorithm that counts how many times a word appears in a document. Those word counts allows comparisons of documents to gauge their similarities for applications including: search, document classification and topic modeling. BoW lists words paired with their word counts per document. The words and documents become vectors, where each row is a word, each column is a document, and each cell is a word count. We used BoW when we studied LDA for topic modeling. BoW is also used for preparing text for input in a deep-learning.
+
+ * **Term Frequency-Inverse Document Frequency (TF-IDF)** provides another method for determining the topic of an article. TF-IDF measures relevance, not frequency. Word counts are replaced with TF-IDF scores. First, TF-IDF measures the number of times words appear in a given document (term frequency). But frequent words like ‘and’, ’the; appearing frequently in all documents are systematically discounted (inverse-document). The more documents a word appears, the less valuable it is in differentiating any given document. The idea is retain frequent AND distinctive words.
+
+ * **Machine Learning Sentiment Analysis models**: requires a lot of training examples.
+For example: I’m so happy today!, Stay happy San Diego, Coffee makes my heart happy, etc.. The terms such ‘happy’ has a relatively high tf-idf score when compared with other terms. When trained with many examples, a model should be able to detect that ‘happy’ is correlated with text assoiated with positive sentiment and be able to predict future ‘unlabeled’ examples.
+
+   * **Logistic regression** is a good model as it trains quickly even on large datasets with robust results.
+   * **SVMs, Random Forests, and Naive Bayes** are other choices which can be improved by trainingl not only individual tokens, but also bigrams /tri-grams. This allows the classifier to detect negations and short phrases that can carry sentiment information that individual tokens do not.
+   * **Unsupervised Models**: are trained without any labeled sentiment data. For good accuracy, these models require huge volumes of data.
+
+**References**
+
+ * https://wiki.pathmind.com/bagofwords-tf-idf
+ * https://algorithmia.com/blog/using-machine-learning-for-sentiment-analysis-a-deep-dive
+
+The remainder of this notebook uses the Bing lexicon to create class labels for use in training a ML algorithm. Note that supervised machine learning models require high quality training data; labeled training sets. This dataset includes tweets about the company Apple and we will create a labeled dataset with the inclusion of a sentiment column/field that will be used to train a sentiment prediction model. This is only being done as an exploratory exercise as one would typically have the labeled training dataset.
+ 
+
+
+```{r message=FALSE, warning=FALSE}
+# twitter library 
+library(rtweet)
+
+# plotting and pipes
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(ggthemes)
+
+# text mining library
+library(tm)
+library(tidytext)
+library(wordcloud)
+library(reshape2)
+library(textstem)
+library(ggraph)
+library(igraph)
+library(widyr)
+library(spacyr)
+library(SnowballC)
+library(topicmodels)
+
+
+# date/time library
+library(lubridate)
+```
+
+```{r}
+df <- read.csv('apl_tweets2.csv')
+```
+
+```{r}
+df$sentiment <- NULL
+```
+
+
+```{r}
+str(df)
+```
+
+### Tidying and text cleaning
+First create a list of stop words that should be excluded. Recall that the general stop_words list contains some words from BING.
+
+```{r}
+excludes = inner_join(stop_words, get_sentiments("bing"), by='word')
+
+custom_stop_words = anti_join(stop_words, excludes, by=c("word", "lexicon"))
+```
+
+#### Text Cleaning
+
+```{r}
+cleandf = df
+
+cleandf$Tweet <- gsub('iOS\\s', 'iOS', df$Tweet)   # remove space after 'iOS 7'
+
+# hash tags may contain sentiment words
+#cleandf$Tweet <- gsub('#\\S+', '', cleandf$Tweet)       # Remove Hashtags
+cleandf$Tweet <- gsub('@\\S+', '', cleandf$Tweet)        # Remove Mentions
+
+cleandf$Tweet <- gsub('[[:punct:]]', '', cleandf$Tweet)  # Remove Punctuations
+cleandf$Tweet <- gsub('[[:cntrl:]]', '', cleandf$Tweet)  # Remove Controls and special characters
+cleandf$Tweet <- gsub('http\\S+\\s*','', cleandf$Tweet)  # remove urls
+cleandf$Tweet <- gsub('\\b\\d+\\b','', cleandf$Tweet)    #remove numbers
+cleandf$Tweet <- gsub('\\b+RT', '', cleandf$Tweet)       # Remove RT
+cleandf$Tweet <- gsub('\\s+',' ', cleandf$Tweet)         # single space between words
+cleandf$Tweet <- gsub('[\r\n]', '', cleandf$Tweet)       # remove new lines/cr
+
+# screate stop words list 
+my_stop_words <- tibble(
+  word = c( "t.co",  "rt",  "amp",   "gt" ),
+  lexicon = "custom"
+)
+# combine SMART stop words with custom
+all_stop_words <- custom_stop_words %>%
+  bind_rows(my_stop_words)
+
+
+tidy_df = cleandf %>%
+  unnest_tokens(word, Tweet)  %>%
+  
+  # remove stop words (note: some stop words are in the sentiment lexicon)
+  anti_join(all_stop_words, by='word') 
+
+  #excluding stemming.  For example 'stunning' gets lemmatized to 'stun'. Whereas 'stunning' is positive, 'stun is negative'
+  #mutate(word = lemmatize_words(word)) 
+```
+
+#### Validate
+
+```{r}
+head(df)
+```
+
+```{r}
+head(cleandf)
+```
+
+```{r}
+sentDf = tidy_df %>%
+  inner_join(get_sentiments("bing"),    # merge words with bing lexicon
+             by='word')   %>%
+  group_by(doc_id, word) %>%
+  count(word, sentiment) %>%             # count number of positive and negative
+ 
+  spread(sentiment, n, fill = 0) %>%       # wide format
+  mutate(sentiment = positive - negative)  # total sentiment score  
+
+sentDf
+```
+
+```{r}
+sentDf = sentDf %>%
+  select(doc_id, word, sentiment)  %>%
+  group_by(doc_id)  %>%
+  summarise(sentiment = sum(sentiment), .groups="keep")
+
+sentDf
+```
+
+```{r}
+# now join with the original dataset
+df2 = df %>%
+  left_join(sentDf, by='doc_id')
+
+# if words do not exist in bing lexicon, will be NA, treat this as neutral (0)
+df2[is.na(df2)] <- 0
+
+df2
+```
+### check negative sentiment
+
+```{r}
+df2 %>%
+  filter(sentiment < 0) %>%
+  select(Tweet)
+```
+### check postive sentiment
+
+```{r}
+df2 %>%
+  filter(sentiment > 1) %>%
+  select(Tweet)
+```
+### look at neutral words (eg: words not in the bing lexicon)
+
+```{r}
+df2 %>%
+  filter(sentiment == 0) %>%
+  select(Tweet)
+```
+## Test Specific Documents
+
+```{r}
+# TODO
+```
+
+## save the file with labeled column for sentiment
+This can now be used in ML model, though the accuracy may not be great given the problems with sentiment labeling observed above.
+
+```{r}
+df2 = df2 %>%
+   mutate(sentiment = case_when(sentiment > 0 ~ 1,       # positive
+                                 sentiment < 0  ~ -1))    # negative
+
+# if words do not exist in bing lexicon, will be NA, treat this as neutral (0)
+df2[is.na(df2)] <- 0
+
+str(df2)
+```
+
+```{r}
+write_as_csv(df2, 'apl_tweets3.csv')
+```
+
+# Assignment 14 Supervised Machine Learning Model for Sentiment Analysis
+
+Supervised machine learning requires training using a labeled dataset. Our apple tweets were unlabeled as to their sentiment. For demonstration purposes, we created a labeled dataset using BING to assess the sentiment of each tweet. As observed, due to the simplicity of unigram sentiment analysis, some of the tweets were mislabeled. This is fine for the sake of demonstrating the supervised ML technique, but keep in mind this is not typical. Ordinarily, we would have high quality, labeled training data.
+
+
+```{r}
+df <- read.csv('apl_tweets2.csv')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
