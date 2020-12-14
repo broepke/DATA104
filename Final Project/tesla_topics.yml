@@ -1,0 +1,7 @@
+battery: [charg*, battery, degradation, mile*, range, port]
+app: [phone, app, mobile]
+fsd: [self driving, fsd, autopilot, speed, limit, steer, wheel, navigation]
+purchase: [new, owner, delivery, delivery time, order]
+sentry: [sentry mode, security]
+home: [garge door]
+interior: [cabin, overheat, interior, seats, dashboard]

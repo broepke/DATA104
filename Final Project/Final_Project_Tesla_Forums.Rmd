@@ -36,6 +36,10 @@ library(spacyr)
 library(SnowballC)
 library(topicmodels)
 library(quanteda)
+library(seededlda)
+
+# Machine Learning
+library(caret)
 
 
 # date/time library
@@ -547,65 +551,6 @@ The basic idea behind partitioning methods, such as k-means clustering, is to de
 The Elbow method looks at the total WSS as a function of the number of clusters: One should choose a number of clusters so that adding another cluster doesn’t improve much better the total WSS.
 
 
-```{r eval=FALSE, include=FALSE}
-mod_perplexity = numeric(0)
-topics <- c(5:10)  
-
-for (i in topics){
-  mod <- LDA(dtm, k = i, method = "Gibbs", 
-             control = list(seed=1234) ) # random seed for consitent results between runs
-  mod_perplexity[i] = perplexity(mod, dtm)
-}
-mod_perplexity <- mod_perplexity[!is.na (mod_perplexity)] # remove NA at first position
-
-# plot
-plot(x=topics, y=mod_perplexity, type = "b", xlab = "Number of topics", ylab = "Perplexity")
-```
-
-
-https://www.datanovia.com/en/lessons/determining-the-optimal-number-of-clusters-3-must-know-methods/ 
-
-```{r eval=FALSE, include=FALSE}
-mat <- as.matrix(weightTfIdf(dtm))
-
-# normalize the TfIdf scores by euclidean distance. 
-scaled_data  <- dist(mat, method = "euclidean")
-
-k.max <- 10
-data <- scaled_data
-wss <- sapply(1:k.max, 
-  function(k){kmeans(data, k, nstart=50,iter.max = 15)$tot.withinss})
-
-plot(1:k.max, wss,
-     type="b", pch = 19, frame = FALSE, 
-     xlab="Number of clusters K",
-     ylab="Total within-clusters sum of squares")
-```
-
-```{r eval=FALSE, include=FALSE}
-library(parallel)
-library( ldatuning )
-
-sequ <- seq(5, 10, 1) 
-
-no_cores <- detectCores() - 1 #Calculate the number of cores
-
-#Run LDA using Gibbs sampling
-result <- FindTopicsNumber(
-  dtm,
-  topics = sequ,
-  metrics = c("CaoJuan2009", "Deveaud2014", "Griffiths2004", "Arun2010"),
-  method = "Gibbs",
-  control = list(
-    seed = 123
-  ),
-  mc.cores = no_cores
-)
-
-FindTopicsNumber_plot(result)
-```
-
-
 ## LDA
 
 ```{r}
@@ -651,7 +596,7 @@ summary(my_corpus[1:5])
 ```{r}
 quant_dfm <- dfm(my_corpus, 
                 remove_punct = TRUE, 
-                remove_numbers = FALSE, 
+                remove_numbers = TRUE, 
                 remove = stopwords("english"))
 quant_dfm <- dfm_trim(quant_dfm, min_termfreq = 4, max_docfreq = 10)
 quant_dfm
@@ -665,4 +610,210 @@ if (require(stm)) {
     plot(my_lda_fit20)    
 }
 ```
+
+
+```{r}
+tmod_lda <- textmodel_lda(quant_dfm, k = 10)
+```
+
+```{r}
+terms(tmod_lda, 10)
+```
+
+
+
+```{r}
+dict_topic <- dictionary(file = "tesla_topics.yml")
+print(dict_topic)
+```
+
+```{r}
+tmod_slda <- textmodel_seededlda(quant_dfm, dictionary = dict_topic)
+```
+
+```{r}
+terms(tmod_slda, 20)
+```
+
+## Targeted Dictionary Analysis
+
+```{r}
+my_corpus <- corpus(df_select$Discussion)  # build a new corpus from the texts
+summary(my_corpus[1:5])
+```
+
+
+
+
+```{r}
+quant_tesla <- select(df_select, doc_id, Discussion, User, Time)
+quant_tesla
+```
+```{r}
+quant_tesla <- quant_tesla %>%
+  rename(text = Discussion)
+```
+
+
+```{r}
+names(quant_tesla)
+```
+
+
+```{r}
+corp_tesla <- corpus(quant_tesla)
+print(corp_tesla[1:3])
+```
+
+```{r}
+corp_tesla$year <- year(corp_tesla$Time)
+corp_tesla$month <- month(corp_tesla$Time)
+corp_tesla$week <- week(corp_tesla$Time)
+```
+
+
+```{r}
+summary(corp_tesla)
+```
+
+```{r}
+corp_tesla <- corpus_subset(corp_tesla, "year" >= 2020)
+toks_tesla <- quanteda::tokens(corp_tesla, remove_punct = TRUE)
+```
+
+
+```{r}
+lengths(data_dictionary_LSD2015)
+```
+
+```{r}
+toks_tesla_lsd <- tokens_lookup(toks_tesla, dictionary =  data_dictionary_LSD2015[1:2])
+head(toks_tesla_lsd, 5)
+```
+
+### Full Self Driving
+
+```{r}
+# get relevant keywords and phrases
+fsd <- c("self driving", "fsd", "full self driving")
+
+# only keep tokens specified above and their context of ±10 tokens
+toks_fsd <- tokens_keep(toks_tesla, pattern = phrase(fsd), window = 10)
+
+toks_fsd <- tokens_lookup(toks_fsd, dictionary = data_dictionary_LSD2015[1:2])
+
+# create a document document-feature matrix and group it by weeks in 2016
+dfmat_fsd_lsd <- dfm(toks_fsd) %>% 
+    dfm_group(group = "week", fill = TRUE) 
+
+matplot(dfmat_fsd_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency", 
+        main = "Sentiment of Self-Driving/Full Self Driving for 2020")
+grid()
+axis(1, seq_len(ndoc(dfmat_fsd_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_fsd_lsd)) - 1))
+legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
+```
+
+```{r}
+n_fsd <- ntoken(dfm(toks_fsd, group = toks_fsd$week))
+plot((dfmat_fsd_lsd[,2] - dfmat_fsd_lsd[,1]) / n_fsd, 
+     type = "l", ylab = "Sentiment", xlab = "", xaxt = "n",
+     main = "Sentiment of Self-Driving/Full Self Driving for 2020")
+axis(1, seq_len(ndoc(dfmat_fsd_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_fsd_lsd)) - 1))
+grid()
+abline(h = 0, lty = 2)
+```
+
+```{r}
+# get relevant keywords and phrases
+bat <- c("battery", "charge", "range")
+
+# only keep tokens specified above and their context of ±10 tokens
+toks_bat <- tokens_keep(toks_tesla, pattern = phrase(bat), window = 10)
+
+toks_bat <- tokens_lookup(toks_bat, dictionary = data_dictionary_LSD2015[1:2])
+
+# create a document document-feature matrix and group it by weeks in 2016
+dfmat_bat_lsd <- dfm(toks_bat) %>% 
+    dfm_group(group = "week", fill = TRUE) 
+
+matplot(dfmat_bat_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency",
+        main = "Sentiment of Battery/Charging/Range for 2020")
+grid()
+axis(1, seq_len(ndoc(dfmat_bat_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_bat_lsd)) - 1))
+legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
+```
+
+```{r}
+n_bat <- ntoken(dfm(toks_bat, group = toks_bat$week))
+plot((dfmat_bat_lsd[,2] - dfmat_bat_lsd[,1]) / n_bat, 
+     type = "l", ylab = "Sentiment", xlab = "", xaxt = "n",
+     main = "Sentiment of Battery/Charging/Range for 2020")
+axis(1, seq_len(ndoc(dfmat_bat_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_bat_lsd)) - 1))
+grid()
+abline(h = 0, lty = 2)
+```
+
+```{r}
+# get relevant keywords and phrases
+sw <- c("software", "update")
+
+# only keep tokens specified above and their context of ±10 tokens
+toks_sw <- tokens_keep(toks_tesla, pattern = phrase(sw), window = 10)
+
+toks_sw <- tokens_lookup(toks_sw, dictionary = data_dictionary_LSD2015[1:2])
+
+# create a document document-feature matrix and group it by weeks in 2016
+dfmat_sw_lsd <- dfm(toks_sw) %>% 
+    dfm_group(group = "week", fill = TRUE) 
+
+matplot(dfmat_sw_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency",
+        main = "Sentiment of Software Updates for 2020")
+grid()
+axis(1, seq_len(ndoc(dfmat_sw_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_sw_lsd)) - 1))
+legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
+```
+
+```{r}
+n_sw <- ntoken(dfm(toks_sw, group = toks_sw$week))
+plot((dfmat_sw_lsd[,2] - dfmat_sw_lsd[,1]) / n_sw, 
+     type = "l", ylab = "Sentiment", xlab = "", xaxt = "n",
+     main = "Sentiment of Software Updates for 2020")
+axis(1, seq_len(ndoc(dfmat_sw_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_sw_lsd)) - 1))
+grid()
+abline(h = 0, lty = 2)
+```
+
+```{r}
+# get relevant keywords and phrases
+own <- c("take", "delivery", "purchase", "owner")
+
+# only keep tokens specified above and their context of ±10 tokens
+toks_own <- tokens_keep(toks_tesla, pattern = phrase(own), window = 10)
+
+toks_own <- tokens_lookup(toks_own, dictionary = data_dictionary_LSD2015[1:2])
+
+# create a document document-feature matrix and group it by weeks in 2016
+dfmat_own_lsd <- dfm(toks_own) %>% 
+    dfm_group(group = "week", fill = TRUE) 
+
+matplot(dfmat_own_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency",
+        main = "Sentiment of Purchasing Process for 2020")
+grid()
+axis(1, seq_len(ndoc(dfmat_own_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_own_lsd)) - 1))
+legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
+```
+
+
+```{r}
+n_own <- ntoken(dfm(toks_own, group = toks_own$week))
+plot((dfmat_own_lsd[,2] - dfmat_own_lsd[,1]) / n_own, 
+     type = "l", ylab = "Sentiment", xlab = "", xaxt = "n",
+     main = "Sentiment of Purchasing Process for 2020")
+axis(1, seq_len(ndoc(dfmat_own_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_own_lsd)) - 1))
+grid()
+abline(h = 0, lty = 2)
+```
+
+
+
 
