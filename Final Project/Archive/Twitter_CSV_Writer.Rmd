@@ -1,0 +1,62 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+https://cran.r-project.org/web/packages/rtweet/vignettes/intro.html
+
+```{r message=FALSE, warning=FALSE}
+library(rtweet)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+```
+
+```{r}
+get_token()
+```
+
+## Retrieve most recent 3200 timelines of Trump and Biden
+
+```{r}
+# tmls <- get_timelines(c("JoeBiden", "realDonaldTrump"), n = 3200, check = FALSE)
+```
+
+
+```{r}
+# table(timelinesdf$screen_name)
+```
+
+# Download Data for a Search
+
+```{r}
+rt <- search_tweets("tesla model 3", n = 18000, include_rts = FALSE)
+```
+
+```{r}
+write_as_csv(rt, "solar.csv")
+csv <- read_twitter_csv("solar.csv")
+```
+
+
+```{r}
+csv
+```
+
+```{r}
+## plot time series of tweets
+ts_plot(csv, "1 hour") +
+  theme_minimal() +
+  theme(plot.title = ggplot2::element_text(face = "bold")) +
+  labs(
+    x = NULL, y = NULL,
+    title = "Twitter",
+    subtitle = "Twitter status (tweet) counts aggregated",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet"
+  )
+```
+
+
