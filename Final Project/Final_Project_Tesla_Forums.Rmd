@@ -19,8 +19,6 @@ library(rtweet)
 
 # plotting and pipes
 library(tidyverse)
-library(ggplot2)
-library(dplyr)
 library(stringr)
 library(tidyr)
 library(ggthemes)
@@ -37,6 +35,7 @@ library(widyr)
 library(spacyr)
 library(SnowballC)
 library(topicmodels)
+library(quanteda)
 
 
 # date/time library
@@ -642,5 +641,28 @@ top_terms %>%
     scale_y_reordered()
 ```
 
+## Topic Models with Quanteda
 
+```{r}
+my_corpus <- corpus(df_select$Discussion)  # build a new corpus from the texts
+summary(my_corpus[1:5])
+```
+
+```{r}
+quant_dfm <- dfm(my_corpus, 
+                remove_punct = TRUE, 
+                remove_numbers = FALSE, 
+                remove = stopwords("english"))
+quant_dfm <- dfm_trim(quant_dfm, min_termfreq = 4, max_docfreq = 10)
+quant_dfm
+```
+
+
+```{r}
+set.seed(100)
+if (require(stm)) {
+    my_lda_fit20 <- stm(quant_dfm, K = 20, verbose = FALSE)
+    plot(my_lda_fit20)    
+}
+```
 
