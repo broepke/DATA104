@@ -14,14 +14,10 @@ output:
 
 
 ```{r message=FALSE, warning=FALSE}
-# twitter library 
-library(rtweet)
-
 # plotting and pipes
 library(tidyverse)
 library(stringr)
 library(tidyr)
-library(ggthemes)
 
 # text mining library
 library(tm)
@@ -38,27 +34,38 @@ library(topicmodels)
 library(quanteda)
 library(seededlda)
 
-# Machine Learning
-library(caret)
-
-
 # date/time library
 library(lubridate)
 ```
 
+# Data Import, Wrangling, and Cleaning
 
 ```{r}
+# Read in the tesla forum data
 df <- read.csv('tesla_forums.csv')
 ```
 
-Adjust any variable formats as needed.
 
 ```{r}
-df$Time <- as.Date(df$Time, "%m/%d/%y")
+# Adjust variable types
+df$Time <- as_datetime(df$Time)
 df$User <- as.factor(df$User)
 df$Topic <- as.factor(df$Topic)
+# Drop a small amount of rows with NA values
+df <- drop_na(df)
+# Removed all duplicates.  The scraping method used created quite a few.
+df <- distinct(df)
+# Remove the first topic, it's just the "how to use the forums" thread and doesn't aid in analysis
+df <- df[-c(1:24), ]
+# Add Doc_Id incrementing per Row
+df <- df %>%
+  mutate(doc_id = paste0("doc", row_number())) %>%
+  select(doc_id, everything())
+# Add a Column for Text Length
+df$text_len <- str_count(df$Discussion)
 ```
 
+Examine the Structure
 
 ```{r}
 str(df)
@@ -66,88 +73,109 @@ str(df)
 
 
 ```{r}
-summary(df)
+df %>%
+  select(Discussion, Time, text_len) %>%
+  summary()
 ```
 
+**Observations**
+ * **Discussions**: There are a total of **43,946** `discussion` threads in this dataset after removing duplicates.  This is essentially like a comment on a Facebook post.  A `Topic` (not shown) is posted, and `Discussions` happen on those topics.
+ * **Time**: Dates range from **2015-12-01** to **2020-12-07**.  The `Median`, `Mean` and `3rd Quartile` are all in 2020 telling us that most of the dates in this set are in 2020.
+ * **Text_Len**: Min length of text is **0** and max is **7,470** characters with a median of **183**.
+
+
+# EDA
+EDA, or Exploratory Data Analysis to better understand the characteristic, extents, and shape of our data.
+
 ```{r}
-df <- drop_na(df)
+# Make a copy of the original DF so it can be referenced later.
+df_select <- df
 ```
 
-Removed all duplicates.  The scraping method used seemed to create quite a few.
+## Topic & User Information
+
+The way that this data is stored is that for each `discussion` row, the topic title is repeated.  Therefore we need to summarize the rows and aggregate them into counts for each unique topic.  This way we can also see how many of discussions are 
 
 ```{r}
-df <- distinct(df)
-```
-
-
-```{r}
-summary(df)
-```
-
-
-```{r}
-df_topics <- df %>%
+df_topics <- df_select %>%
   group_by(Topic) %>%
   summarise(count = n(), .groups="keep") %>%
   arrange(desc(count))
 head(df_topics)
 ```
-Remove the first topic, it's just the "how to use the forums" thread and doesn't aid in analysis
 
-```{r}
-df <- df[-c(1:24), ]
+
+```{r warning=FALSE}
+df_topics %>%
+  ggplot(aes(count)) + 
+  geom_histogram(fill="lightgray", color="gray", bins=30) +
+  theme_minimal() +
+  scale_y_log10() +
+  labs(x = "Number of Discussions per Topic",
+       y = "Count (Log10 Scale)",
+      title = "Distributions of Discussions per Topic",
+      subtitle = "Number of replies per unqiue thread"
+      ) +
+  theme(plot.title = element_text(face = "bold"))
 ```
 
+Regarding the number of Discussions per Topic, a heavily right skewed distribution with a range of **500-1,000** total topics with **0-25** discussions each.  After **25** or so (x-axis), there are just a few with greater than that numbers. There are two topics above 75, as noted in the table above.
+
+```{r}
+df_users <- df_select %>% 
+  group_by(User) %>%
+  summarise(count = n(), .groups="keep") %>% 
+  arrange(desc(count))
+head(df_users, n=10)
+```
+
+The forums are quite active by various users.  **5** users have over **1,000** posts in this dataset.
+
+```{r warning=FALSE}
+df_users %>%
+  ggplot(aes(count)) + 
+  geom_histogram(fill="lightgray", color="gray", bins=30) +
+  theme_minimal() +
+  scale_y_log10() +
+  labs(x = "Number Posts",
+       y = "Count (Log10 Scale)",
+      title = "Distributions of Active Users",
+      subtitle = "Number of unique entried per user name"
+      ) +
+  theme(plot.title = element_text(face = "bold"))
+```
+
+A large number of users have a very small number of posts, **1,500+**. There are a small number that are extremely active on the forums having **> 500** posts.
 
 ```{r}
 sprintf("There are %s unique topics", nrow(df_topics))
-sprintf("There are %s total discussion threads (replies)", nrow(df))
+sprintf("There are %s total discussion threads (replies)", nrow(df_select))
+sprintf("There are %s total unique users", nrow(df_users))
 ```
 
-### Add Doc_Id incrementing per Row
-
-```{r}
-df = df %>%
-  mutate(doc_id = paste0("doc", row_number())) %>%
-  select(doc_id, everything())
-```
-
-### Add a Column for Text Length
-
-```{r}
-df$text_len <- str_count(df$Discussion)
-```
-
-# EDA
-
-Make a copy of the original DF so it can be referenced later.
-
-```{r}
-df_select <- df
-```
-
-
-
-
-## Tweet Length
-Number of tweets by each candidate
+## Text Length
 
 ```{r}
 summary(df_select$text_len)
 ```
 
-Tweets for the dataset range from `0` characters to `316` with a mean of `7470` with a mean of `284`. 
-
+Discussion lengths for the dataset range from `0` characters to `7470` with a median of `183` with a mean of `284`. 
 
 ```{r warning=FALSE}
 df_select %>%
-  ggplot(aes(x = text_len)) +
-  geom_histogram(bins = 50, fill="lightgray", color="darkgray") +
+  ggplot(aes(text_len)) + 
+  geom_histogram(fill="lightgray", color="gray", bins=30) +
   theme_minimal() +
   scale_y_log10() +
-  scale_colour_grey(start = 0.3, end = .8)
+  labs(x = "Text Length",
+       y = "Count (Log10 Scale)",
+      title = "Distributions of Text Length",
+      subtitle = "Per character counts of the replies to topics"
+      ) +
+  theme(plot.title = element_text(face = "bold"))
 ```
 
+Text lenght for posts is right skewed as well with most posts being shorter in length.  There are a few outliers of very long posts, but generally, most fall in the sub **500** character range.
 
 
 ```{r warning=FALSE}
@@ -163,15 +191,14 @@ ggplot(plot_df_time, aes(date, count)) +
   theme_minimal()
 ```
 
-
-
 ## Outlier Analysis
 
 ```{r}
 df_select %>%
   filter(text_len > 5000) %>%
   select(Discussion) %>%
-  head(n=1)
+  head(n=1) %>%
+  c()
 ```
 
 **Note:** Since this is discussion forum text, outliers are simply long posts as demonstrated above.  They will remain in the dataset since they are valuable information.
@@ -308,7 +335,7 @@ bing_df %>%
        y = NULL)
 ```
 
-When looking at data as a whole, we can see the top negative word is `crisis` and positive is `win`.  Next, we'll split these out by candidate. 
+
 
 ### Overall Top Words (BING)
 
@@ -373,7 +400,7 @@ afinn_df %>%
 
 ```{r}
 df %>%
-  filter(doc_id == "doc26365" | doc_id == "doc30589" | doc_id == "doc20143") %>%
+  filter(doc_id == "doc20019" | doc_id == "doc24256" | doc_id == "doc13665") %>%
   select(Discussion)
 ```
 
@@ -390,7 +417,7 @@ afinn_df %>%
 
 ```{r}
 df %>%
-  filter(doc_id == "doc11357" | doc_id == "doc35860" | doc_id == "doc34072") %>%
+  filter(doc_id == "doc390" | doc_id == "doc29552" | doc_id == "doc27744") %>%
   select(Discussion)
 ```
 
@@ -471,7 +498,7 @@ trigram_counts
 
 ```{r message=FALSE, warning=FALSE}
 trigram_graph <- trigram_counts %>%
-  filter(n > 50) %>%
+  filter(n > 45) %>%
   graph_from_data_frame()
 
 set.seed(2017)
@@ -484,12 +511,12 @@ ggraph(trigram_graph, layout = "nicely") +
   theme_minimal()
 ```
 
-# Topic Modeling
+# Topic Modeling of `Topics`
 
 ## Preprocessing
 
 ```{r}
-corpus <- Corpus(VectorSource(df_select$Discussion))
+corpus <- Corpus(VectorSource(df_topics$Topic))
 ```
 
 ### Before cleaning
@@ -503,16 +530,31 @@ inspect(corpus[1:5])
 Custom list of words generated upon performing the topic modeling.  These were frequently appeared but do not add a lot of context to topic identification, or appear so frequently, such as `University`, that they are in every topic. 
 
 ```{r}
-corpus <- tm_map(corpus, removeWords, c("tesla", "get", "much", "can", 
+corpus <- tm_map(corpus, tolower)
+corpus <- tm_map(corpus, removePunctuation)  # remove punctuation
+corpus <- tm_map(corpus, stripWhitespace)    # remove white space
+corpus <- tm_map(corpus, removeWords, c(stopwords('english')))
+corpus <- tm_map(corpus, lemmatize_strings) # lemmatizaton
+```
+
+```{r}
+
+# Manually remove odd characters that frequently appear
+corpus <- tm_map(corpus,content_transformer(function(x) gsub("“", " ", x)))
+corpus <- tm_map(corpus, content_transformer(function(x) gsub("”", " ", x)))
+corpus <- tm_map(corpus, content_transformer(function(x) gsub("’", " ", x)))
+
+corpus <- tm_map(corpus, removeWords, c("get", "much", "can", 
                                         "will", "say", "car", "may", "use",
-                                        "just", "one", "good", "like", "think"))
+                                        "just", "one", "good", "like", "think",
+                                        "model", "tesla", "anyone", "god", 
+                                        "2020", "2021"))
 ```
 
 
 
-
 ```{r}
-inspect(corpus[1:10])
+inspect(corpus[1:4])
 ```
 
 
@@ -541,14 +583,6 @@ sel_idx <- rowSums(as.matrix(dtm)) > 0
 dtm <- dtm[sel_idx, ]
 dim(dtm)
 ```
-
-## Latent Dirichlet Allocation (LDA)
-Is an unsupervised classification method designed for text data. Rather than relying on labeled (eg: hand-coded data sets), it is a probabilistic topic model that uses statistical algorithms to analyze words in raw text documents, to uncover thematic structure of the both the corpus and individual documents.
-
-### Find the best k - the Elbow Method
-The basic idea behind partitioning methods, such as k-means clustering, is to define clusters such that the total intra-cluster variation [or total within-cluster sum of square (WSS)] is minimized. The total WSS measures the compactness of the clustering and we want it to be as small as possible.
-
-The Elbow method looks at the total WSS as a function of the number of clusters: One should choose a number of clusters so that adding another cluster doesn’t improve much better the total WSS.
 
 
 ## LDA
@@ -590,8 +624,8 @@ top_terms %>%
 
 ```{r}
 my_corpus <- corpus(df_select$Discussion)  # build a new corpus from the texts
-summary(my_corpus[1:5])
 ```
+
 
 ```{r}
 quant_dfm <- dfm(my_corpus, 
@@ -616,6 +650,7 @@ if (require(stm)) {
 tmod_lda <- textmodel_lda(quant_dfm, k = 10)
 ```
 
+
 ```{r}
 terms(tmod_lda, 10)
 ```
@@ -624,7 +659,6 @@ terms(tmod_lda, 10)
 
 ```{r}
 dict_topic <- dictionary(file = "tesla_topics.yml")
-print(dict_topic)
 ```
 
 ```{r}
@@ -638,64 +672,32 @@ terms(tmod_slda, 20)
 ## Targeted Dictionary Analysis
 
 ```{r}
-my_corpus <- corpus(df_select$Discussion)  # build a new corpus from the texts
-summary(my_corpus[1:5])
-```
-
-
-
-
-```{r}
+# Reduce the columns to just what's needed
 quant_tesla <- select(df_select, doc_id, Discussion, User, Time)
-quant_tesla
-```
-```{r}
+
+# Quanteda requires the text field to be called "text"
 quant_tesla <- quant_tesla %>%
   rename(text = Discussion)
-```
 
-
-```{r}
-names(quant_tesla)
-```
-
-
-```{r}
+# Create the Corpus
 corp_tesla <- corpus(quant_tesla)
-print(corp_tesla[1:3])
-```
 
-```{r}
+# Add columns for Year, Month, and Week Number
 corp_tesla$year <- year(corp_tesla$Time)
 corp_tesla$month <- month(corp_tesla$Time)
 corp_tesla$week <- week(corp_tesla$Time)
-```
 
-
-```{r}
-summary(corp_tesla)
-```
-
-```{r}
+# Subset the Corpus for Just 2020
 corp_tesla <- corpus_subset(corp_tesla, "year" >= 2020)
 toks_tesla <- quanteda::tokens(corp_tesla, remove_punct = TRUE)
 ```
 
 
-```{r}
-lengths(data_dictionary_LSD2015)
-```
-
-```{r}
-toks_tesla_lsd <- tokens_lookup(toks_tesla, dictionary =  data_dictionary_LSD2015[1:2])
-head(toks_tesla_lsd, 5)
-```
-
 ### Full Self Driving
 
 ```{r}
 # get relevant keywords and phrases
-fsd <- c("self driving", "fsd", "full self driving")
+fsd <- c("fsd", "self driving", "autopilot")
 
 # only keep tokens specified above and their context of ±10 tokens
 toks_fsd <- tokens_keep(toks_tesla, pattern = phrase(fsd), window = 10)
@@ -713,6 +715,7 @@ axis(1, seq_len(ndoc(dfmat_fsd_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfm
 legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
 ```
 
+
 ```{r}
 n_fsd <- ntoken(dfm(toks_fsd, group = toks_fsd$week))
 plot((dfmat_fsd_lsd[,2] - dfmat_fsd_lsd[,1]) / n_fsd, 
@@ -722,6 +725,7 @@ axis(1, seq_len(ndoc(dfmat_fsd_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfm
 grid()
 abline(h = 0, lty = 2)
 ```
+### Battery Related
 
 ```{r}
 # get relevant keywords and phrases
@@ -743,6 +747,7 @@ axis(1, seq_len(ndoc(dfmat_bat_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfm
 legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
 ```
 
+
 ```{r}
 n_bat <- ntoken(dfm(toks_bat, group = toks_bat$week))
 plot((dfmat_bat_lsd[,2] - dfmat_bat_lsd[,1]) / n_bat, 
@@ -752,6 +757,8 @@ axis(1, seq_len(ndoc(dfmat_bat_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfm
 grid()
 abline(h = 0, lty = 2)
 ```
+
+### Software Updates
 
 ```{r}
 # get relevant keywords and phrases
@@ -773,6 +780,7 @@ axis(1, seq_len(ndoc(dfmat_sw_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfma
 legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
 ```
 
+
 ```{r}
 n_sw <- ntoken(dfm(toks_sw, group = toks_sw$week))
 plot((dfmat_sw_lsd[,2] - dfmat_sw_lsd[,1]) / n_sw, 
@@ -783,9 +791,11 @@ grid()
 abline(h = 0, lty = 2)
 ```
 
+### Purchase Process
+
 ```{r}
 # get relevant keywords and phrases
-own <- c("take", "delivery", "purchase", "owner")
+own <- c("delivery", "purchase", "owner")
 
 # only keep tokens specified above and their context of ±10 tokens
 toks_own <- tokens_keep(toks_tesla, pattern = phrase(own), window = 10)
