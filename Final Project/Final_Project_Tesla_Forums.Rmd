@@ -7,6 +7,9 @@ output:
     df_print: paged
     code_folding: hide
     toc: true
+    toc_float:
+      collapsed: false
+    toc_depth: 2
 ---
 
 # Tesla Model 3 Discussion Forum Analysis
@@ -79,9 +82,9 @@ df %>%
 ```
 
 **Observations**
- * **Discussions**: There are a total of **43,946** `discussion` threads in this dataset after removing duplicates.  This is essentially like a comment on a Facebook post.  A `Topic` (not shown) is posted, and `Discussions` happen on those topics.
- * **Time**: Dates range from **2015-12-01** to **2020-12-07**.  The `Median`, `Mean` and `3rd Quartile` are all in 2020 telling us that most of the dates in this set are in 2020.
- * **Text_Len**: Min length of text is **0** and max is **7,470** characters with a median of **183**.
+ * **Discussions**: There are a total of **54,311** `discussion` threads in this dataset after removing duplicates.  This is essentially like a comment on a Facebook post.  A `Topic` (not shown) is posted, and `Discussions` happen on those topics.
+ * **Time**: Dates range from **2015-12-1o** to **2020-12-15**.  The `Median`, `Mean` and `3rd Quartile` are all in **2020** telling us that most of the dates in this set are in 2020.
+ * **Text_Len**: Min length of text is **0** and max is **7,944** characters with a median of **179.0**.
 
 
 # EDA
@@ -119,7 +122,7 @@ df_topics %>%
   theme(plot.title = element_text(face = "bold"))
 ```
 
-Regarding the number of Discussions per Topic, a heavily right skewed distribution with a range of **500-1,000** total topics with **0-25** discussions each.  After **25** or so (x-axis), there are just a few with greater than that numbers. There are two topics above 75, as noted in the table above.
+Regarding the number of Discussions per Topic, a heavily right skewed distribution with a range of **500-1,000** total topics with **0-25** discussions each.  After **25** or so (x-axis), there are just a few with greater than **25** replies per topic. There are two topics above **75**, as noted in the table above.
 
 ```{r}
 df_users <- df_select %>% 
@@ -129,7 +132,7 @@ df_users <- df_select %>%
 head(df_users, n=10)
 ```
 
-The forums are quite active by various users.  **5** users have over **1,000** posts in this dataset.
+The forums are quite active by various users.  **8** users have over **1,000** posts in this dataset.
 
 ```{r warning=FALSE}
 df_users %>%
@@ -159,7 +162,7 @@ sprintf("There are %s total unique users", nrow(df_users))
 summary(df_select$text_len)
 ```
 
-Discussion lengths for the dataset range from `0` characters to `7470` with a median of `183` with a mean of `284`. 
+Discussion lengths for the dataset range from `0` characters to **7,944** with a median of **179** with a mean of **278**. 
 
 ```{r warning=FALSE}
 df_select %>%
@@ -175,21 +178,29 @@ df_select %>%
   theme(plot.title = element_text(face = "bold"))
 ```
 
-Text lenght for posts is right skewed as well with most posts being shorter in length.  There are a few outliers of very long posts, but generally, most fall in the sub **500** character range.
+Text length for posts is right skewed as well with most posts being shorter in length. But there is a much more spread distribution towards the right tail.  
 
 
-```{r warning=FALSE}
-plot_df_time <- df %>%
+```{r}
+df %>%
   mutate(date = floor_date(Time, "week")) %>%
   group_by(date) %>%
-  summarize(count = n(), .groups='keep')
-
-
-ggplot(plot_df_time, aes(date, count)) +
+  summarize(count = n(), .groups = 'keep') %>%
+  
+  
+  ggplot(aes(date, count)) +
   geom_line(show.legend = FALSE) +
-  labs(x = NULL, y = "") +
-  theme_minimal()
+  theme_minimal() +
+  labs(
+    x = NULL,
+    y = "",
+    title = "Number of Discussion Posts per Week",
+    subtitle = "Total count of comments/replies per week"
+  ) +
+  theme(plot.title = element_text(face = "bold"))
 ```
+
+When viewing the time frequency of the posts, the data does go back to **2016** but activity jumps at the start of 2020.  Due to the way these were scraped from the Forums, staring with newest posts and working backwards, it should be the case that we are loaded more in the current year.  There is a dip in posts around **mid-2020**, this most likely is a error with scraping, vs. lack of activity on the forum.  For the sake of this analysis being focused mostly on text, it's not critical to understand.
 
 ## Outlier Analysis
 
@@ -197,13 +208,10 @@ ggplot(plot_df_time, aes(date, count)) +
 df_select %>%
   filter(text_len > 5000) %>%
   select(Discussion) %>%
-  head(n=1) %>%
-  c()
+  head(n=1)
 ```
 
-**Note:** Since this is discussion forum text, outliers are simply long posts as demonstrated above.  They will remain in the dataset since they are valuable information.
-
-### Discussion Timeline
+**Note:** Since this is discussion forum text, outliers are simply long posts as demonstrated above.  They will remain in the dataset since longer text often contains valuable information.
 
 # Clean and Prepare the Text for Analysis
 
@@ -219,6 +227,8 @@ df_select$Discussion <- gsub("http[[:alnum:][:punct:]]*", "", df_select$Discussi
 
 ### Remove Whitespace, Punctuation, Stopwords and Lemmatize
 
+Standard text cleaning to normalize and finally to lemmatize the words to their root lemma, or base word.  In this opration, we will not remove numbers, since we are focused on the *Model 3*, containing a number in it's name later used for n-Gram creation.
+
 ```{r}
 df_select$Discussion = removePunctuation(df_select$Discussion)
 df_select$Discussion = stripWhitespace(df_select$Discussion)
@@ -232,9 +242,6 @@ df_select$Discussion = lemmatize_strings(df_select$Discussion)
 head(df_select$Discussion)
 ```
 
-
-### Unnest_Tokens()
-
 Create a new column with each word on it's own row.
 
 ```{r}
@@ -242,12 +249,6 @@ tidy_df <- df_select %>%
   unnest_tokens(word, Discussion)
 ```
 
-### Validate the New number of Rows
-Dramatically larger now that each word from text is in it's own row.
-
-```{r}
-nrow(tidy_df)
-```
 
 # Sentiment Analysis
 
@@ -288,12 +289,19 @@ afinn_df %>%
   geom_histogram(bins = 10, show.legend = FALSE, fill="lightgray", color="darkgray") +
   scale_x_continuous(breaks = c(-5, -3, -1, 1, 3, 5)) +
   theme_minimal() +
-  scale_colour_grey(start = 0.3, end = .8)
+  scale_colour_grey(start = 0.3, end = .8) +
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "Distribution of AFINN Sentiment Scores by Value",
+    subtitle = "Count of occurences of each score value"
+  ) +
+  theme(plot.title = element_text(face = "bold"))
 ```
 
 For the dataset overall, there is a slight left-skew showing there is a greater concentration of words with positive values.  There are very few in the high and low values (`-4`,`-5`, `+5`). 
 
-*Note: `0` is not a valid value in this scoring system, therefore the bin is empty*
+**Note**: *0 is not a valid value in this scoring system, therefore the bin is empty*
 
 ### NRC Sentiment Lexicon
 NRC from Saif Mohammad and Peter Turney. The NRC Emotion Lexicon is a list of English words and their associations with eight basic emotions as well as positive and negative sentiment.
@@ -314,7 +322,7 @@ nrc_df %>%
   arrange(desc(total))
 ```
 
-## Inspect Top Words Per Candidate
+## Top Word Sentiment
 Using various methods, inspect what words are most frequently used, per candidate, proportions of negative and positive words, and trend over time. 
 
 ### Top Word Counts (BING)
@@ -332,10 +340,14 @@ bing_df %>%
   facet_wrap(~sentiment, scales = "free") +
   theme_minimal() +
   labs(x = "Contribution to sentiment",
-       y = NULL)
+       y = NULL,
+    title = "Top Word Counts",
+    subtitle = "Using BING Sentiment Lexicon"
+  ) +
+  theme(plot.title = element_text(face = "bold"))
 ```
 
-
+Focusing on the **Negative** words, the top occurrence is **issue** and second is **problem**.  Given the nature of this forumn, talking about a product, these are very practical words to be on the top of the list.  People reporting or discussion issues and problems with their cars. **Bug**, **Noise**, **Break**, and **Damage** all feel like perfect matches as well.  **Numb** is an interesting occurrence and worth looking into a little more.
 
 ### Overall Top Words (BING)
 
@@ -348,32 +360,19 @@ bing_df %>%
   ggplot(aes(n, word, fill = sentiment)) +
   geom_col(show.legend = TRUE) +
   theme_minimal() +
-  labs(x = "Contribution to sentiment", y = NULL)
+  labs(x = "Contribution to sentiment", y = NULL,
+    title = "Top 30 Sentiment Words",
+    subtitle = "Grouped by BING Sentiment Classification"
+  ) +
+  theme(plot.title = element_text(face = "bold"))
 ```
-
-
-### Top Words Sorted by AFINN Score
-
-```{r message=FALSE, warning=FALSE}
-afinn_df$color <- ifelse(afinn_df$value < 0, "Negative","Positive")
-
-afinn_df %>%
-  count(word, sort = TRUE, value, color) %>%
-  top_n(30) %>%
-  ungroup() %>%
-  mutate(word = reorder(word, value)) %>%
-  ggplot(aes(value, word, fill = color)) +
-  geom_col(show.legend = TRUE) +
-  theme_minimal() +
-  labs(x = "AFINN Sentiment Score", y = NULL)
-```
-
 
 ### Sentiment over Time (AFINN)
 
 ```{r warning=FALSE}
 plot_df2 <- afinn_df %>%
-  mutate(mon = floor_date(Time, "month")) %>%
+  filter(Time > "2020-01-10") %>%
+  mutate(mon = floor_date(Time, "day")) %>%
   group_by(mon) %>%
   summarize(value = mean(value), .groups = 'keep')
 
@@ -381,14 +380,18 @@ plot_df2$color <- ifelse(plot_df2$value < 0, "negative","positive")
 
 ggplot(plot_df2, aes(mon, value, fill = color)) +
   geom_col(show.legend = FALSE) +
-  labs(x = NULL, y = "Mean AFINN Sentiment Score") +
-  theme_minimal()
+  theme_minimal() +
+  labs(x = NULL, y = "Sentiment",
+    title = "Sentiment by Week",
+    subtitle = "Calculated by Mean AFINN sentiment score "
+  ) +
+  theme(plot.title = element_text(face = "bold"))
+  
 ```
 
-Since August, showing the frequency of sentiment for each candidate.  Using the mean sentiment score we can see how each candidate tweeted on a daily basis.  Trumps earlier timeline tended to be more negative, while both candidates were more positive starting mid September. 
+We can see that over time, the sentiment in the forums is positive as measured by the `mean` sentiment score by **day**.  This doesn't mean that there isn't any negative feedback, just that overall, it's positive on average.
 
-
-## Most Positive Messages
+### Most Positive Message
 
 ```{r}
 afinn_df %>%
@@ -400,12 +403,12 @@ afinn_df %>%
 
 ```{r}
 df %>%
-  filter(doc_id == "doc20019" | doc_id == "doc24256" | doc_id == "doc13665") %>%
+  filter(doc_id == "doc51919") %>%
   select(Discussion)
 ```
 
 
-## Most Negative Messages
+### Most Negative Message
 
 ```{r}
 afinn_df %>%
@@ -417,29 +420,19 @@ afinn_df %>%
 
 ```{r}
 df %>%
-  filter(doc_id == "doc390" | doc_id == "doc29552" | doc_id == "doc27744") %>%
+  filter(doc_id == "doc390") %>%
   select(Discussion)
 ```
 
-# Word Clouds
+# Word Cloud
 
-## Overall Word Cloud
-
-```{r message=FALSE, warning=FALSE}
-bing_df %>%
-  count(word) %>%
-  with(wordcloud(word, n, max.words = 250))
-```
-
-
-## By Sentiment
 Word cloud of the top 200 words grouped by sentiment, positive or negative.
 
 ```{r message=FALSE, warning=FALSE}
 bing_df %>%
   count(word, sentiment, sort = TRUE) %>%
   acast(word ~ sentiment, value.var = "n", fill = 0) %>%
-  comparison.cloud(colors = c("gray", "black"), max.words = 150)
+  comparison.cloud(colors = c("gray", "black"), max.words = 200)
 ```
 
 
@@ -465,7 +458,7 @@ bigram_counts
 
 ```{r message=FALSE, warning=FALSE}
 bigram_graph <- bigram_counts %>%
-  filter(n > 250) %>%
+  filter(n > 275) %>%
   graph_from_data_frame()
 
 set.seed(2017)
@@ -498,7 +491,7 @@ trigram_counts
 
 ```{r message=FALSE, warning=FALSE}
 trigram_graph <- trigram_counts %>%
-  filter(n > 45) %>%
+  filter(n > 50) %>%
   graph_from_data_frame()
 
 set.seed(2017)
@@ -513,23 +506,16 @@ ggraph(trigram_graph, layout = "nicely") +
 
 # Topic Modeling of `Topics`
 
-## Preprocessing
+### Preprocessing
 
 ```{r}
 corpus <- Corpus(VectorSource(df_topics$Topic))
 ```
 
-### Before cleaning
-
-```{r}
-inspect(corpus[1:5])
-```
-
-### Remove Words that Aren't Helpful for Topic Modeling
 
 Custom list of words generated upon performing the topic modeling.  These were frequently appeared but do not add a lot of context to topic identification, or appear so frequently, such as `University`, that they are in every topic. 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 corpus <- tm_map(corpus, tolower)
 corpus <- tm_map(corpus, removePunctuation)  # remove punctuation
 corpus <- tm_map(corpus, stripWhitespace)    # remove white space
@@ -537,24 +523,15 @@ corpus <- tm_map(corpus, removeWords, c(stopwords('english')))
 corpus <- tm_map(corpus, lemmatize_strings) # lemmatizaton
 ```
 
-```{r}
+
+```{r message=FALSE, warning=FALSE}
 
 # Manually remove odd characters that frequently appear
 corpus <- tm_map(corpus,content_transformer(function(x) gsub("“", " ", x)))
 corpus <- tm_map(corpus, content_transformer(function(x) gsub("”", " ", x)))
 corpus <- tm_map(corpus, content_transformer(function(x) gsub("’", " ", x)))
 
-corpus <- tm_map(corpus, removeWords, c("get", "much", "can", 
-                                        "will", "say", "car", "may", "use",
-                                        "just", "one", "good", "like", "think",
-                                        "model", "tesla", "anyone", "god", 
-                                        "2020", "2021"))
-```
-
-
-
-```{r}
-inspect(corpus[1:4])
+corpus <- tm_map(corpus, removeWords, c("tesla", "model", "anyone", "car"))
 ```
 
 
@@ -572,7 +549,7 @@ inspect(dtm)
 ### Remove Sparse Terms
 
 ```{r}
-dtm = removeSparseTerms(dtm, .995)
+dtm = removeSparseTerms(dtm, .99)
 inspect(dtm)
 ```
 
@@ -587,8 +564,36 @@ dim(dtm)
 
 ## LDA
 
+### Choosing the Best k-Value
+
+```{r eval=FALSE, include=FALSE}
+mat <- as.matrix (weightTfIdf(dtm))
+
+# normalize the TfIdf scores by euclidean distance.
+scaled_data  <- dist(mat, method = "euclidean")
+
+k.max <- 10
+data <- scaled_data
+wss <- sapply(1:k.max,
+              function(k) {
+                kmeans(data, k, nstart = 50, iter.max = 10)$tot.withinss
+              })
+
+plot(
+  1:k.max,
+  wss,
+  type = "b",
+  pch = 19,
+  frame = FALSE,
+  xlab = "Number of clusters K",
+  ylab = "Total within-clusters sum of squares"
+)
+```
+
+
+
 ```{r}
-lda <- LDA(dtm, k = 9, control = list(seed = 1234))
+lda <- LDA(dtm, k = 6, control = list(seed = 1234))
 lda
 ```
 
@@ -597,25 +602,23 @@ lda
 ```{r}
 # beta (per-term-per-topic) 
 topics <- tidy(lda, matrix = "beta")
-topics %>%
-  arrange(term, -beta)  %>%
-  head()
 ```
 
 ### Top-Level Topics
 
-```{r fig.height=12, fig.width=12}
+```{r fig.height=9, fig.width=12}
 top_terms <- topics %>%
   group_by(topic) %>%
   top_n(10, beta) %>%
   ungroup() %>%
   arrange(topic, -beta)
 
+
 top_terms %>%
   mutate(term = reorder_within(term, beta, topic)) %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
     geom_col(show.legend = FALSE) +
-    facet_wrap(~ topic, scales = "free", ncol=3) +
+    facet_wrap(~ topic, scales = "free", ncol=2) +
     theme_minimal(base_size = 28) + 
     scale_y_reordered()
 ```
@@ -637,7 +640,7 @@ quant_dfm
 ```
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 set.seed(100)
 if (require(stm)) {
     my_lda_fit20 <- stm(quant_dfm, K = 20, verbose = FALSE)
@@ -657,7 +660,7 @@ terms(tmod_lda, 10)
 
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 dict_topic <- dictionary(file = "tesla_topics.yml")
 ```
 
