@@ -16,7 +16,26 @@ output:
 
 # Executive Summary
 
+In 2006 Elon Musk wrote a blog post titled, [The Secret Tesla Motors Master Plan (just between you and me)](https://www.tesla.com/blog/secret-tesla-motors-master-plan-just-between-you-and-me), where he detailed out the strategy for the company.  In this post, he offered up a multi-step plan to achieve the [mission](https://www.tesla.com/about) slated by the company:
 
+*Tesla's mission is to accelerate the world's transition to sustainable energy.*
+
+The plan detailed four steps that would eventually lead to what is known as the Tesla Model 3, the first affordable, high-performance, no-compromise electric car.  As of March 2020, the model 3 became the all-time best selling plug-in electric car surpassing the Nissan LEAF, and it accomplished this in just 2.5 years, versus ten years for the LEAF[^BEST].
+
+As the plan noted, the goal was to build a more affordable car accessible to more people than the previous premium market products.  The Model 3 was launched with a $35,000 price point making it competitive with entry-level German vehicles.  It was met with an incredible reception garnering 200,000 pre-orders in the first 24 hours after it's launch[^LAUNCH]. It's since sold 500,000 units and continues to be loved.
+
+However, while the company is doing fantastic, its stock at all-time highs and soon entering the S&P 500[^SP] has seen its share of Quality issues.  In June of 2020, J.D. Power released its annual quality study showing that Tesla was ranked last among 32 automotive brands[^JD].  Bloomberg performed a survey of 5,000 Model 3 owners published in October of 2019, where owners submitted details of their quality issues [^BLOOM].  Owners stated that the most significant problems were with paint and panel gaps.  While the report found that cars' defects cut in half over time, Tesla is still working to optimize its production.  
+
+This report will look at user's discussions, mostly in 2020, from the [Tesla Model 3 Discussion Forums](https://forums.tesla.com/categories/tesla-model-3) to surface what is top of mind and what issues might still be effecting the Model 3.  The forums are an open place where people can post topics, ask questions, or generally participate in the community.  User forums are rich with information that can give an alternative view into customer sentiment, unlike Social Media or traditional Surveys. 
+
+The plan's four-step master plan:
+
+1. Build sports car
+2. Use that money to build an affordable car
+3. Use that money to build an even more affordable car
+4. While doing above, also provide zero emission electric power generation options
+
+![Tesla Model 3 Performance](lhd-performance-hero-desktop.jpeg)
 
 ```{r message=FALSE, warning=FALSE}
 # plotting and pipes
@@ -65,8 +84,8 @@ df <- df %>%
 df$text_len <- str_count(df$Discussion)
 ```
 
-# EDA
-EDA, or Exploratory Data Analysis to better understand the characteristic, extents, and shape of our data.
+# Exploratory Data Analysis
+Perform an Exploratory Data Analysis (EDA) to better understand the characteristic, extents, and shape of our data.
 
 ```{r}
 df %>%
@@ -77,7 +96,7 @@ df %>%
 df_select <- df
 ```
 
-**Observations**
+## Summary
 
  * **Discussions**: There are a total of **54,311** `discussion` threads in this dataset after removing duplicates.  This is essentially like a comment on a Facebook post.  A `Topic` (not shown) is posted, and `Discussions` happen on those topics.
  * **Time**: Dates range from **2015-12-1o** to **2020-12-15**.  The `Median`, `Mean` and `3rd Quartile` are all in **2020** telling us that most of the dates in this set are in 2020.
@@ -112,6 +131,13 @@ df_topics %>%
 
 Regarding the number of Discussions per Topic, a heavily right skewed distribution with a range of **500-1,000** total topics with **0-25** discussions each.  After **25** or so (x-axis), there are just a few with greater than **25** replies per topic. There are two topics above **75**, as noted in the table above.
 
+### Total Topics
+
+```{r}
+sprintf("There are %s unique topics", nrow(df_topics))
+```
+
+
 ```{r}
 df_users <- df_select %>% 
   group_by(User) %>%
@@ -138,13 +164,13 @@ df_users %>%
 
 A large number of users have a very small number of posts, **1,500+**. There are a small number that are extremely active on the forums having **> 500** posts.
 
+### Total Users
+
 ```{r}
-sprintf("There are %s unique topics", nrow(df_topics))
-sprintf("There are %s total discussion threads (replies)", nrow(df_select))
 sprintf("There are %s total unique users", nrow(df_users))
 ```
 
-## Text Length
+## Text Length Analysis
 
 ```{r}
 summary(df_select$text_len)
@@ -168,6 +194,7 @@ df_select %>%
 
 Text length for posts is right skewed as well with most posts being shorter in length. But there is a much more spread distribution towards the right tail.  
 
+## Discussion Frequency
 
 ```{r}
 df %>%
@@ -181,7 +208,7 @@ df %>%
   theme_minimal() +
   labs(
     x = NULL,
-    y = "",
+    y = "Frequency",
     title = "Number of Discussion Posts per Week",
     subtitle = "Total count of comments/replies per week"
   ) +
@@ -201,7 +228,8 @@ df_select %>%
 
 **Note:** Since this is discussion forum text, outliers are simply long posts as demonstrated above.  They will remain in the dataset since longer text often contains valuable information.
 
-# Text for Analysis
+## Text Cleaning
+To better machine-analyze the text extracted from the forum, standard text cleaning is performed to normalize the text.  Additionally, the text is lemmatized, transforming words to their lemma, or base word.  We will not remove numbers in this operation since we are focused on the *Model 3*, containing a number in its name.
 
 ```{r}
 df_select$Discussion <- iconv(df_select$Discussion, "latin1", "ASCII", sub = "")
@@ -210,34 +238,17 @@ df_select$Discussion <- str_replace_all(df_select$Discussion,"@","")
 df_select$Discussion <- str_replace_all(df_select$Discussion,"="," ")
 df_select$Discussion <- str_replace_all(df_select$Discussion,"-"," ")
 df_select$Discussion <- gsub("http[[:alnum:][:punct:]]*", "", df_select$Discussion)
-```
-
-
-### Remove Whitespace, Punctuation, Stopwords and Lemmatize
-
-Standard text cleaning to normalize and finally to lemmatize the words to their root lemma, or base word.  In this opration, we will not remove numbers, since we are focused on the *Model 3*, containing a number in it's name later used for n-Gram creation.
-
-```{r}
 df_select$Discussion = removePunctuation(df_select$Discussion)
 df_select$Discussion = stripWhitespace(df_select$Discussion)
 df_select$Discussion = tolower(df_select$Discussion)
 df_select$Discussion = removeWords(df_select$Discussion, c(stopwords('english')))
 df_select$Discussion = lemmatize_strings(df_select$Discussion)
-```
-
-
-```{r}
-head(df_select$Discussion)
-```
-
-
-```{r}
 tidy_df <- df_select %>%
   unnest_tokens(word, Discussion)
 ```
 
-
 # Sentiment Analysis
+Sentiment analysis is the process of systematically identifying the emotion of different words in a text corpus.  There are several methods available, from text-based lexicon lookups to more advanced machine learning-based models that consider sentence structure.  For this exercise, we'll examine the text through various lexicon-based methods. 
 
 ## Bing Sentiment Lexicon
 Using the Bing Lexicon from Bing Liu and collaborators, adds the column "Sentiment" and mark each word as positive or negative. 
@@ -256,6 +267,7 @@ bing_df %>%
   summarise(count = n(), .groups = "keep")
 ```
 
+Based on a pure lookup, the text in the forum is overall positive.  with **~83k positive** values and **~69k negative** values.
 
 ### AFINN scoring Lexicon
 AFINN from Finn Årup Nielsen, adds the `value` column, with a numeric representation of how positive, or negative the word is.  The AFINN lexicon measures sentiment with a numeric score between -5 and 5
@@ -438,7 +450,7 @@ Some or the key bi-grams that result from the dataset, that are more product rel
  * **Charge - Port**: The inlet for the charging adapter on the car is called the charging port.
  * **Service - Center**: Related to the location where service is performed.
 
-# Topic Modeling of Topics
+## Topic Modeling
 
 After inspecting the most common word pairs used in the discussion forums, specifically in the longer text replies, next we'll take a look at trying to identify topics of discussion via **Topic Modeling** on the "subjects" of each of the topics.  This method is an unsupervised method that attemps to automatically identify related topics based on the corpus of text.
 
@@ -472,7 +484,7 @@ dtm <- dtm[sel_idx, ]
 ```
 
 
-## Topic Modeling
+
 
 ### LDA
 
@@ -522,7 +534,7 @@ top_terms %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
     geom_col(show.legend = FALSE) +
     facet_wrap(~ topic, scales = "free", ncol=3) +
-    theme_minimal(base_size = 28) + 
+    theme_minimal(base_size = 22) + 
     scale_y_reordered()
 ```
 # Topic Analysis
@@ -701,4 +713,9 @@ abline(h = 0, lty = 2)
 
 # References
 
-
+[^BEST]: [Tesla Passes 1 Million EV Milestone & Model 3 Becomes All Time Best Seller](https://cleantechnica.com/2020/03/10/tesla-passes-1-million-ev-milestone-and-model-3-becomes-all-time-best-seller/)
+[^LAUNCH]: [Tesla got 200,000 orders for the Model 3 in first day](https://money.cnn.com/2016/04/01/news/companies/tesla-model-3-stock-price/index.html)
+[^SP]: [Tesla to Enter S&P 500 at Full Weight in December](https://www.wsj.com/articles/tesla-to-enter-s-p-500-at-full-weight-in-december-11606780897)
+[^JD]: [Tesla ranks dead last in annual quality survey](https://www.cnn.com/2020/06/25/cars/tesla-jdpower-rankings/index.html)
+[^BLOOM]: [5,000 Tesla Owners Told Us What
+Elon Musk Got Right and Wrong](https://www.bloomberg.com/graphics/2019-tesla-model-3-survey/)
