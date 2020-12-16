@@ -1,5 +1,6 @@
 ---
-title: "Data 104 Final Project"
+title: "Tesla Model 3 Discussion Forum Analysis"
+subtitle: "Data 104 Final Project" 
 author: "Brian Roepkee"
 date: "Dec 20, 2020"
 output:
@@ -12,7 +13,8 @@ output:
     toc_depth: 2
 ---
 
-# Tesla Model 3 Discussion Forum Analysis
+
+# Executive Summary
 
 
 
@@ -36,20 +38,15 @@ library(SnowballC)
 library(topicmodels)
 library(quanteda)
 library(seededlda)
+library(parallel)
+library(ldatuning)
 
 # date/time library
 library(lubridate)
-```
 
-# Data Import, Wrangling, and Cleaning
-
-```{r}
 # Read in the tesla forum data
 df <- read.csv('tesla_forums.csv')
-```
 
-
-```{r}
 # Adjust variable types
 df$Time <- as_datetime(df$Time)
 df$User <- as.factor(df$User)
@@ -68,32 +65,23 @@ df <- df %>%
 df$text_len <- str_count(df$Discussion)
 ```
 
-Examine the Structure
-
-```{r}
-str(df)
-```
-
+# EDA
+EDA, or Exploratory Data Analysis to better understand the characteristic, extents, and shape of our data.
 
 ```{r}
 df %>%
   select(Discussion, Time, text_len) %>%
   summary()
-```
 
-**Observations**
- * **Discussions**: There are a total of **54,311** `discussion` threads in this dataset after removing duplicates.  This is essentially like a comment on a Facebook post.  A `Topic` (not shown) is posted, and `Discussions` happen on those topics.
- * **Time**: Dates range from **2015-12-1o** to **2020-12-15**.  The `Median`, `Mean` and `3rd Quartile` are all in **2020** telling us that most of the dates in this set are in 2020.
- * **Text_Len**: Min length of text is **0** and max is **7,944** characters with a median of **179.0**.
-
-
-# EDA
-EDA, or Exploratory Data Analysis to better understand the characteristic, extents, and shape of our data.
-
-```{r}
 # Make a copy of the original DF so it can be referenced later.
 df_select <- df
 ```
+
+**Observations**
+
+ * **Discussions**: There are a total of **54,311** `discussion` threads in this dataset after removing duplicates.  This is essentially like a comment on a Facebook post.  A `Topic` (not shown) is posted, and `Discussions` happen on those topics.
+ * **Time**: Dates range from **2015-12-1o** to **2020-12-15**.  The `Median`, `Mean` and `3rd Quartile` are all in **2020** telling us that most of the dates in this set are in 2020.
+ * **Text_Len**: Min length of text is **0** and max is **7,944** characters with a median of **179.0**.
 
 ## Topic & User Information
 
@@ -162,7 +150,7 @@ sprintf("There are %s total unique users", nrow(df_users))
 summary(df_select$text_len)
 ```
 
-Discussion lengths for the dataset range from `0` characters to **7,944** with a median of **179** with a mean of **278**. 
+Discussion lengths for the dataset range from **0** characters to **7,944** with a median of **179** with a mean of **278**. 
 
 ```{r warning=FALSE}
 df_select %>%
@@ -213,14 +201,14 @@ df_select %>%
 
 **Note:** Since this is discussion forum text, outliers are simply long posts as demonstrated above.  They will remain in the dataset since longer text often contains valuable information.
 
-# Clean and Prepare the Text for Analysis
-
-### Clean The Text
+# Text for Analysis
 
 ```{r}
 df_select$Discussion <- iconv(df_select$Discussion, "latin1", "ASCII", sub = "")
-df_select$Discussion <- str_replace_all(df_select$Discussion,"\\n","")
+df_select$Discussion <- str_replace_all(df_select$Discussion,"\\n"," ")
 df_select$Discussion <- str_replace_all(df_select$Discussion,"@","")
+df_select$Discussion <- str_replace_all(df_select$Discussion,"="," ")
+df_select$Discussion <- str_replace_all(df_select$Discussion,"-"," ")
 df_select$Discussion <- gsub("http[[:alnum:][:punct:]]*", "", df_select$Discussion)
 ```
 
@@ -242,7 +230,6 @@ df_select$Discussion = lemmatize_strings(df_select$Discussion)
 head(df_select$Discussion)
 ```
 
-Create a new column with each word on it's own row.
 
 ```{r}
 tidy_df <- df_select %>%
@@ -323,7 +310,6 @@ nrc_df %>%
 ```
 
 ## Top Word Sentiment
-Using various methods, inspect what words are most frequently used, per candidate, proportions of negative and positive words, and trend over time. 
 
 ### Top Word Counts (BING)
 
@@ -391,38 +377,6 @@ ggplot(plot_df2, aes(mon, value, fill = color)) +
 
 We can see that over time, the sentiment in the forums is positive as measured by the `mean` sentiment score by **day**.  This doesn't mean that there isn't any negative feedback, just that overall, it's positive on average.
 
-### Most Positive Message
-
-```{r}
-afinn_df %>%
-  group_by(doc_id) %>%
-  summarize(total_value = sum(value), word_count = n(), .groups = "keep") %>%
-  arrange(desc(total_value)) %>%
-  head()
-```
-
-```{r}
-df %>%
-  filter(doc_id == "doc51919") %>%
-  select(Discussion)
-```
-
-
-### Most Negative Message
-
-```{r}
-afinn_df %>%
-  group_by(doc_id) %>%
-  summarize(total_value = sum(value), word_count = n(), .groups = "keep") %>%
-  arrange(total_value) %>%
-  head()
-```
-
-```{r}
-df %>%
-  filter(doc_id == "doc390") %>%
-  select(Discussion)
-```
 
 # Word Cloud
 
@@ -436,7 +390,7 @@ bing_df %>%
 ```
 
 
-# n-Grams
+# Topic Identification
 
 ## Bi-Grams
 
@@ -458,7 +412,7 @@ bigram_counts
 
 ```{r message=FALSE, warning=FALSE}
 bigram_graph <- bigram_counts %>%
-  filter(n > 275) %>%
+  filter(n > 300) %>%
   graph_from_data_frame()
 
 set.seed(2017)
@@ -471,145 +425,94 @@ ggraph(bigram_graph, layout = "nicely") +
   theme_minimal()
 ```
 
-## Trigrams
+Some or the key bi-grams that result from the dataset, that are more product related are as follows:
 
-```{r}
-trigrams <- df_select %>%
-  unnest_tokens(bigram, Discussion, token = "ngrams", n = 3)
-```
+ * **Sentry - Mode**: This is a special feature of the car which records activity outside the car via the cameras it uses for self driving.
+ * **Speed - Limit**: Most likey related to the limits that are possible when using the self driving feature.
+ * **Steer - Wheel**: Steering wheel related feedback.
+ * **Tesla - App**: The mobile app supported on Apple and Android devices.
+ * **Software - Update**: Tesla's go through regular software updates, every 1-2 weeks.
+ * **Take - Delivery**: Related to the purchase process.
+ * **Mile - Range**: Being a batter powered car, range is a highly talked about issue.
+ * **Battery - Degradation**: Similar to range, do batteries retain their health.
+ * **Charge - Port**: The inlet for the charging adapter on the car is called the charging port.
+ * **Service - Center**: Related to the location where service is performed.
 
+# Topic Modeling of Topics
 
-```{r}
-trigram_counts <- trigrams %>%
-  count(bigram, sort = TRUE) %>%
-  separate(bigram, c("word1", "word2", "word3"), sep = " ")
-
-trigram_counts <- drop_na(trigram_counts)
-trigram_counts
-```
-
+After inspecting the most common word pairs used in the discussion forums, specifically in the longer text replies, next we'll take a look at trying to identify topics of discussion via **Topic Modeling** on the "subjects" of each of the topics.  This method is an unsupervised method that attemps to automatically identify related topics based on the corpus of text.
 
 ```{r message=FALSE, warning=FALSE}
-trigram_graph <- trigram_counts %>%
-  filter(n > 50) %>%
-  graph_from_data_frame()
-
-set.seed(2017)
-a <- grid::arrow(type = "open", length = unit(.05, "inches"))
-
-ggraph(trigram_graph, layout = "nicely") +
-  geom_edge_link(arrow = a, end_cap = circle(.02, 'inches')) +
-  geom_node_point(color = "gray", size = 2) +
-  geom_node_text(aes(label = name), vjust = 1.5, hjust = -.25) +
-  theme_minimal()
-```
-
-# Topic Modeling of `Topics`
-
-### Preprocessing
-
-```{r}
 corpus <- Corpus(VectorSource(df_topics$Topic))
-```
-
-
-Custom list of words generated upon performing the topic modeling.  These were frequently appeared but do not add a lot of context to topic identification, or appear so frequently, such as `University`, that they are in every topic. 
-
-```{r message=FALSE, warning=FALSE}
 corpus <- tm_map(corpus, tolower)
 corpus <- tm_map(corpus, removePunctuation)  # remove punctuation
 corpus <- tm_map(corpus, stripWhitespace)    # remove white space
 corpus <- tm_map(corpus, removeWords, c(stopwords('english')))
 corpus <- tm_map(corpus, lemmatize_strings) # lemmatizaton
-```
-
-
-```{r message=FALSE, warning=FALSE}
-
 # Manually remove odd characters that frequently appear
 corpus <- tm_map(corpus,content_transformer(function(x) gsub("“", " ", x)))
 corpus <- tm_map(corpus, content_transformer(function(x) gsub("”", " ", x)))
 corpus <- tm_map(corpus, content_transformer(function(x) gsub("’", " ", x)))
-
-corpus <- tm_map(corpus, removeWords, c("tesla", "model", "anyone", "car"))
+corpus <- tm_map(corpus, removeWords, c("tesla", "model", "anyone", 
+                                        "car", "get", "work", "use",
+                                        "come", "question", "can",
+                                        "issue", "now"))
 ```
 
-
-### Document Term Matrix Creation
 
 ```{r}
 dtm <- DocumentTermMatrix(corpus)
-```
-
-
-```{r}
+dtm = removeSparseTerms(dtm, .995)
 inspect(dtm)
 ```
-
-### Remove Sparse Terms
-
-```{r}
-dtm = removeSparseTerms(dtm, .99)
-inspect(dtm)
-```
-
-
 
 ```{r}
 sel_idx <- rowSums(as.matrix(dtm)) > 0
 dtm <- dtm[sel_idx, ]
-dim(dtm)
 ```
 
 
-## LDA
+## Topic Modeling
 
-### Choosing the Best k-Value
+### LDA
 
-```{r eval=FALSE, include=FALSE}
-mat <- as.matrix (weightTfIdf(dtm))
+From Wikipedia:
 
-# normalize the TfIdf scores by euclidean distance.
-scaled_data  <- dist(mat, method = "euclidean")
+> In natural language processing, the latent Dirichlet allocation (LDA) is a generative statistical model that allows sets of observations to be explained by unobserved groups that explain why some parts of the data are similar. For example, if observations are words collected into documents, it posits that each document is a mixture of a small number of topics and that each word's presence is attributable to one of the document's topics. LDA is an example of a topic model and belongs to the machine learning toolbox and in wider sense to the artificial intelligence toolbox.
 
-k.max <- 10
-data <- scaled_data
-wss <- sapply(1:k.max,
-              function(k) {
-                kmeans(data, k, nstart = 50, iter.max = 10)$tot.withinss
-              })
+https://en.wikipedia.org/wiki/Latent_Dirichlet_allocation 
 
-plot(
-  1:k.max,
-  wss,
-  type = "b",
-  pch = 19,
-  frame = FALSE,
-  xlab = "Number of clusters K",
-  ylab = "Total within-clusters sum of squares"
-)
+### Determining the Appropriate Number of Topics
+
+
+```{r message=FALSE, warning=FALSE}
+sequ <- seq(2, 20, 1) 
+
+result <- FindTopicsNumber(
+  dtm,
+  topics = sequ,
+  metrics = c("CaoJuan2009","Arun2010", "Deveaud2014"),
+  method = "Gibbs",
+  control = list(seed = 123),
+  mc.cores = 6
+  )
+
+FindTopicsNumber_plot(result)
 ```
 
+**Note**: "Griffiths2004" metric was causing R Studio to crash and has been omitted.
 
+### Top-Level Topics
 
 ```{r}
 lda <- LDA(dtm, k = 6, control = list(seed = 1234))
-lda
-```
-
-### Per-Topic-Per-Word Probabilities (Beta)
-
-```{r}
-# beta (per-term-per-topic) 
 topics <- tidy(lda, matrix = "beta")
 ```
-
-### Top-Level Topics
 
 ```{r fig.height=9, fig.width=12}
 top_terms <- topics %>%
   group_by(topic) %>%
-  top_n(10, beta) %>%
+  top_n(7, beta) %>%
   ungroup() %>%
   arrange(topic, -beta)
 
@@ -618,63 +521,29 @@ top_terms %>%
   mutate(term = reorder_within(term, beta, topic)) %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
     geom_col(show.legend = FALSE) +
-    facet_wrap(~ topic, scales = "free", ncol=2) +
+    facet_wrap(~ topic, scales = "free", ncol=3) +
     theme_minimal(base_size = 28) + 
     scale_y_reordered()
 ```
-
-## Topic Models with Quanteda
-
-```{r}
-my_corpus <- corpus(df_select$Discussion)  # build a new corpus from the texts
-```
-
-
-```{r}
-quant_dfm <- dfm(my_corpus, 
-                remove_punct = TRUE, 
-                remove_numbers = TRUE, 
-                remove = stopwords("english"))
-quant_dfm <- dfm_trim(quant_dfm, min_termfreq = 4, max_docfreq = 10)
-quant_dfm
-```
-
-
-```{r message=FALSE, warning=FALSE}
-set.seed(100)
-if (require(stm)) {
-    my_lda_fit20 <- stm(quant_dfm, K = 20, verbose = FALSE)
-    plot(my_lda_fit20)    
-}
-```
-
-
-```{r}
-tmod_lda <- textmodel_lda(quant_dfm, k = 10)
-```
-
-
-```{r}
-terms(tmod_lda, 10)
-```
-
-
-
-```{r message=FALSE, warning=FALSE}
-dict_topic <- dictionary(file = "tesla_topics.yml")
-```
-
-```{r}
-tmod_slda <- textmodel_seededlda(quant_dfm, dictionary = dict_topic)
-```
-
-```{r}
-terms(tmod_slda, 20)
-```
+# Topic Analysis
 
 ## Targeted Dictionary Analysis
 
+After analyzing the most common customer topics, we're going to look at sentiment around each a number of them.  Out of the original identified topics, we will look at the following:
+
+ * **Full Self Driving**: Also knowne as FSD.  A much anticipated features that was rolled out in private beta in 2020.  There has been quite a bit of coverage of this from early adopters on YouTube.  
+ * **Software - Update**: Tesla's go through regular software updates, every 1-2 weeks.
+ * **Take - Delivery**: Related to the purchase process.
+ * **Mile - Range** & **Battery - Degradation**: Being a batter powered car, range is a highly talked about issue.
+
+
+
 ```{r}
+my_corpus <- corpus(df_select$Discussion)  # build a new corpus from the texts
+
+quant_dfm <- dfm(my_corpus, )
+quant_dfm <- dfm_trim(quant_dfm, min_termfreq = 4, max_docfreq = 10)
+
 # Reduce the columns to just what's needed
 quant_tesla <- select(df_select, doc_id, Discussion, User, Time)
 
@@ -696,7 +565,7 @@ toks_tesla <- quanteda::tokens(corp_tesla, remove_punct = TRUE)
 ```
 
 
-### Full Self Driving
+## Full Self Driving
 
 ```{r}
 # get relevant keywords and phrases
@@ -728,11 +597,12 @@ axis(1, seq_len(ndoc(dfmat_fsd_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfm
 grid()
 abline(h = 0, lty = 2)
 ```
-### Battery Related
+
+## Battery and Range
 
 ```{r}
 # get relevant keywords and phrases
-bat <- c("battery", "charge", "range")
+bat <- c("battery", "charge", "range", "degradation")
 
 # only keep tokens specified above and their context of ±10 tokens
 toks_bat <- tokens_keep(toks_tesla, pattern = phrase(bat), window = 10)
@@ -761,7 +631,7 @@ grid()
 abline(h = 0, lty = 2)
 ```
 
-### Software Updates
+## Software Updates
 
 ```{r}
 # get relevant keywords and phrases
@@ -794,7 +664,7 @@ grid()
 abline(h = 0, lty = 2)
 ```
 
-### Purchase Process
+## Purchase Process
 
 ```{r}
 # get relevant keywords and phrases
@@ -827,6 +697,8 @@ grid()
 abline(h = 0, lty = 2)
 ```
 
+# Conclusion
 
+# References
 
 
