@@ -1,7 +1,7 @@
 ---
 title: "Tesla Model 3 Discussion Forum Analysis"
 subtitle: "Data 104 Final Project" 
-author: "Brian Roepkee"
+author: "Brian Roepke"
 date: "Dec 20, 2020"
 output:
   html_document:
@@ -14,11 +14,11 @@ output:
 ---
 
 
-# Executive Summary
+# Introduction
 
 In 2006 Elon Musk wrote a blog post titled, [The Secret Tesla Motors Master Plan (just between you and me)](https://www.tesla.com/blog/secret-tesla-motors-master-plan-just-between-you-and-me), where he detailed out the strategy for the company.  In this post, he offered up a multi-step plan to achieve the [mission](https://www.tesla.com/about) slated by the company:
 
-*Tesla's mission is to accelerate the world's transition to sustainable energy.*
+> Tesla's mission is to accelerate the world's transition to sustainable energy.
 
 The plan detailed four steps that would eventually lead to what is known as the Tesla Model 3, the first affordable, high-performance, no-compromise electric car.  As of March 2020, the model 3 became the all-time best selling plug-in electric car surpassing the Nissan LEAF, and it accomplished this in just 2.5 years, versus ten years for the LEAF[^BEST].
 
@@ -87,6 +87,12 @@ df$text_len <- str_count(df$Discussion)
 # Exploratory Data Analysis
 Perform an Exploratory Data Analysis (EDA) to better understand the characteristic, extents, and shape of our data.
 
+## Dataset
+
+The dataset was obtained from the [Tesla Model 3 Discussion Forums](https://forums.tesla.com/categories/tesla-model-3) on December 15, 2020.  The data was extracted utilizing a method known as Web Scraping, which pulls a web page into memory and extracts HTML information from it.  This is no different from web crawling or how a browser caches a page as you visit it.  A [GitHub Repo](https://github.com/broepke/TeslaForumScraper) is maintained with the source code and extracted datasets.
+
+## Summary
+
 ```{r}
 df %>%
   select(Discussion, Time, text_len) %>%
@@ -96,15 +102,15 @@ df %>%
 df_select <- df
 ```
 
-## Summary
+
 
  * **Discussions**: There are a total of **54,311** `discussion` threads in this dataset after removing duplicates.  This is essentially like a comment on a Facebook post.  A `Topic` (not shown) is posted, and `Discussions` happen on those topics.
- * **Time**: Dates range from **2015-12-1o** to **2020-12-15**.  The `Median`, `Mean` and `3rd Quartile` are all in **2020** telling us that most of the dates in this set are in 2020.
+ * **Time**: Dates range from **2015-12-10** to **2020-12-15**.  The `Median`, `Mean` and `3rd Quartile` are all in **2020** telling us that most of the dates in this set are in 2020.
  * **Text_Len**: Min length of text is **0** and max is **7,944** characters with a median of **179.0**.
 
 ## Topic & User Information
 
-The way that this data is stored is that for each `discussion` row, the topic title is repeated.  Therefore we need to summarize the rows and aggregate them into counts for each unique topic.  This way we can also see how many of discussions are 
+This data is stored because, for each `discussion` row, the topic title is repeated.  Therefore we need to summarize the rows and aggregate them into counts for each unique topic.  This way, we can also see how many discussions are 
 
 ```{r}
 df_topics <- df_select %>%
@@ -129,7 +135,7 @@ df_topics %>%
   theme(plot.title = element_text(face = "bold"))
 ```
 
-Regarding the number of Discussions per Topic, a heavily right skewed distribution with a range of **500-1,000** total topics with **0-25** discussions each.  After **25** or so (x-axis), there are just a few with greater than **25** replies per topic. There are two topics above **75**, as noted in the table above.
+Regarding the number of Discussions per Topic, a heavily right-skewed distribution with a range of **500-1,000** total topics with **0-25** discussions each.  After **25** or so (x-axis), there are just a few with greater than **25** replies per topic. There are two topics above **75**, as noted in the table above.
 
 ### Total Topics
 
@@ -192,7 +198,7 @@ df_select %>%
   theme(plot.title = element_text(face = "bold"))
 ```
 
-Text length for posts is right skewed as well with most posts being shorter in length. But there is a much more spread distribution towards the right tail.  
+Text length for posts is right-skewed as well, with most posts being shorter in length. But there is a much more spread distribution towards the right tail.
 
 ## Discussion Frequency
 
@@ -215,7 +221,7 @@ df %>%
   theme(plot.title = element_text(face = "bold"))
 ```
 
-When viewing the time frequency of the posts, the data does go back to **2016** but activity jumps at the start of 2020.  Due to the way these were scraped from the Forums, staring with newest posts and working backwards, it should be the case that we are loaded more in the current year.  There is a dip in posts around **mid-2020**, this most likely is a error with scraping, vs. lack of activity on the forum.  For the sake of this analysis being focused mostly on text, it's not critical to understand.
+When viewing the posts' time-frequency, the data goes back to **2016**, but activity jumps at the start of **2020**.  Due to the way these were scraped from the Forums, starting with the newest posts and working backward, it should be the case that we are loaded more in the current year.  There is a dip in activity around **mid-2020**; this most likely is an error with scraping vs. lack of activity on the forum.  For the sake of this analysis is focused mostly on text; it's not critical to understanding.
 
 ## Outlier Analysis
 
@@ -226,10 +232,10 @@ df_select %>%
   head(n=1)
 ```
 
-**Note:** Since this is discussion forum text, outliers are simply long posts as demonstrated above.  They will remain in the dataset since longer text often contains valuable information.
+**Note:** Since this is discussion forum text, outliers are only long posts as demonstrated above.  They will remain in the dataset since longer text often contains valuable information.
 
 ## Text Cleaning
-To better machine-analyze the text extracted from the forum, standard text cleaning is performed to normalize the text.  Additionally, the text is lemmatized, transforming words to their lemma, or base word.  We will not remove numbers in this operation since we are focused on the *Model 3*, containing a number in its name.
+To better machine-analyze the text extracted from the forum, standard text cleaning is performed to normalize the text.  Additionally, the text is lemmatized, transforming words to their lemma, or base word.  We will not remove numbers in this operation since we focus on the *Model 3*, containing a number in its name.
 
 ```{r}
 df_select$Discussion <- iconv(df_select$Discussion, "latin1", "ASCII", sub = "")
@@ -269,7 +275,7 @@ bing_df %>%
 
 Based on a pure lookup, the text in the forum is overall positive.  with **~83k positive** values and **~69k negative** values.
 
-### AFINN scoring Lexicon
+## AFINN scoring Lexicon
 AFINN from Finn Årup Nielsen, adds the `value` column, with a numeric representation of how positive, or negative the word is.  The AFINN lexicon measures sentiment with a numeric score between -5 and 5
 
 http://www2.imm.dtu.dk/pubdb/pubs/6010-full.html 
@@ -278,8 +284,12 @@ http://www2.imm.dtu.dk/pubdb/pubs/6010-full.html
 afinn_df <- tidy_df %>%
   inner_join(get_sentiments("afinn"), by = "word")
 
-head(afinn_df)
+afinn_df %>% 
+  select(word, value) %>% 
+  head(n=10)
 ```
+
+After applying the AFINN lexicon, you can see the different values applied to each word, with varying polarity levels.  In the above example, words **like**, **fit**, **yes**, and **agree** all have a **+1** value where **good** has a **+3** value.
 
 
 ```{r}
@@ -298,30 +308,12 @@ afinn_df %>%
   theme(plot.title = element_text(face = "bold"))
 ```
 
-For the dataset overall, there is a slight left-skew showing there is a greater concentration of words with positive values.  There are very few in the high and low values (`-4`,`-5`, `+5`). 
+For the dataset overall, there is a slight left-skew showing there is a greater concentration of words with positive values.  There are very few high and low values (**-5**, **+5**). 
 
-**Note**: *0 is not a valid value in this scoring system, therefore the bin is empty*
+**Note**: *0 is not a valid value in this system. Therefore the bin is empty*
 
-### NRC Sentiment Lexicon
-NRC from Saif Mohammad and Peter Turney. The NRC Emotion Lexicon is a list of English words and their associations with eight basic emotions as well as positive and negative sentiment.
-
-One thing to note, single words can have multiple emotions
-
-```{r}
-nrc_df <- tidy_df %>%
-  inner_join(get_sentiments("nrc"), by = "word")
-```
-
-Total counts for all 8 emotions and 2 sentiments.
-
-```{r}
-nrc_df %>%
-  group_by(sentiment) %>%
-  summarise(total = n(), .groups = "keep") %>%
-  arrange(desc(total))
-```
-
-## Top Word Sentiment
+## Sentiment Visualizations
+Now that we have sentiments applied to our tokenized words, we can do some simple analysis on the overall sentiment, the top words, and sentiment over time.
 
 ### Top Word Counts (BING)
 
@@ -339,13 +331,19 @@ bing_df %>%
   theme_minimal() +
   labs(x = "Contribution to sentiment",
        y = NULL,
-    title = "Top Word Counts",
+    title = "Top 15 Positive and Negative Words",
     subtitle = "Using BING Sentiment Lexicon"
   ) +
   theme(plot.title = element_text(face = "bold"))
 ```
 
-Focusing on the **Negative** words, the top occurrence is **issue** and second is **problem**.  Given the nature of this forumn, talking about a product, these are very practical words to be on the top of the list.  People reporting or discussion issues and problems with their cars. **Bug**, **Noise**, **Break**, and **Damage** all feel like perfect matches as well.  **Numb** is an interesting occurrence and worth looking into a little more.
+Focusing on the **Negative** words, the top occurrence is **issue**, and the second is **problem**.  Given this forum's nature, talking about a product, these are very practical words to be on the top of the list.  People are reporting or discussing issues and problems with their cars. **Bug**, **Noise**, **Break**, and **Damage** all feel like perfect matches as well.  
+
+The word **Numb** is present because numb is the lemma of number. We demonstrated here by calling the `lemmatize_words` function.  This mis-classification is an excellent example of one of the pitfalls with lexicon-based sentiment analysis.  After stemming or lemmatizing the word, it can alter its meaning. Usually, "number" would be a neutral word (e.g., not in the BING Lexicon).
+
+```{r}
+sprintf("The lemma of Number is %s", lemmatize_words("number"))
+```
 
 ### Overall Top Words (BING)
 
@@ -364,6 +362,8 @@ bing_df %>%
   ) +
   theme(plot.title = element_text(face = "bold"))
 ```
+
+As opposed to the top 15 of each sentiment, stacking the top 30 overall words gives us an idea of the proportion of positive vs. negative for the dataset.  Of the top 30, 11 of the 30 are negative, including the mis-classified **numb**.
 
 ### Sentiment over Time (AFINN)
 
@@ -387,44 +387,32 @@ ggplot(plot_df2, aes(mon, value, fill = color)) +
   
 ```
 
-We can see that over time, the sentiment in the forums is positive as measured by the `mean` sentiment score by **day**.  This doesn't mean that there isn't any negative feedback, just that overall, it's positive on average.
-
-
-# Word Cloud
-
-Word cloud of the top 200 words grouped by sentiment, positive or negative.
-
-```{r message=FALSE, warning=FALSE}
-bing_df %>%
-  count(word, sentiment, sort = TRUE) %>%
-  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
-  comparison.cloud(colors = c("gray", "black"), max.words = 200)
-```
-
+When we look at the data's sentiment over time, the forums' sentiment is positive as measured by the `mean` sentiment score by **day**.  The absence of negative more negative-biased days doesn't mean that there isn't any negative feedback, just that overall, it is positive on average.
 
 # Topic Identification
+Now that we know the sentiment, we can start identifying the topics most frequently discussed on the forum. For this exercise, we'll employ two different methods.  The first is a model called n-Grams, which looks and reoccurring sequences of words[^BI].  We will use bi-grams, which looks at two-word combinations and their frequency.  The second model is known as Topic Modeling. Topic modeling is a method for unsupervised classification which finds natural groups of items, regardless if you know anything about the text[^TM].
 
 ## Bi-Grams
 
 ```{r}
-bigrams <- df_select %>%
-  unnest_tokens(bigram, Discussion, token = "ngrams", n = 2)
-```
-
-
-```{r}
-bigram_counts <- bigrams %>%
+bigram_counts <- df_select %>%
+  unnest_tokens(bigram, Discussion, token = "ngrams", n = 2) %>% 
   count(bigram, sort = TRUE) %>%
-  separate(bigram, c("word1", "word2"), sep = " ")
+  separate(bigram, c("word1", "word2"), sep = " ") %>% 
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>% 
+  drop_na()
 
-bigram_counts <- drop_na(bigram_counts)
-bigram_counts
+head(bigram_counts, n=20)
 ```
 
+The top two highest reoccurring bigrams are **model 3** and **service center**.  These two are clearly great candidates for the Model 3 discussion forum.  However; after the top two we can start to identify potential candidates for highly discussed **product features**.
+
+We can visualize these association as well using a graph.
 
 ```{r message=FALSE, warning=FALSE}
 bigram_graph <- bigram_counts %>%
-  filter(n > 300) %>%
+  filter(n > 240) %>%
   graph_from_data_frame()
 
 set.seed(2017)
@@ -433,26 +421,27 @@ a <- grid::arrow(type = "open", length = unit(.05, "inches"))
 ggraph(bigram_graph, layout = "nicely") +
   geom_edge_link(arrow = a, end_cap = circle(.02, 'inches')) +
   geom_node_point(color = "gray", size = 2) +
-  geom_node_text(aes(label = name), vjust = -1, hjust = 1) +
+  geom_node_text(aes(label = name), vjust = -.4, hjust = -.1) +
   theme_minimal()
 ```
 
-Some or the key bi-grams that result from the dataset, that are more product related are as follows:
+Some of the top bi-grams that result from the dataset that is more product-related are as follows:
 
- * **Sentry - Mode**: This is a special feature of the car which records activity outside the car via the cameras it uses for self driving.
- * **Speed - Limit**: Most likey related to the limits that are possible when using the self driving feature.
- * **Steer - Wheel**: Steering wheel related feedback.
- * **Tesla - App**: The mobile app supported on Apple and Android devices.
- * **Software - Update**: Tesla's go through regular software updates, every 1-2 weeks.
+ * **Sentry - Mode**: This is a unique feature of the car which records activity outside the vehicle via the cameras it uses for self-driving.
+ * **Speed - Limit**: Most likely related to the possible limits when using the self-driving feature.
+ * **Tesla - App**: The mobile app that is supported on Apple and Android devices.
+ * **Phone - Key**: The mobile app is used to unlock the car.
+ * **Software - Update**: Tesla's go through regular software updates every 1-2 weeks.
  * **Take - Delivery**: Related to the purchase process.
- * **Mile - Range**: Being a batter powered car, range is a highly talked about issue.
- * **Battery - Degradation**: Similar to range, do batteries retain their health.
- * **Charge - Port**: The inlet for the charging adapter on the car is called the charging port.
+ * **Mile - Range**: Being a battery powered car, the range is highly discussed.
+ * **Battery - Degradation**: Similar to the range, do batteries retain their health.
+ * **Wall - Connector**: The product name for the home charger.
  * **Service - Center**: Related to the location where service is performed.
+ * **Voice - Command**: One of the most complained about features according to the Bloomberg report[^BLOOM]. 
 
 ## Topic Modeling
 
-After inspecting the most common word pairs used in the discussion forums, specifically in the longer text replies, next we'll take a look at trying to identify topics of discussion via **Topic Modeling** on the "subjects" of each of the topics.  This method is an unsupervised method that attemps to automatically identify related topics based on the corpus of text.
+After inspecting the most common word pairs used in the discussion forums, specifically in the longer text replies, next, we'll take a look at trying to identify topics of discussion via **Topic Modeling** on the "subjects" of each of the topics.  This method is an unsupervised method that automatically attempts to identify related topics based on the corpus of text.
 
 ```{r message=FALSE, warning=FALSE}
 corpus <- Corpus(VectorSource(df_topics$Topic))
@@ -469,59 +458,45 @@ corpus <- tm_map(corpus, removeWords, c("tesla", "model", "anyone",
                                         "car", "get", "work", "use",
                                         "come", "question", "can",
                                         "issue", "now"))
-```
-
-
-```{r}
 dtm <- DocumentTermMatrix(corpus)
 dtm = removeSparseTerms(dtm, .995)
-inspect(dtm)
-```
-
-```{r}
 sel_idx <- rowSums(as.matrix(dtm)) > 0
 dtm <- dtm[sel_idx, ]
 ```
 
-
-
-
 ### LDA
+Latent Dirichlet Allocation (LDA), is a generative probabilistic model for collections of text that allows sets of observations to be explained by unobserved groups[^LDA].
 
-From Wikipedia:
+### Determining the Number of Topics
 
-> In natural language processing, the latent Dirichlet allocation (LDA) is a generative statistical model that allows sets of observations to be explained by unobserved groups that explain why some parts of the data are similar. For example, if observations are words collected into documents, it posits that each document is a mixture of a small number of topics and that each word's presence is attributable to one of the document's topics. LDA is an example of a topic model and belongs to the machine learning toolbox and in wider sense to the artificial intelligence toolbox.
-
-https://en.wikipedia.org/wiki/Latent_Dirichlet_allocation 
-
-### Determining the Appropriate Number of Topics
+Perplexity is a measurement of how well a probability distribution or probability model predicts a sample.  By plotting Perplexity, we can visualize an approximate number of topics where the model stops improving[^PLEX].  
 
 
-```{r message=FALSE, warning=FALSE}
-sequ <- seq(2, 20, 1) 
+```{r}
+mod_perplexity = numeric(0)
+topics <- c(2:15)  
 
-result <- FindTopicsNumber(
-  dtm,
-  topics = sequ,
-  metrics = c("CaoJuan2009","Arun2010", "Deveaud2014"),
-  method = "Gibbs",
-  control = list(seed = 123),
-  mc.cores = 6
-  )
-
-FindTopicsNumber_plot(result)
+for (i in topics){
+  mod <- LDA(dtm, k = i, method = "VEM", 
+             control = list(seed=1234) )
+  mod_perplexity[i] = perplexity(mod, dtm)
+}
+mod_perplexity <- mod_perplexity[!is.na (mod_perplexity)]
+plot(x=topics, y=mod_perplexity, type = "b", xlab = "Number of topics", ylab = "Perplexity")
 ```
 
-**Note**: "Griffiths2004" metric was causing R Studio to crash and has been omitted.
+Upon plotting, we can see the number of topics stops improving at **10** using the VEM algorithm.
 
 ### Top-Level Topics
 
+Next we can create a visuaization of the words the belong to these 10 LDA topics, and can inspect them to see if they make sense.
+
 ```{r}
-lda <- LDA(dtm, k = 6, control = list(seed = 1234))
+lda <- LDA(dtm, k = 10, method="VEM", control = list(seed = 1234))
 topics <- tidy(lda, matrix = "beta")
 ```
 
-```{r fig.height=9, fig.width=12}
+```{r fig.height=12, fig.width=7}
 top_terms <- topics %>%
   group_by(topic) %>%
   top_n(7, beta) %>%
@@ -533,21 +508,34 @@ top_terms %>%
   mutate(term = reorder_within(term, beta, topic)) %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
     geom_col(show.legend = FALSE) +
-    facet_wrap(~ topic, scales = "free", ncol=3) +
-    theme_minimal(base_size = 22) + 
+    facet_wrap(~ topic, scales = "free", ncol=2) +
+    theme_minimal(base_size = 16) + 
     scale_y_reordered()
 ```
-# Topic Analysis
 
-## Targeted Dictionary Analysis
+Based on the output, here are some of the words that stand out, potentially forming topics.
 
-After analyzing the most common customer topics, we're going to look at sentiment around each a number of them.  Out of the original identified topics, we will look at the following:
+ 1. Various issues regarding a software update.
+ 2. Battery, Charging, and Range related issues.
+ 3. Sentry Mode
+ 4. Wheel, Bumper, Drive, Sale.  Could be related to exterior issues.
+ 5. Full self driving.
+ 6. Charging, Supercharging.
+ 7. Battery Degradation
+ 8. Phone, Insurance, Full Self Driving (Upgrading to Full Self Driving potentially, which can be purchased via the mobile application.)
+ 9. Autopilot upgrade, warnings related to Autopilot.
+ 10. Autopilot upgrade, app.
 
- * **Full Self Driving**: Also knowne as FSD.  A much anticipated features that was rolled out in private beta in 2020.  There has been quite a bit of coverage of this from early adopters on YouTube.  
- * **Software - Update**: Tesla's go through regular software updates, every 1-2 weeks.
- * **Take - Delivery**: Related to the purchase process.
- * **Mile - Range** & **Battery - Degradation**: Being a batter powered car, range is a highly talked about issue.
+With the LDA version versus the bigram modeling, it's probably a little more precise when using the bigram approach, but we do see some other topics show up like Full Self Driving, Supercharging, and Upgrades (meaning over the air software updates).  These both can be taken into account when examining product feature related issues.
 
+# Product Feature Analysis
+
+After analyzing the most common customer topics, we're going to look at sentiment around each of them.  Out of the originally identified topics.  We will use a specific method here referred to as a targeted dictionary analysis[^TDA], and we will look at the following:
+
+ * **Full Self Driving**: Also known as FSD.  A much-anticipated feature that were rolled out in private beta in 2020.  There has been quite a bit of coverage of this from early adopters on YouTube.  
+ * **Software - Update**: Tesla's go through regular software updates every 1-2 weeks.
+ * **Mile - Range** & **Battery - Degradation**: Being a battery powered car, the range is highly discussed.
+ * **Voice - Command**: Related to the feature to give the car voice commands.
 
 
 ```{r}
@@ -599,6 +587,7 @@ axis(1, seq_len(ndoc(dfmat_fsd_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfm
 legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
 ```
 
+There is 
 
 ```{r}
 n_fsd <- ntoken(dfm(toks_fsd, group = toks_fsd$week))
@@ -676,40 +665,44 @@ grid()
 abline(h = 0, lty = 2)
 ```
 
-## Purchase Process
+## Voice Command
 
 ```{r}
 # get relevant keywords and phrases
-own <- c("delivery", "purchase", "owner")
+voice <- c("voice", "command")
 
 # only keep tokens specified above and their context of ±10 tokens
-toks_own <- tokens_keep(toks_tesla, pattern = phrase(own), window = 10)
+toks_voice <- tokens_keep(toks_tesla, pattern = phrase(voice), window = 10)
 
-toks_own <- tokens_lookup(toks_own, dictionary = data_dictionary_LSD2015[1:2])
+toks_voice <- tokens_lookup(toks_voice, dictionary = data_dictionary_LSD2015[1:2])
 
 # create a document document-feature matrix and group it by weeks in 2016
-dfmat_own_lsd <- dfm(toks_own) %>% 
+dfmat_voice_lsd <- dfm(toks_voice) %>% 
     dfm_group(group = "week", fill = TRUE) 
 
-matplot(dfmat_own_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency",
-        main = "Sentiment of Purchasing Process for 2020")
+matplot(dfmat_voice_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency",
+        main = "Sentiment of Voice Command for 2020")
 grid()
-axis(1, seq_len(ndoc(dfmat_own_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_own_lsd)) - 1))
+axis(1, seq_len(ndoc(dfmat_voice_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_voice_lsd)) - 1))
 legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
 ```
 
 
 ```{r}
-n_own <- ntoken(dfm(toks_own, group = toks_own$week))
-plot((dfmat_own_lsd[,2] - dfmat_own_lsd[,1]) / n_own, 
+n_voice <- ntoken(dfm(toks_voice, group = toks_voice$week))
+plot((dfmat_voice_lsd[,2] - dfmat_voice_lsd[,1]) / n_voice, 
      type = "l", ylab = "Sentiment", xlab = "", xaxt = "n",
-     main = "Sentiment of Purchasing Process for 2020")
-axis(1, seq_len(ndoc(dfmat_own_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_own_lsd)) - 1))
+     main = "Sentiment of Voice for 2020")
+axis(1, seq_len(ndoc(dfmat_voice_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_voice_lsd)) - 1))
 grid()
 abline(h = 0, lty = 2)
 ```
 
+
 # Conclusion
+
+
+
 
 # References
 
@@ -719,3 +712,10 @@ abline(h = 0, lty = 2)
 [^JD]: [Tesla ranks dead last in annual quality survey](https://www.cnn.com/2020/06/25/cars/tesla-jdpower-rankings/index.html)
 [^BLOOM]: [5,000 Tesla Owners Told Us What
 Elon Musk Got Right and Wrong](https://www.bloomberg.com/graphics/2019-tesla-model-3-survey/)
+[^TM]: ["Text Mining with R: A Tidy Approach" was written by Julia Silge and David Robinson](https://www.tidytextmining.com/topicmodeling.html)
+[^BI]: [Relationships between words: n-grams and correlations](https://www.tidytextmining.com/ngrams.html)
+[^LDA]: [Latent Dirichlet Allocation](https://ai.stanford.edu/~ang/papers/jair03-lda.pdf) by Blei, et al.
+[^PLEX]: [Perplexity in Language Models](https://towardsdatascience.com/perplexity-in-language-models-87a196019a94)
+[^TDA]: [Targeted Dictionary Analysis from Quanteda](https://tutorials.quanteda.io/advanced-operations/targeted-dictionary-analysis/)
+
+
