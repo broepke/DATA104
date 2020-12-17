@@ -28,6 +28,8 @@ However, while the company is doing fantastic, its stock at all-time highs and s
 
 This report will look at user's discussions, mostly in 2020, from the [Tesla Model 3 Discussion Forums](https://forums.tesla.com/categories/tesla-model-3) to surface what is top of mind and what issues might still be effecting the Model 3.  The forums are an open place where people can post topics, ask questions, or generally participate in the community.  User forums are rich with information that can give an alternative view into customer sentiment, unlike Social Media or traditional Surveys. 
 
+**Note:** This report will not look to surface the root cause of issues, positive or negative, but rather surface topics that are most top-of-mind for customers, and where the Tesla team could investigate further.
+
 The plan's four-step master plan:
 
 1. Build sports car
@@ -477,22 +479,22 @@ mod_perplexity = numeric(0)
 topics <- c(2:15)  
 
 for (i in topics){
-  mod <- LDA(dtm, k = i, method = "VEM", 
+  mod <- LDA(dtm, k = i, method = "Gibbs", 
              control = list(seed=1234) )
   mod_perplexity[i] = perplexity(mod, dtm)
 }
 mod_perplexity <- mod_perplexity[!is.na (mod_perplexity)]
-plot(x=topics, y=mod_perplexity, type = "b", xlab = "Number of topics", ylab = "Perplexity")
+plot(x=topics, y=mod_perplexity, type = "b", xlab = "Number of Topics", ylab = "Perplexity")
 ```
 
-Upon plotting, we can see the number of topics stops improving at **10** using the VEM algorithm.
+Upon plotting, we can see the number of topics stops improving at **10** and again at **13** using Gibbs sampling.
 
 ### Top-Level Topics
 
-Next we can create a visuaization of the words the belong to these 10 LDA topics, and can inspect them to see if they make sense.
+Next we can create a visualization of the words the belong to these 10 LDA topics, and can inspect them to see if they make sense.
 
 ```{r}
-lda <- LDA(dtm, k = 10, method="VEM", control = list(seed = 1234))
+lda <- LDA(dtm, k = 10, method="Gibbs", control = list(seed = 1234))
 topics <- tidy(lda, matrix = "beta")
 ```
 
@@ -515,27 +517,27 @@ top_terms %>%
 
 Based on the output, here are some of the words that stand out, potentially forming topics.
 
- 1. Various issues regarding a software update.
- 2. Battery, Charging, and Range related issues.
- 3. Sentry Mode
- 4. Wheel, Bumper, Drive, Sale.  Could be related to exterior issues.
- 5. Full self driving.
- 6. Charging, Supercharging.
- 7. Battery Degradation
- 8. Phone, Insurance, Full Self Driving (Upgrading to Full Self Driving potentially, which can be purchased via the mobile application.)
- 9. Autopilot upgrade, warnings related to Autopilot.
- 10. Autopilot upgrade, app.
+ 1. **Range, battery, dashcam**: Battery and range related discussion.
+ 2. **Battery, Trip, and Range**: Issues related to long-distance driving.
+ 3. **Tire upgrade for performance**: could be related to the performance model, and it's tire selection.
+ 4. **Door, Service, Paint, Trunk**:  This sounds like it's related to some of the more significant issues owners have experienced when picking up their cars.
+ 5. **iPhone, update, lock**: Potentially related to the new features released to have your app automatically lock doors when left unattended.
+ 6. **Sentry Mode**: This is a unique feature of the car which records activity outside the vehicle via the cameras it uses for self-driving. 
+ 7. **Full Self Driving, App, HW3**: Potentially related to purchasing the FSD update via the mobile app.  HW3 refers to which generation of full self-driving hardware your car has.  Older models can't support all features.
+ 8. **Drive, Brake, Autopilot, Park** (Upgrading to Full Self Driving potentially, which can be purchased via the mobile application.)
+ 9. **Phone, USB, Back**: Appears to interior phone and connectivity options.  Such as USB in the back seats.
+ 10. **Charge, Autopilot, Wheel, Noise**: Autopilot related issues.  The much stronger first value (charge) versus the other words in this topic.
 
-With the LDA version versus the bigram modeling, it's probably a little more precise when using the bigram approach, but we do see some other topics show up like Full Self Driving, Supercharging, and Upgrades (meaning over the air software updates).  These both can be taken into account when examining product feature related issues.
+With the LDA version versus the bigram modeling, it seems a little clearer when using the bigram approach, but we do see some other topics show up like Full Self Driving, and Software Updates / Upgrades, paint, and trunk issues.  These both can be taken into account when examining product feature related issues.
 
 # Product Feature Analysis
 
-After analyzing the most common customer topics, we're going to look at sentiment around each of them.  Out of the originally identified topics.  We will use a specific method here referred to as a targeted dictionary analysis[^TDA], and we will look at the following:
+After analyzing the most common customer topics, we're going to look at sentiment around four of them.  Out of the identified initial topics.  We will use a specific method here referred to as a targeted dictionary analysis[^TDA], and we will look at the following:
 
- * **Full Self Driving**: Also known as FSD.  A much-anticipated feature that were rolled out in private beta in 2020.  There has been quite a bit of coverage of this from early adopters on YouTube.  
- * **Software - Update**: Tesla's go through regular software updates every 1-2 weeks.
- * **Mile - Range** & **Battery - Degradation**: Being a battery powered car, the range is highly discussed.
- * **Voice - Command**: Related to the feature to give the car voice commands.
+ 1. **Full Self Driving**: FSD, a much-anticipated feature rolled out in private beta in 2020.  There has been quite a bit of coverage of this from early adopters on YouTube.  
+ 2. **Software - Update**: Tesla's go through regular software updates every 1-2 weeks.
+ 3. **Mile - Range** & **Battery - Degradation**: The Model 3 is a battery-powered car; the range is highly discussed.
+ 4. **Voice - Command**: Related to the feature to give the car voice commands.
 
 
 ```{r}
@@ -567,6 +569,8 @@ toks_tesla <- quanteda::tokens(corp_tesla, remove_punct = TRUE)
 
 ## Full Self Driving
 
+[Full Self Driving](https://www.youtube.com/watch?v=z6aEz_1SiGY) is a new feature in Beta for Teslas that will autonomously drive your car without an intervention from start to stop on a destination programmed into the navigation system.  This feature had been promised for years and finally started rolling out in October to a limited audience.  It's much anticipated and highly coveted. It should be received positively.
+
 ```{r}
 # get relevant keywords and phrases
 fsd <- c("fsd", "self driving", "autopilot")
@@ -581,25 +585,31 @@ dfmat_fsd_lsd <- dfm(toks_fsd) %>%
     dfm_group(group = "week", fill = TRUE) 
 
 matplot(dfmat_fsd_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency", 
-        main = "Sentiment of Self-Driving/Full Self Driving for 2020")
+        main = "Sentiment of Full Self Driving for 2020")
 grid()
 axis(1, seq_len(ndoc(dfmat_fsd_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_fsd_lsd)) - 1))
 legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
 ```
 
-There is 
+There is a clear difference in the proportion of positive sentiment to negative over time.  There are five or so spikes in peak positive sentiment frequency; these are possibly mapped to the news, such as the original announcement of the FSD Beta availability on October 12th.
+
+[Tesla will release 'Full Self-Driving' beta next week, Musk says](https://www.cnet.com/roadshow/news/tesla-full-self-driving-beta-next-week-tweet/) on CNET.com
 
 ```{r}
 n_fsd <- ntoken(dfm(toks_fsd, group = toks_fsd$week))
 plot((dfmat_fsd_lsd[,2] - dfmat_fsd_lsd[,1]) / n_fsd, 
      type = "l", ylab = "Sentiment", xlab = "", xaxt = "n",
-     main = "Sentiment of Self-Driving/Full Self Driving for 2020")
+     main = "Mean Sentiment of Full Self Driving for 2020")
 axis(1, seq_len(ndoc(dfmat_fsd_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_fsd_lsd)) - 1))
 grid()
 abline(h = 0, lty = 2)
 ```
 
+Plotting the combined Mean Sentiment, we see that other than a couple of dips into negative; it's been positive overall.
+
 ## Battery and Range
+
+Next is the topic of Range, Battery, Charging, and Degradation. Key words that were frequently in the bigrams as well in the topic modeling.  There is a phenomenon called Range Anxiety, defined as "Worry on the part of a person driving an electric car that the battery will run out of power before the destination or a suitable charging point is reached.[^LEX]"  Tesla has an industry-leading range in their cars, yet still, it's such a new concept for people that it's highly discussed.  We can examine the sentiment around these topics next.
 
 ```{r}
 # get relevant keywords and phrases
@@ -621,6 +631,8 @@ axis(1, seq_len(ndoc(dfmat_bat_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfm
 legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
 ```
 
+This time we see the positive sentiment is lower than the negative on average for the week's discussions.  There is also a single event that stands out around the summer time frame. Around this time, Tesla's CEO, Elon Musk, announced a formal day for their anticipated "Battery Day[^BAT]," potentially the spike in negative news.  Further investigation into the posts around that time could reveal the actual negative topics.
+
 
 ```{r}
 n_bat <- ntoken(dfm(toks_bat, group = toks_bat$week))
@@ -632,7 +644,12 @@ grid()
 abline(h = 0, lty = 2)
 ```
 
+When looking at the combined mean weekly sentiment, the **entire year** for this topic is **negative**.  This is an area worth further investigation.
+
 ## Software Updates
+
+One of the marquis features of a Tesla is its ability to improve itself via software updates continuously.  The updates come about every two weeks and bring new capabilities such as enhanced self-driving, new games, or even additional performance and range.  This capability is a one of a kind capability that makes a Tesla feel more like a smart phone than a car. 
+
 
 ```{r}
 # get relevant keywords and phrases
@@ -654,6 +671,8 @@ axis(1, seq_len(ndoc(dfmat_sw_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfma
 legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
 ```
 
+Overall, the sentiment is more positive than negative. That final spike in October coincides with the spike from the Full Self Driving Beta announcement noted above.  Since that's delivered via a software update, most likely, these topics overlap.
+
 
 ```{r}
 n_sw <- ntoken(dfm(toks_sw, group = toks_sw$week))
@@ -665,7 +684,12 @@ grid()
 abline(h = 0, lty = 2)
 ```
 
+Mostly positive over the year, with an exception in September.  This should be investigated to understand further why sentiment was negative at this time.
+
 ## Voice Command
+
+According to the survey conducted by Bloomberg of **5,000** Tesla Model 3 owners, the two areas of the car with the least positive feedback were its Voice Command Capabilities and the lackluster Automatic Wipers[^BLOOM].  The survey was taken in mid-2019; we can look at the data from 2020's discussions to see how sentiment is trending.
+
 
 ```{r}
 # get relevant keywords and phrases
@@ -687,6 +711,7 @@ axis(1, seq_len(ndoc(dfmat_voice_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(d
 legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
 ```
 
+Overal, it appears tha the data is more positive than negative; a potential clue that the system is improving in the minds of users.  
 
 ```{r}
 n_voice <- ntoken(dfm(toks_voice, group = toks_voice$week))
@@ -698,10 +723,21 @@ grid()
 abline(h = 0, lty = 2)
 ```
 
+Over the 2020 year, it appears that it's trending slight more postive over time as well.  Further investigation needed.
 
 # Conclusion
 
+It's no secret that Tesla's success with the Model 3 is echoed in the owner's sentiment.  With the overall sentiment, we saw that topics were overwhelmingly positive, and customers appear to be very happy with their cars. When exploring product features to investigate, the combination of bigrams and topic modeling with LDA uncovered many of the hottest items in the forums.  
 
+First, **Full Self Driving** or **FSD** had a momentous year with the release of numerous updates and the long-anticipated FSD Beta released to select owners.  The beta was met with very positive feedback and continued anticipation.  
+
+Next, **Batter Life**, **Range**, and **Charging** were explored.  No question, this was found to be the area with the most negative sentiment.  While Tesla leads the industry in price/performance/range for Electric cars, it is still a widely discussed topic with negative sentiment.
+
+**Software Updates** are a much-loved feature that brings new capabilities to an owner's car regularly.  Not only are these much talked about they're also very much loved by users.  A critical differentiation that can continue to be leveraged for innovation and differentiation.
+
+Finally, the **Voice Command** feature of the car, which had previously received negative feedback, appears to have started to make upwards trends of customer sentiment trends.  This method of identifying customer sentiment is only a cursory pass at understanding real feedback.  Further investigation should be considered.
+
+I recommend that these are four of the top discussed features with a mix of positive and negative sentiment.  Further analysis should be done to identify what caused the change in sentiment, or the spikes, and a more in-depth look through the existing threads that drive these discussed to look beyond machine-based analysis and employ ethnographic research practices to synthesize the data.  While even tho the machine is a simplistic view of sentiment (lexicon-based), the ability to narrow down topics, patterns, and trends across tens of thousands of discussions is a powerful tool in a product organization's toolbelt. 
 
 
 # References
@@ -717,5 +753,5 @@ Elon Musk Got Right and Wrong](https://www.bloomberg.com/graphics/2019-tesla-mod
 [^LDA]: [Latent Dirichlet Allocation](https://ai.stanford.edu/~ang/papers/jair03-lda.pdf) by Blei, et al.
 [^PLEX]: [Perplexity in Language Models](https://towardsdatascience.com/perplexity-in-language-models-87a196019a94)
 [^TDA]: [Targeted Dictionary Analysis from Quanteda](https://tutorials.quanteda.io/advanced-operations/targeted-dictionary-analysis/)
-
-
+[^LEX]: [Range Anxiety](https://www.lexico.com/en/definition/range_anxiety) definition by Lexico.
+[^BAT]: [Tesla sets a new date for ‘Battery Day’ showcase of its new technology and production line](https://fortune.com/2020/06/22/tesla-battery-day-september-fremont-elon-musk/)
