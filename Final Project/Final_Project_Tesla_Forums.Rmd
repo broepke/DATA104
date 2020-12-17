@@ -28,7 +28,7 @@ However, while the company is doing fantastic, its stock at all-time highs and s
 
 This report will look at user's discussions, mostly in 2020, from the [Tesla Model 3 Discussion Forums](https://forums.tesla.com/categories/tesla-model-3) to surface what is top of mind and what issues might still be effecting the Model 3.  The forums are an open place where people can post topics, ask questions, or generally participate in the community.  User forums are rich with information that can give an alternative view into customer sentiment, unlike Social Media or traditional Surveys. 
 
-**Note:** This report will not look to surface the root cause of issues, positive or negative, but rather surface topics that are most top-of-mind for customers, and where the Tesla team could investigate further.
+**Note:** This report will not look to surface the root cause of issues, positive or negative, but rather surface topics that are most top-of-mind for customers and where the Tesla team could investigate further.
 
 The plan's four-step master plan:
 
@@ -37,7 +37,7 @@ The plan's four-step master plan:
 3. Use that money to build an even more affordable car
 4. While doing above, also provide zero emission electric power generation options
 
-![Tesla Model 3 Performance](lhd-performance-hero-desktop.jpeg)
+![Tesla Model 3 Performance](model-3.png)
 
 ```{r message=FALSE, warning=FALSE}
 # plotting and pipes
@@ -87,7 +87,7 @@ df$text_len <- str_count(df$Discussion)
 ```
 
 # Exploratory Data Analysis
-Perform an Exploratory Data Analysis (EDA) to better understand the characteristic, extents, and shape of our data.
+Perform an Exploratory Data Analysis (EDA) to better understand the characteristics, extents, and shape of our data.
 
 ## Dataset
 
@@ -126,7 +126,7 @@ head(df_topics)
 ```{r warning=FALSE}
 df_topics %>%
   ggplot(aes(count)) + 
-  geom_histogram(fill="lightgray", color="gray", bins=30) +
+  geom_histogram(fill="#cc0000", color="#ffffff", bins=30) +
   theme_minimal() +
   scale_y_log10() +
   labs(x = "Number of Discussions per Topic",
@@ -159,7 +159,7 @@ The forums are quite active by various users.  **8** users have over **1,000** p
 ```{r warning=FALSE}
 df_users %>%
   ggplot(aes(count)) + 
-  geom_histogram(fill="lightgray", color="gray", bins=30) +
+  geom_histogram(fill="#cc0000", color="#ffffff", bins=30) +
   theme_minimal() +
   scale_y_log10() +
   labs(x = "Number Posts",
@@ -189,7 +189,7 @@ Discussion lengths for the dataset range from **0** characters to **7,944** with
 ```{r warning=FALSE}
 df_select %>%
   ggplot(aes(text_len)) + 
-  geom_histogram(fill="lightgray", color="gray", bins=30) +
+  geom_histogram(fill="#cc0000", color="#ffffff", bins=30) +
   theme_minimal() +
   scale_y_log10() +
   labs(x = "Text Length",
@@ -212,7 +212,7 @@ df %>%
   
   
   ggplot(aes(date, count)) +
-  geom_line(show.legend = FALSE) +
+  geom_line(show.legend = FALSE, color="#cc0000") +
   theme_minimal() +
   labs(
     x = NULL,
@@ -226,6 +226,8 @@ df %>%
 When viewing the posts' time-frequency, the data goes back to **2016**, but activity jumps at the start of **2020**.  Due to the way these were scraped from the Forums, starting with the newest posts and working backward, it should be the case that we are loaded more in the current year.  There is a dip in activity around **mid-2020**; this most likely is an error with scraping vs. lack of activity on the forum.  For the sake of this analysis is focused mostly on text; it's not critical to understanding.
 
 ## Outlier Analysis
+
+The following post is the longest one in our dataset.  We can examine it to see if it is valid or not regarding our analysis.  If it is not, we will remove it, otherwise it will remain in the analysis.
 
 ```{r}
 df_select %>%
@@ -266,10 +268,7 @@ https://www.cs.uic.edu/~liub/FBS/sentiment-analysis.html
 ```{r}
 bing_df <- tidy_df %>%
   inner_join(get_sentiments("bing"), by = "word")
-```
 
-
-```{r}
 bing_df %>%
   group_by(sentiment) %>%
   summarise(count = n(), .groups = "keep")
@@ -297,7 +296,7 @@ After applying the AFINN lexicon, you can see the different values applied to ea
 ```{r}
 afinn_df %>%
   ggplot(aes(x = value)) +
-  geom_histogram(bins = 10, show.legend = FALSE, fill="lightgray", color="darkgray") +
+  geom_histogram(bins = 10, show.legend = FALSE, fill="#cc0000", color="#ffffff") +
   scale_x_continuous(breaks = c(-5, -3, -1, 1, 3, 5)) +
   theme_minimal() +
   scale_colour_grey(start = 0.3, end = .8) +
@@ -331,6 +330,7 @@ bing_df %>%
   geom_col(show.legend = FALSE) +
   facet_wrap(~sentiment, scales = "free") +
   theme_minimal() +
+  scale_fill_manual(values=c("#cc0000", "#cccccc")) +
   labs(x = "Contribution to sentiment",
        y = NULL,
     title = "Top 15 Positive and Negative Words",
@@ -357,6 +357,7 @@ bing_df %>%
   mutate(word = reorder(word, n)) %>%
   ggplot(aes(n, word, fill = sentiment)) +
   geom_col(show.legend = TRUE) +
+  scale_fill_manual(values=c("#cc0000", "#cccccc")) +
   theme_minimal() +
   labs(x = "Contribution to sentiment", y = NULL,
     title = "Top 30 Sentiment Words",
@@ -381,6 +382,7 @@ plot_df2$color <- ifelse(plot_df2$value < 0, "negative","positive")
 ggplot(plot_df2, aes(mon, value, fill = color)) +
   geom_col(show.legend = FALSE) +
   theme_minimal() +
+  scale_fill_manual(values=c("#cc0000", "#cccccc")) +
   labs(x = NULL, y = "Sentiment",
     title = "Sentiment by Week",
     subtitle = "Calculated by Mean AFINN sentiment score "
@@ -421,8 +423,8 @@ set.seed(2017)
 a <- grid::arrow(type = "open", length = unit(.05, "inches"))
 
 ggraph(bigram_graph, layout = "nicely") +
-  geom_edge_link(arrow = a, end_cap = circle(.02, 'inches')) +
-  geom_node_point(color = "gray", size = 2) +
+  geom_edge_link(arrow = a, end_cap = circle(.02, 'inches'), color="#cccccc") +
+  geom_node_point(color = "#cc0000", size = 2) +
   geom_node_text(aes(label = name), vjust = -.4, hjust = -.1) +
   theme_minimal()
 ```
@@ -467,11 +469,11 @@ dtm <- dtm[sel_idx, ]
 ```
 
 ### LDA
-Latent Dirichlet Allocation (LDA), is a generative probabilistic model for collections of text that allows sets of observations to be explained by unobserved groups[^LDA].
+Latent Dirichlet Allocation (LDA), is a generative probabilistic model for collections of text that allows sets of observations to be explained by unobserved groups[^LDA].  We can apply this method to the discussion topics and let the machine try to come up with the most probable topics grouped together.
 
 ### Determining the Number of Topics
 
-Perplexity is a measurement of how well a probability distribution or probability model predicts a sample.  By plotting Perplexity, we can visualize an approximate number of topics where the model stops improving[^PLEX].  
+Since we don't yet know how many topics are being discussed in the forums, we need to estimate how many we should attempt to create.  One of the most reliable and standard methods would be to employ a subject matter expert to approximate what those might be.  Alternatively, there are other methods, such as calculating Perplexity, that can assist. Perplexity is a measurement of how well a probability distribution or probability model predicts a sample.  By plotting Perplexity, we can visualize an approximate number of topics where the model stops improving[^PLEX].  
 
 
 ```{r}
@@ -512,6 +514,8 @@ top_terms %>%
     geom_col(show.legend = FALSE) +
     facet_wrap(~ topic, scales = "free", ncol=2) +
     theme_minimal(base_size = 16) + 
+    scale_fill_manual(values=c("#cc0000", "#333333", "#666666", "#999999", "#cccccc", 
+                               "#cc0000", "#333333", "#666666", "#999999", "#cccccc")) +
     scale_y_reordered()
 ```
 
@@ -584,11 +588,11 @@ toks_fsd <- tokens_lookup(toks_fsd, dictionary = data_dictionary_LSD2015[1:2])
 dfmat_fsd_lsd <- dfm(toks_fsd) %>% 
     dfm_group(group = "week", fill = TRUE) 
 
-matplot(dfmat_fsd_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency", 
+matplot(dfmat_fsd_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency", col = c("#cc0000", "#cccccc"), 
         main = "Sentiment of Full Self Driving for 2020")
 grid()
 axis(1, seq_len(ndoc(dfmat_fsd_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_fsd_lsd)) - 1))
-legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
+legend("topleft", col = c("#cc0000", "#cccccc"), legend = c("Negative", "Positive"), lty = 1, bg = "white")
 ```
 
 There is a clear difference in the proportion of positive sentiment to negative over time.  There are five or so spikes in peak positive sentiment frequency; these are possibly mapped to the news, such as the original announcement of the FSD Beta availability on October 12th.
@@ -598,7 +602,7 @@ There is a clear difference in the proportion of positive sentiment to negative 
 ```{r}
 n_fsd <- ntoken(dfm(toks_fsd, group = toks_fsd$week))
 plot((dfmat_fsd_lsd[,2] - dfmat_fsd_lsd[,1]) / n_fsd, 
-     type = "l", ylab = "Sentiment", xlab = "", xaxt = "n",
+     type = "l", ylab = "Sentiment", xlab = "", xaxt = "n", col = c("#cccccc"),
      main = "Mean Sentiment of Full Self Driving for 2020")
 axis(1, seq_len(ndoc(dfmat_fsd_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_fsd_lsd)) - 1))
 grid()
@@ -624,11 +628,11 @@ toks_bat <- tokens_lookup(toks_bat, dictionary = data_dictionary_LSD2015[1:2])
 dfmat_bat_lsd <- dfm(toks_bat) %>% 
     dfm_group(group = "week", fill = TRUE) 
 
-matplot(dfmat_bat_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency",
+matplot(dfmat_bat_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency", col = c("#cc0000", "#cccccc"),
         main = "Sentiment of Battery/Charging/Range for 2020")
 grid()
 axis(1, seq_len(ndoc(dfmat_bat_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_bat_lsd)) - 1))
-legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
+legend("topleft", col = c("#cc0000", "#cccccc"), legend = c("Negative", "Positive"), lty = 1, bg = "white")
 ```
 
 This time we see the positive sentiment is lower than the negative on average for the week's discussions.  There is also a single event that stands out around the summer time frame. Around this time, Tesla's CEO, Elon Musk, announced a formal day for their anticipated "Battery Day[^BAT]," potentially the spike in negative news.  Further investigation into the posts around that time could reveal the actual negative topics.
@@ -637,7 +641,7 @@ This time we see the positive sentiment is lower than the negative on average fo
 ```{r}
 n_bat <- ntoken(dfm(toks_bat, group = toks_bat$week))
 plot((dfmat_bat_lsd[,2] - dfmat_bat_lsd[,1]) / n_bat, 
-     type = "l", ylab = "Sentiment", xlab = "", xaxt = "n",
+     type = "l", ylab = "Sentiment", xlab = "", xaxt = "n", col = c("#cc0000"),
      main = "Sentiment of Battery/Charging/Range for 2020")
 axis(1, seq_len(ndoc(dfmat_bat_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_bat_lsd)) - 1))
 grid()
@@ -664,11 +668,11 @@ toks_sw <- tokens_lookup(toks_sw, dictionary = data_dictionary_LSD2015[1:2])
 dfmat_sw_lsd <- dfm(toks_sw) %>% 
     dfm_group(group = "week", fill = TRUE) 
 
-matplot(dfmat_sw_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency",
+matplot(dfmat_sw_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency", col = c("#cc0000", "#cccccc"),
         main = "Sentiment of Software Updates for 2020")
 grid()
 axis(1, seq_len(ndoc(dfmat_sw_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_sw_lsd)) - 1))
-legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
+legend("topleft", col = c("#cc0000", "#cccccc"), legend = c("Negative", "Positive"), lty = 1, bg = "white")
 ```
 
 Overall, the sentiment is more positive than negative. That final spike in October coincides with the spike from the Full Self Driving Beta announcement noted above.  Since that's delivered via a software update, most likely, these topics overlap.
@@ -677,7 +681,7 @@ Overall, the sentiment is more positive than negative. That final spike in Octob
 ```{r}
 n_sw <- ntoken(dfm(toks_sw, group = toks_sw$week))
 plot((dfmat_sw_lsd[,2] - dfmat_sw_lsd[,1]) / n_sw, 
-     type = "l", ylab = "Sentiment", xlab = "", xaxt = "n",
+     type = "l", ylab = "Sentiment", xlab = "", xaxt = "n", col = c("#999999"),
      main = "Sentiment of Software Updates for 2020")
 axis(1, seq_len(ndoc(dfmat_sw_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_sw_lsd)) - 1))
 grid()
@@ -704,11 +708,11 @@ toks_voice <- tokens_lookup(toks_voice, dictionary = data_dictionary_LSD2015[1:2
 dfmat_voice_lsd <- dfm(toks_voice) %>% 
     dfm_group(group = "week", fill = TRUE) 
 
-matplot(dfmat_voice_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency",
+matplot(dfmat_voice_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency", col = c("#cc0000", "#cccccc"),
         main = "Sentiment of Voice Command for 2020")
 grid()
 axis(1, seq_len(ndoc(dfmat_voice_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_voice_lsd)) - 1))
-legend("topleft", col = 1:2, legend = c("Negative", "Positive"), lty = 1, bg = "white")
+legend("topleft", col = c("#cc0000", "#cccccc"), legend = c("Negative", "Positive"), lty = 1, bg = "white")
 ```
 
 Overal, it appears tha the data is more positive than negative; a potential clue that the system is improving in the minds of users.  
@@ -716,7 +720,7 @@ Overal, it appears tha the data is more positive than negative; a potential clue
 ```{r}
 n_voice <- ntoken(dfm(toks_voice, group = toks_voice$week))
 plot((dfmat_voice_lsd[,2] - dfmat_voice_lsd[,1]) / n_voice, 
-     type = "l", ylab = "Sentiment", xlab = "", xaxt = "n",
+     type = "l", ylab = "Sentiment", xlab = "", xaxt = "n", col = c("#999999"),
      main = "Sentiment of Voice for 2020")
 axis(1, seq_len(ndoc(dfmat_voice_lsd)), ymd("2020-01-01") + weeks(seq_len(ndoc(dfmat_voice_lsd)) - 1))
 grid()
@@ -755,3 +759,5 @@ Elon Musk Got Right and Wrong](https://www.bloomberg.com/graphics/2019-tesla-mod
 [^TDA]: [Targeted Dictionary Analysis from Quanteda](https://tutorials.quanteda.io/advanced-operations/targeted-dictionary-analysis/)
 [^LEX]: [Range Anxiety](https://www.lexico.com/en/definition/range_anxiety) definition by Lexico.
 [^BAT]: [Tesla sets a new date for ‘Battery Day’ showcase of its new technology and production line](https://fortune.com/2020/06/22/tesla-battery-day-september-fremont-elon-musk/)
+
+[Tesla Color Pallet](https://www.designpieces.com/palette/tesla-brand-colours-hex-and-rgb)
