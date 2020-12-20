@@ -1,0 +1,65 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+# References
+https://medium.com/pew-research-center-decoded/introducing-pewmethods-an-r-package-for-working-with-survey-data-97601a250a46
+
+https://medium.com/pew-research-center-decoded/exploring-survey-data-with-the-pewmethods-r-package-198c4eb9d1af
+
+https://medium.com/pew-research-center-decoded/weighting-survey-data-with-the-pewmethods-r-package-d040afb0d2c2
+
+```{r}
+library(pewmethods)
+library(tidyverse)
+```
+
+```{r}
+dec13_excerpt
+```
+
+```{r}
+names(dec13_excerpt)
+```
+
+```{r}
+get_spss_label(dec13_excerpt, "q1")
+```
+
+
+```{r}
+tablena(dec13_excerpt$q1)
+```
+
+```{r}
+get_spss_label(dec13_excerpt, "q2")
+```
+
+```{r}
+dec13_excerpt <- dec13_excerpt %>%
+  mutate(
+    obama_approval_scale = fct_case_when(
+      q1 == "Approve" & q2 == "Very strongly" ~ "Approve very strongly",
+      q1 == "Approve" & q2 == "Not so strongly" ~ "Approve not so strongly", 
+      q1 == "Disapprove" & q2 == "Not so strongly" ~ "Disapprove not so strongly",
+      q1 == "Disapprove" & q2 == "Very strongly" ~ "Disapprove very strongly",
+      TRUE ~ "Don’t know/Refused (VOL.)"
+    )
+  )
+```
+
+
+```{r}
+tablena(dec13_excerpt$obama_approval_scale)
+```
+
+
+```{r}
+get_totals("obama_approval_scale", dec13_excerpt, digits = 1)
+```
+
+
+
