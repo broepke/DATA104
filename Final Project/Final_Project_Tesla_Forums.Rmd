@@ -109,6 +109,14 @@ df_select <- df
  * **Discussions**: There are a total of **54,311** `discussion` threads in this dataset after removing duplicates.  This is essentially like a comment on a Facebook post.  A `Topic` (not shown) is posted, and `Discussions` happen on those topics.
  * **Time**: Dates range from **2015-12-10** to **2020-12-15**.  The `Median`, `Mean` and `3rd Quartile` are all in **2020** telling us that most of the dates in this set are in 2020.
  * **Text_Len**: Min length of text is **0** and max is **7,944** characters with a median of **179.0**.
+ 
+## Head and Tail
+ 
+```{r}
+head(df)
+tail(df)
+```
+
 
 ## Topic & User Information
 
