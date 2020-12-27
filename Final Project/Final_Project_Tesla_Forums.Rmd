@@ -61,6 +61,7 @@ library(quanteda)
 library(seededlda)
 library(parallel)
 library(ldatuning)
+library(textdata)
 
 # date/time library
 library(lubridate)
