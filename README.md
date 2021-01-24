@@ -9,6 +9,8 @@ The Marquee project for this class was a self-selected analysis of any data sour
 [Tesla User Forum Analysis](Final%20Project/Final_Project_Tesla_Forums.Rmd): Full R Project
 [Download HTML Report](Final%20Project/Final_Project_Tesla_Forums.html)
 
+Note: The code for the user forum Web Scraping can be found on [GitHub](https://github.com/broepke/TeslaForumScraper) as well.
+
 ## Other Interesting Analysis
 
 [YouTube Trending Video Analysis](Midterm%202/Midterm2-broepke.Rmd): This project used data from [Kaggle](https://www.kaggle.com/datasnaek/youtube-new) and performed various techniques such as Data Cleansing, EDA, Document Corpus Preprocessing, utilizing DTMs, and Frequent Word Analysis. 
