@@ -6,8 +6,11 @@ Students will learn the basics of analyzing social media data using the R progra
 
 The Marquee project for this class was a self-selected analysis of any data source. For mine, I chose to do a custom web scraping of the Tesla Model 3 User Forums and perform a sentiment analysis and a "Voice of Customer" analysis to identify top feature areas for investment or improvement.  You can find this project here:
 
-[Tesla User Forum Analysis](Final%20Project/Final_Project_Tesla_Forums.Rmd)
+[Tesla User Forum Analysis](Final%20Project/Final_Project_Tesla_Forums.Rmd): Full R Project
+[Download HTML Report](Final%20Project/Final_Project_Tesla_Forums.html)
 
 ## Other Interesting Analysis
 
 [YouTube Trending Video Analysis](Midterm%202/Midterm2-broepke.Rmd): This project used data from [Kaggle](https://www.kaggle.com/datasnaek/youtube-new) and performed various techniques such as Data Cleansing, EDA, Document Corpus Preprocessing, utilizing DTMs, and Frequent Word Analysis. 
+
+[Download HTML Report](Midterm%202/Midterm2-broepke.html)
