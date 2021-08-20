@@ -556,7 +556,8 @@ After analyzing the most common customer topics, we're going to look at sentimen
 ```{r}
 my_corpus <- corpus(df_select$Discussion)  # build a new corpus from the texts
 
-quant_dfm <- dfm(my_corpus, )
+corpus_tok <- tokens(my_corpus, remove_punct = TRUE)
+quant_dfm <- dfm(corpus_tok, )
 quant_dfm <- dfm_trim(quant_dfm, min_termfreq = 4, max_docfreq = 10)
 
 # Reduce the columns to just what's needed
@@ -589,14 +590,23 @@ toks_tesla <- quanteda::tokens(corp_tesla, remove_punct = TRUE)
 fsd <- c("fsd", "self driving", "autopilot")
 
 # only keep tokens specified above and their context of ±10 tokens
-toks_fsd <- tokens_keep(toks_tesla, pattern = phrase(fsd), window = 10)
+toks_fsd <- tokens(toks_fsd) %>%
+  tokens_keep(pattern = phrase(fsd), window = 10)
 
+
+```
+
+```{r}
 toks_fsd <- tokens_lookup(toks_fsd, dictionary = data_dictionary_LSD2015[1:2])
+```
 
+```{r}
 # create a document document-feature matrix and group it by weeks in 2016
 dfmat_fsd_lsd <- dfm(toks_fsd) %>% 
     dfm_group(group = "week", fill = TRUE) 
+```
 
+```{r}
 matplot(dfmat_fsd_lsd, type = "l", xaxt = "n", lty = 1, ylab = "Frequency", col = c("#cc0000", "#cccccc"), 
         main = "Sentiment of Full Self Driving for 2020")
 grid()
